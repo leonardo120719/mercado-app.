@@ -270,3 +270,22 @@ Atualização da interface das janelas abertas no leitor (novembro de 2026):
 - Os testes realizados verificaram parsing, inicialização simulada, alternância de abas e estados minimizado/maximizado/fechado. A conferência de proporções e posicionamento em iPhone e Android reais ainda deve ser feita no dispositivo.
 
 Para manutenção, a compilação do deploy concatena na ordem \`modules.js\`, \`toolbar-store.js\`, \`window-ui.js\`, \`connections.js\` e \`app-core.js\` em \`app.js\`, usado pela implantação estática atual do Render.
+
+
+## Compatibilidade com arquivo grande do Champlin — 08/11/2026
+
+O arquivo fornecido pelo usuário, \`Champlin-c.commentaries.zip\` (aproximadamente 37,3 MiB), foi inspecionado **localmente**, sem envio ao repositório ou ao servidor público:
+
+- ZIP com um SQLite3 MyBible legítimo, \`Champlin-c.commentaries.SQLite3\`, de **130.318.336 bytes** descompactado.
+- Banco com as tabelas \`info\`, \`android_metadata\`, \`commentaries\`; **31.690 linhas de comentário**, 66 livros, idioma pt e título interno “Comentário Champlin Completo AT e NT”.
+- Limites antigos: ZIP descompactado acima de 110 MiB e SQLite individual acima de 60 MiB eram recusados; a leitura \`SELECT *\` em JavaScript materializava todo o livro.
+- Agora: ZIP descompactado de até 210 MiB; SQLite individual de até 160 MiB; máximo 70 MiB para ZIP recebido; entradas com tamanho/composição verificados.
+- Banco local IndexedDB evoluído para versão 3 com coleção \`commentaryEntries\` e índice composto \`[moduleId, book, chapter]\`, **sem apagar as tabelas antigas**. O comentário é salvo em lotes pequenos; a leitura carrega somente os registros correspondentes ao capítulo solicitado, aplicando os limites de versículo.
+- Os campos \`book_number\`, \`chapter_number_from/to\`, \`verse_number_from/to\`, \`marker\` e \`text\` são interpretados; textos longos não são cortados artificialmente.
+- O importador também aceita um formato otimizado de ZIP \`pulpito-commentary-chapters-v1\`, com \`module.json\` e arquivos \`chapters/<número-livro>/<capítulo>.json\`. Esse arquivo continua **local ao usuário**, não hospedado pelo site nem incluído no código-fonte.
+- No tratamento do arquivo original, os 31.690 registros foram conferidos contra os 31.690 registros do ZIP convertido, com igualdade de conteúdo inclusive no campo \`text\`. Linhas vazias/sem capítulo válido não são armazenadas como comentários pesquisáveis.
+- O SQLite original é compatível, mas a descompactação de ~124 MiB e criação da base SQL em WebAssembly ainda pode consumir muita memória em iPhones. **Recomenda-se o ZIP otimizado** para navegadores móveis.
+- Se faltar espaço no armazenamento do dispositivo, a instalação pode falhar; a aplicação não envia o material para um backend. Sempre guarde uma cópia do ZIP e use somente obras cuja utilização esteja autorizada.
+- Testes com simulação de IndexedDB validaram a migração não destrutiva, a importação em lotes de comentários SQLite e a recuperação de comentários por capítulo/versículo. O formato ZIP otimizado foi validado com sua estrutura real e um pacote sintético importado.
+
+O ZIP pessoal e seus textos **não foram enviados ao GitHub**.
