@@ -18,7 +18,7 @@ state.showComments=toolbarState.showComments;
 state.showCrossRefs=toolbarState.showCrossRefs;
 state.showParallel=toolbarState.showParallel;
 var books=booksFallback.slice(),activeBook=books.find(function(b){return b.slug===state.book;})||books[42];
-var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v1")||"{}");}catch(e){}
+var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v2")||"{}");}catch(e){}
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
 window.PBModules.init({notify:notify,onUpdated:function(select){if(select){state.version=select;state.selectedVerse=0;state.page="leitura";}else if(state.version.startsWith("local:")&&!window.PBModules.getModuleByVersion(state.version)){state.version="alm1911";}persist();render();}}).then(function(){if(state.page==="modulos"||state.page==="leitura")render();}).catch(function(err){console.warn("Biblioteca externa indisponível:",err);});
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -41,7 +41,7 @@ function loadChapter(){
  latestChapter=null;var el=document.getElementById("chapter-body");if(el)el.innerHTML='<div class="loader">Carregando a passagem bíblica…</div>';
  function success(result){
   if(seq!==loadSeq||state.page!=="leitura")return;
-  var cleanVerses=(result.verses||[]).map(function(v,i){return {number:Number(v.number||v.verse)||i+1,text:String(v.text||v.content||"")};});
+  var cleanVerses=(result.verses||[]).map(function(v,i){if(typeof v==="string")return {number:i+1,text:v};return {number:Number(v.number||v.verse)||i+1,text:String(v.text||v.content||"")};});
   if(!cleanVerses.length)throw Error("Não foram encontrados versículos");
   latestChapter={verses:cleanVerses,copyright:result.copyright||"",version:result.version||state.version};
   if(!state.version.startsWith("local:")){
