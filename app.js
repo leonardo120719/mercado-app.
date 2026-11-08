@@ -1,4 +1,4 @@
-/* Púlpito Bible — Bíblia acima, comentários e dicionários na mesma janela inferior. */
+/* Púlpito Bible — leitor com Bíblia acima e painel inferior alternável: Comentários / Dicionários. */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
@@ -974,7 +974,7 @@ function handler(event){
  event.preventDefault();event.stopPropagation();
  switch(btn.dataset.pbsplit){
  case "menu":menu();return;
- case "dictionary":if(c.config.onDictionary)c.config.onDictionary();return;
+ case "dictionary":menu(false);if(c.config.onDictionary)c.config.onDictionary();return;
  case "close":c.config.onClose();return;
  case "prev":case "next":{
   var all=installed(),idx=all.findIndex(function(m){return m.id===c.config.readModule();});
