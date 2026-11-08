@@ -13,7 +13,7 @@ export type ToolbarActionId =
   | 'strong' | 'comments' | 'notes'
   | 'prev' | 'next' | 'expand' | 'exit-fullscreen'
   | 'study' | 'normal' | 'font-down' | 'font-up' | 'theme'
-  | 'modules' | 'bookmarks' | 'sermon' | 'tutor'
+  | 'modules' | 'bookmarks' | 'sermon' | 'tutor' | 'dictionary-pane'
   | 'preferences-changed' | 'font-changed'
   | 'mode-changed' | 'theme-changed' | 'highlight-applied'
   | 'selection-cleared';
