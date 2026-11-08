@@ -160,3 +160,66 @@ Se a rede bloquear os scripts na primeira utilização, a importação ZIP/SQLit
 **Verificação da versão**
 
 Os scripts foram verificados quanto à sintaxe e à interface em um ambiente de teste com dados substitutos. A compatibilidade com ZIPs SQLite3 variados dependerá de testar arquivos reais, por variações de metadados, tags e versificação.
+
+
+## Toolbar contextual com estado global — 8 de novembro de 2026
+
+### Arquitetura adotada
+
+Como o projeto atual é uma PWA estática em HTML/CSS/JavaScript, a toolbar utiliza um store global observável, independente de framework. Essa escolha preserva o site atual e evita migrar todo o leitor para React Native/Flutter ou depender de bibliotecas adicionais de estado.
+
+- \`toolbar-types.d.ts\`: contrato TypeScript de \`ToolbarState\`, \`ToolbarActionId\`, \`ToolbarActions\` e \`ToolbarStore\`.
+- \`toolbar-store.js\`: implementação global \`window.PBToolbar\`, assinaturas seletivas \`subscribe(selector, callback)\`, ações puras, prioridades e renderização condicional.
+- \`app-core.js\`: integração com leitor, navegação, áudio por síntese de fala do navegador, seleção, compartilhamento, comentários, Strong, notas e cores.
+- \`modules.js\`: biblioteca de traduções/comentários externos baseada em IndexedDB.
+- \`app.js\`: bundle contendo esses três scripts na ordem adequada, pois o serviço Render já existente só publica \`app.js\`; **corrige a falha anterior que omitia \`modules.js\` e impedia a abertura do aplicativo**.
+- \`styles.css\`: interface mobile compacta em tons de cinza-escuro, tipografia de leitura e tema sépia; possui modo tela cheia e toolbar de seleção.
+
+### Estado e prioridades
+
+\`\`\`ts
+interface ToolbarState {
+  currentVerseSelection: readonly string[];
+  readingMode: "normal" | "study" | "fullscreen";
+  audioState: "idle" | "playing" | "paused";
+  fontSize: number; 
+  theme: "light" | "dark" | "sepia";
+  highlights: Readonly<Record<string, "yellow" | "green" | "blue" | "pink" | "purple">>;
+}
+\`\`\`
+
+A ordem implementada é determinística:
+
+1. **Seleção ativa**, incluindo sobre fullscreen → [Copiar, Compartilhar, Marcar, Nota, Limpar].
+2. **Modo normal** → [Livro/Capítulo/Versão, Fonte, Áudio, Pesquisa, Menu].
+3. **Modo estudo** → [Livro/Capítulo/Versão, Fonte, Áudio, Strong, Comentários, Notas, Menu].
+4. **Fullscreen** sem seleção → botão flutuante de menu; o leitor usa a maior área disponível.
+
+Exemplo funcional:
+
+\`\`\`js
+window.PBToolbar.actions.setSelection(["JN.3.16"]);
+window.PBToolbar.actions.applyHighlight("yellow");
+console.log(window.PBToolbar.getState().highlights["JN.3.16"]);
+// "yellow"
+console.log(window.PBToolbar.getState().currentVerseSelection);
+// [] — a barra volta ao modo de leitura.
+\`\`\`
+
+### Persistência, performance e recuperação
+
+- O store persiste configurações e marcadores coloridos no \`localStorage\` do dispositivo, mas não persiste seleção ativa nem estado de áudio entre sessões.
+- A toolbar utiliza um único listener delegado por evento, com \`subscribe\` e atualização apenas quando seu estado muda. **Rolar o texto não altera o estado global e não deve redesenhar a barra**.
+- Elementos de versículo recebem \`data-usfm\` e a classe visual é atualizada diretamente ao selecionar/aplicar cor, sem recriar o capítulo.
+- Compatível com textos da API Midvash enviados tanto como arrays de **strings** quanto como objetos de versículo. O cache v2 evita reaproveitar capítulos vazios produzidos pela versão anterior.
+- O modo de áudio utiliza a API \`speechSynthesis\` do navegador. Disponibilidade e vozes dependem do aparelho; não é um módulo de narração pré-gravada.
+- O visual foi inspirado na organização do MyBible com marca e implementação próprias. Não é cópia de recursos proprietários nem promessa de identidade visual pixel a pixel.
+- A integração Strong é limitada às ocorrências verificadas/etiquetadas pelos módulos. O número não fornece por si só o tempo verbal, a voz ou o sentido contextual.
+
+### Diagnósticos realizados
+
+Falhas reais encontradas no código anterior: (a) dependência \`modules.js\` não incluída no build do Render; (b) leitor interpretava respostas string da API como objetos e podia mostrar versículos em branco; (c) a função \`annotateVerse\` estava ausente, causando erro de execução ao abrir capítulos. As três foram corrigidas no bundle.
+
+Testes de lógica realizados sem navegador real: parsing do bundle, inicialização simulada do aplicativo e da biblioteca, renderização dos versículos, toolbar em estado normal/estudo/seleção/fullscreen, destaque persistido e limpeza automática da seleção.
+
+A validação de toque e viewport em iPhone real depende de abrir o site num navegador móvel; o deploy ativo por si só não garante que todas as funções da plataforma rodem no aparelho.
