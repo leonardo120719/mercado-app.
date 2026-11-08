@@ -942,15 +942,19 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
 
 /* Commentary availability beside each verse + long-press commentary chooser.
    Small enough for continuous reading; no indicator when the verse has no data. */
+.reader-scripture .reader-scripture .pb-verse-comment-labels{
+ display:inline-flex;align-items:center;flex-wrap:wrap;gap:3px;
+ margin:0 6px 0 0;vertical-align:middle;
+}
 .reader-scripture .pb-verse-comment-indicator{
  display:inline-flex;align-items:center;vertical-align:baseline;
- white-space:nowrap;line-height:1.4;gap:3px;
- margin:0 3px 0 6px;padding:1px 5px;
+ white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.35;
+ margin:0;padding:2px 6px;
  border:1px solid #b7cabf;border-radius:4px;
  background:#eaf3e8;color:#25666d;
- font:700 9px/1.4 "DM Sans",Arial,sans-serif;
+ font:700 9px/1.35 "DM Sans",Arial,sans-serif;
  cursor:pointer;touch-action:manipulation;user-select:none;
- box-shadow:none;max-width:100%;
+ box-shadow:none;max-width:min(180px,42vw);
 }
 .reader-scripture .pb-verse-comment-indicator:hover,
 .reader-scripture .pb-verse-comment-indicator:focus-visible{
