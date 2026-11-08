@@ -1016,3 +1016,13 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 
 /* Instalação PWA do Púlpito Bible */
 .pwa-install{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:0;padding:0 9px;border:1px solid var(--border);background:var(--brand-soft);font:700 11px "DM Sans",sans-serif;white-space:nowrap}.pwa-install:hover,.pwa-install.is-ready{background:var(--brand);color:#fff}.pwa-install[hidden]{display:none!important}.pwa-install:focus-visible{outline:2px solid var(--brand);outline-offset:2px}@media(max-width:620px){.pwa-install span{display:none}.pwa-install{padding:0 8px}}
+
+/* A seleção do leitor deve atingir somente o token tocado, nunca o versículo inteiro. */
+.reader-scripture .pb-linked-word,
+.reader-scripture .strong-word,
+.reader-scripture .strong-badge{
+  -webkit-user-select:text!important;
+  user-select:text!important;
+  -webkit-touch-callout:default;
+  touch-action:manipulation;
+}
