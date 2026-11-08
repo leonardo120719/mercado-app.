@@ -27,8 +27,12 @@ window.PBVerseComments.init({
  readBookName:function(){return activeBook.name;},
  readPreferredModule:function(){return state.commentModuleId||"";},
  selectVerse:function(verse){
-  state.selectedVerse=Number(verse)||0;
+  var n=Number(verse)||0;if(!n)return;
+  state.selectedVerse=n;
+  var id=verseGlobalId(n),selected=TS.getState().currentVerseSelection||[];
+  if(selected.indexOf(id)<0)TS.actions.toggleVerse(id);
   persist();
+  refreshVerseDecorations();
   var label=document.getElementById("selected-reference");if(label)label.textContent=ref();
  },
  openCommentary:function(verse,moduleId){
