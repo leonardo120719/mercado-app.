@@ -37,7 +37,7 @@ function choices(filter){
  if(!valid.length)return '<p class="pb-dict-empty">'+(modules.length?"Não há dicionário com esse nome.":"Nenhum dicionário instalado neste navegador. Abra Módulos para importar um arquivo SQLite3 compatível.")+'</p>';
  return valid.map(function(m){
   var active=m.id===session.config.readModule();
-  return '<button type="button" class="pb-dict-choice'+(active?" active":"")+'" data-pbdict="select" data-dict-id="'+esc(m.id)+'" aria-pressed="'+active+'">'+
+  return '<button type="button" class="pb-dict-choice pb-split-choice'+(active?" active":"")+'" data-pbdict="select" data-dict-id="'+esc(m.id)+'" aria-pressed="'+active+'">'+
    '<span class="pb-dict-short">'+esc(m.abbreviation||"DIC")+'</span><span class="pb-dict-full">'+esc(m.name)+'</span>'+(active?'<b>✓</b>':'')+'</button>';
  }).join("");
 }
@@ -56,10 +56,10 @@ function picker(force){
 }
 function labels(){
  if(!session)return;
- var root=session.root,m=selectedModule(),name=root.querySelector("#pb-dictionary-name"),title=root.querySelector("#pb-dictionary-title"),ref=root.querySelector("#pb-dictionary-reference");
+ var root=session.root,m=selectedModule(),name=root.querySelector("#pb-dictionary-name"),title=root.querySelector("#pb-dictionary-title"),ref=root.querySelector("#pb-dictionary-reference"),refTop=root.querySelector("#pb-dictionary-ref-top");
  if(name)name.textContent=m?(m.abbreviation||m.name):"Dicionários";
  if(title)title.textContent=normalizeTerm(session.term)||"Selecione uma palavra";
- if(ref)ref.textContent=refLabel();
+ if(ref)ref.textContent=refLabel();if(refTop)refTop.textContent=refLabel();
  var analyze=root.querySelector('[data-pbdict="analyze"]');
  if(analyze)analyze.hidden=!/^[GH]\d{1,5}$/i.test(session.term||"");
 }
@@ -133,6 +133,7 @@ function handleClick(event){
  case "term":lookup(button.dataset.term);break;
  case "reference":session.config.onReference(button.dataset.reference);break;
  case "close":session.config.onClose();break;
+ case "comments":if(session.config.onComments)session.config.onComments();break;
  case "analyze":session.config.onAnalyze(session.term);break;
  case "search":{var field=session.root.querySelector("#pb-dictionary-search");if(field)lookup(field.value);break;}
  case "copy":{
@@ -151,27 +152,27 @@ function handleKey(e){
 }
 function attach(config){
  destroy();
- var host=document.getElementById("pb-split-bible")||document.querySelector(".reader-columns");
+ var host=document.getElementById("pb-study-split");
  if(!host)return;
- host.classList.add("pb-dictionary-open");
- var panel=document.createElement("section");panel.id="pb-dictionary-pane";panel.className="pb-dictionary-pane";
+ host.classList.add("pb-dictionary-active");
+ var panel=document.createElement("section");panel.id="pb-dictionary-pane";panel.className="pb-dictionary-pane pb-split-dictionary-pane";
  panel.setAttribute("aria-label","Janela de dicionários sincronizada com a Bíblia");
- panel.innerHTML='<header class="pb-dictionary-bar">'+
-  '<button type="button" class="pb-dictionary-select" id="pb-dictionary-select" data-pbdict="picker" aria-controls="pb-dictionary-picker" aria-expanded="false">'+
+ panel.innerHTML='<header class="pb-dictionary-bar pb-split-bar">'+
+  '<button type="button" class="pb-dictionary-select pb-split-selector" id="pb-dictionary-select" data-pbdict="picker" aria-controls="pb-dictionary-picker" aria-expanded="false">'+
    '<span>α</span><strong id="pb-dictionary-name">Dicionários</strong><b>⌄</b></button>'+
-  '<div class="pb-dictionary-nav"><button data-pbdict="back" aria-label="Verbete anterior" title="Voltar">‹</button><button data-pbdict="forward" aria-label="Próximo verbete" title="Avançar">›</button>'+
+  '<strong class="pb-split-ref" id="pb-dictionary-ref-top"></strong><button type="button" class="pb-dict-switch-comments" data-pbdict="comments" aria-label="Abrir comentários" title="Mostrar comentários">▤ <span>Comentários</span></button><div class="pb-dictionary-nav pb-split-toolbar-actions"><button data-pbdict="back" aria-label="Verbete anterior" title="Voltar">‹</button><button data-pbdict="forward" aria-label="Próximo verbete" title="Avançar">›</button>'+
    '<button data-pbdict="prev-module" aria-label="Dicionário anterior" title="Dicionário anterior">⇤</button><button data-pbdict="next-module" aria-label="Próximo dicionário" title="Próximo dicionário">⇥</button>'+
    '<button data-pbdict="close" aria-label="Fechar dicionário" title="Fechar dicionário">×</button></div></header>'+
-  '<div class="pb-dictionary-picker" id="pb-dictionary-picker" hidden><div class="pb-dict-picker-heading"><strong>Dicionários instalados</strong><span>'+dictionaryModules().length+' módulo(s)</span></div>'+
+  '<div class="pb-dictionary-picker pb-split-picker" id="pb-dictionary-picker" hidden><div class="pb-dict-picker-heading"><strong>Dicionários instalados</strong><span>'+dictionaryModules().length+' módulo(s)</span></div>'+
    '<input type="search" id="pb-dictionary-module-filter" placeholder="Buscar módulo…" aria-label="Buscar módulo de dicionário">'+
-   '<div class="pb-dictionary-choices" id="pb-dictionary-choices"></div><button class="pb-dict-install" data-page="modulos" type="button">⇩ Instalar novo dicionário</button></div>'+
+   '<div class="pb-dictionary-choices pb-split-choices" id="pb-dictionary-choices"></div><button class="pb-dict-install" data-page="modulos" type="button">⇩ Instalar novo dicionário</button></div>'+
   '<div class="pb-dictionary-search-row"><input id="pb-dictionary-search" type="search" placeholder="Palavra, nome ou Strong G/H" aria-label="Pesquisar verbete">'+
    '<button type="button" data-pbdict="search" aria-label="Pesquisar">⌕</button></div>'+
-  '<div id="pb-dictionary-scroll" class="pb-dictionary-scroll"><div class="pb-dictionary-heading"><strong id="pb-dictionary-title">Dicionário</strong><small id="pb-dictionary-reference"></small></div>'+
+  '<div id="pb-dictionary-scroll" class="pb-dictionary-scroll pb-split-scroll"><div class="pb-dictionary-heading pb-split-heading"><strong id="pb-dictionary-title">Dicionário</strong><small id="pb-dictionary-reference"></small></div>'+
    '<div id="pb-dictionary-definition"><div class="pb-dict-empty">Toque numa palavra da Bíblia ou pesquise um verbete para abrir o significado aqui.</div></div></div>'+
   '<footer class="pb-dictionary-footer"><button data-pbdict="analyze" type="button">α Análise Strong</button><button data-pbdict="copy" type="button">▣ Copiar</button></footer>';
  host.appendChild(panel);
- var hostSplit=document.getElementById("pb-study-split");if(hostSplit)hostSplit.classList.add("pb-dictionary-focused");
+ 
  session={root:panel,host:host,config:config,term:"",history:[],index:-1};
  panel.addEventListener("click",handleClick);
  panel.addEventListener("keydown",handleKey);
@@ -189,8 +190,7 @@ function destroy(){
  session.root.removeEventListener("click",handleClick);
  session.root.removeEventListener("keydown",handleKey);
  session.root.remove();
- session.host.classList.remove("pb-dictionary-open");
- var split=document.getElementById("pb-study-split");if(split)split.classList.remove("pb-dictionary-focused");
+ session.host.classList.remove("pb-dictionary-active");
  session=null;
 }
 function syncReference(){if(session)labels();}
