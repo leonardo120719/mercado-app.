@@ -61,19 +61,18 @@ function open(kind,verse,word){
  var query=String(word||"").trim().slice(0,110);
  selectedContext={kind:kind,query:query,reference:context,comments:[]};
  if(config&&config.setVerse)config.setVerse(context.verse);
- var modal=document.createElement("div");modal.id="pb-connected-panel";modal.className="pb-connected-backdrop";
- modal.innerHTML='<section class="pb-connected-sheet" role="dialog" aria-label="Estudo integrado" aria-modal="false">'+
- '<div class="pb-connected-top"><div><div class="eyebrow">ESTUDO INTEGRADO · '+(kind==="word"?"PALAVRA":"VERSÍCULO")+'</div>'+
- '<h2>'+escapeHtml(kind==="word"?query:(context.name+" "+context.chapter+":"+context.verse))+'</h2>'+
- '<small>'+escapeHtml(context.name+" "+context.chapter+(context.verse?":"+context.verse:""))+'</small></div>'+
- '<button class="reader-icon" type="button" data-pb-close aria-label="Fechar">×</button></div>'+
- '<p class="pb-connected-guidance">'+(kind==="word"?"Pesquisa pela grafia portuguesa. Um número Strong só é atribuído quando o texto possui ligação documentada.":"Comentários associados à referência e definições dos números Strong efetivamente marcados no versículo.")+'</p>'+
- '<div class="pb-connected-scroll"><section><h3> <span>α</span> Dicionários e Strong</h3><div id="pb-connected-dictionary"><p class="feature-note">Consultando os léxicos instalados…</p></div></section>'+
- '<section><h3> <span>▤</span> Comentários bíblicos dos módulos</h3><div id="pb-connected-commentaries"><p class="feature-note">Consultando os comentários vinculados ao versículo…</p></div></section></div>'+
- '<div class="pb-connected-actions"><button class="btn slim" type="button" data-pb-note>✎ Anotar</button><button class="btn slim" type="button" data-pb-sermon>▤ Inserir referência no sermão</button><button class="btn primary slim" type="button" data-page="modulos">⇩ Módulos</button></div>'+
+ var modal=document.createElement("div");modal.id="pb-connected-panel";modal.className="pb-connected-backdrop myb-window-backdrop";
+ modal.innerHTML='<section class="pb-connected-sheet myb-window" role="dialog" aria-label="Estudo conectado" aria-modal="false">'+
+ '<header class="myb-titlebar" data-pb-win-titlebar><div class="myb-titlebar-icon">▤</div><div class="myb-titlebar-info"><strong>ESTUDO CONECTADO</strong><small>'+escapeHtml(kind==="word"?query:(context.name+" "+context.chapter+":"+context.verse))+' · '+escapeHtml(context.name+" "+context.chapter+(context.verse?":"+context.verse:""))+'</small></div>'+
+ '<div class="myb-window-controls"><button type="button" data-pb-win-action="minimize" aria-label="Recolher janela" title="Recolher">—</button><button type="button" data-pb-win-action="maximize" aria-label="Ampliar janela" title="Ampliar">▣</button><button type="button" data-pb-win-action="close" aria-label="Fechar janela" title="Fechar">×</button></div></header>'+
+ '<nav class="myb-window-tabs" aria-label="Conteúdo da janela" role="tablist"><button type="button" data-pb-win-tab="dictionary" role="tab">α Dicionário</button><button type="button" data-pb-win-tab="commentaries" role="tab">▤ Comentários</button></nav>'+
+ '<div class="myb-window-main"><div class="myb-quick-reference"><span class="myb-reference-label">'+escapeHtml(context.name+" "+context.chapter+":"+context.verse)+'</span><span class="myb-reference-info">'+(kind==="word"?"Pesquisa pela palavra portuguesa, sem atribuir Strong automaticamente.":"Referência selecionada · módulos instalados")+'</span></div>'+
+ '<section data-pb-win-panel="dictionary" class="myb-window-panel"><div id="pb-connected-dictionary"><p class="feature-note">Consultando os léxicos instalados…</p></div></section>'+
+ '<section data-pb-win-panel="commentaries" class="myb-window-panel"><div id="pb-connected-commentaries"><p class="feature-note">Consultando os comentários vinculados à passagem…</p></div></section></div>'+
+ '<footer class="myb-window-footer"><button class="btn slim" type="button" data-pb-note>✎ Nota</button><button class="btn slim" type="button" data-pb-sermon>▤ Sermão</button><button class="btn primary slim" type="button" data-page="modulos">⇩ Módulos</button></footer>'+
  '</section>';
- modal.addEventListener("click",function(e){if(e.target===modal)close();});
  document.body.appendChild(modal);
+ if(global.PBWindowUI)global.PBWindowUI.mount(modal,{defaultTab:kind==="word"?"dictionary":"commentaries",onClose:close});
  var list=kind==="word"?[query]:verseCodes(context.verse);
  if(!list.length){
   drawResults("pb-connected-dictionary",'<p class="feature-note">Nenhum Strong confirmado para esse versículo. Toque diretamente numa palavra para pesquisar verbetes em português.</p>',seq);
