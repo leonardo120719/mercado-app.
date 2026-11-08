@@ -193,6 +193,7 @@ function destroy(){
  var split=document.getElementById("pb-study-split");if(split)split.classList.remove("pb-dictionary-focused");
  session=null;
 }
+function syncReference(){if(session)labels();}
 function isAttached(){return Boolean(session&&session.root&&session.root.isConnected);}
-global.PBDictionaryStudy={attach:attach,destroy:destroy,lookup:lookup,isAttached:isAttached,picker:picker};
+global.PBDictionaryStudy={attach:attach,destroy:destroy,lookup:lookup,isAttached:isAttached,picker:picker,syncReference:syncReference};
 })(window);
