@@ -1,0 +1,49 @@
+name: Sincronizar publicações do Púlpito Bible
+
+on:
+  push:
+    branches:
+      - pulpito-bible-pwa
+    paths:
+      - "app.js"
+      - "pulpito.html"
+      - "styles.css"
+
+permissions:
+  contents: write
+
+jobs:
+  sync-main-site:
+    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obter versão oficial do Púlpito Bible
+        uses: actions/checkout@v4
+        with:
+          ref: pulpito-bible-pwa
+          path: source
+
+      - name: Obter site principal
+        uses: actions/checkout@v4
+        with:
+          ref: pulpito-bible
+          path: target
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Sincronizar arquivos compartilhados
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp source/app.js target/app.js
+          cp source/pulpito.html target/pulpito.html
+          cp source/styles.css target/styles.css
+          cd target
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- app.js pulpito.html styles.css; then
+            echo "Os sites já estão sincronizados."
+            exit 0
+          fi
+          git add app.js pulpito.html styles.css
+          git commit -m "Sincroniza Púlpito Bible a partir da versão PWA [skip ci]"
+          git push origin HEAD:pulpito-bible
