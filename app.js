@@ -1,4 +1,4 @@
-/* Púlpito Bible v3: modules + toolbar + windows + connections + reader. Original user modules are local only. */
+/* Púlpito Bible — module library + global toolbar + floating lexicon + connected reader + split study + app core. */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
@@ -25,8 +25,8 @@ function bibleOptions(selected){return modules.filter(function(m){return m.type=
 function getModuleByVersion(version){return modules.find(function(m){return "local:"+m.id===version&&m.type==="bible";});}
 async function getChapter(version,book,chapter){await dbOpen();var m=getModuleByVersion(version);if(!m)throw Error("Módulo de Bíblia não instalado neste dispositivo");var key=m.id+"/"+book+"/"+chapter;var db=await dbOpen();var row=await request(db.transaction("chapters","readonly").objectStore("chapters").get(key));if(!row||!row.verses||!row.verses.length)throw Error("Este módulo não contém "+book+" "+chapter);return {verses:row.verses,copyright:"Módulo instalado localmente · "+m.name+" · "+(m.license||"Licença não informada no arquivo")+". Verifique as condições de uso da edição.",version:m.abbreviation||m.name};}
 
-async function getCommentaries(book,chapter,verse){
- var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary";});
+async function getCommentaries(book,chapter,verse,moduleId){
+ var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary"&&(!moduleId||m.id===moduleId);});
  var entries=await Promise.all(active.map(async function(m){
   var records=[];
   if(m.storage==="entries-v1"){
@@ -528,7 +528,7 @@ window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bible
         item("search","Pesquisar","⌕")+item("notes","Minhas notas","✎")+
         item("modules","Módulos","⇩")+item("strong","Dicionário","α")+
         item("bookmarks","Favoritos","☆")+item("sermon","Sermões","▤")+
-        item("tutor","Interpretar","✧")+item("theme","Alternar tema","◐")+
+        item("tutor","Interpretar","✧")+item("split-study","Painel dividido","◫")+item("theme","Alternar tema","◐")+
       '</div><div class="mtb-menu-prefs">'+prefs.map(([key,label])=>'<label><input type="checkbox" data-toolbar-pref="'+key+'" '+(s[key]?'checked':'')+'> '+escapeHtml(label)+'</label>').join('')+'</div>'+
       '<div class="mtb-font-row"><span>Tamanho da leitura</span>'+item("font-down","Diminuir","A−","mtb-compact")+'<strong>'+s.fontSize+'px</strong>'+item("font-up","Aumentar","A+","mtb-compact")+'</div>'+
     '</section>';
@@ -864,7 +864,7 @@ function init(opts){
   }
   if(e.target.closest("[data-strong]"))return;
   var verse=e.target.closest("#chapter-body [data-verse]");
-  if(verse)open("verse",verse.dataset.verse,"",verse);
+  if(verse&&(!config.shouldOpenVersePanel||config.shouldOpenVersePanel()))open("verse",verse.dataset.verse,"",verse);
  },true);
  document.addEventListener("keydown",function(e){
   if(e.key==="Escape"){close();return;}
@@ -878,6 +878,194 @@ global.PBConnections={init:init,wrapHtml:wrapHtml,open:open,close:close};
 })(window);
 
 ;
+(function(global){
+"use strict";
+/* Two-pane reading study: Bible on top; active, reference-synced commentary below.
+ * All state and original module data remain with the existing Púlpito Bible app.
+ */
+var current=null,version=0;
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function installed(){return global.PBModules.getInstalled().filter(function(m){return m.type==="commentary";});}
+function pickModule(){
+ if(!current)return null;
+ var all=installed(),id=current.config.readModule();
+ var selected=all.find(function(m){return m.id===id;});
+ if(!selected&&all.length){selected=all[0];current.config.onModuleChange(selected.id);}
+ return selected||null;
+}
+function updateLabels(){
+ if(!current)return;
+ var config=current.config,ctx=config.readReference(),selected=pickModule(),root=current.root;
+ var ref=root.querySelector("#pb-split-ref"),label=root.querySelector("#pb-split-name"),title=root.querySelector("#pb-split-title");
+ if(ref)ref.textContent=(ctx.name||ctx.book)+" "+ctx.chapter+(ctx.verse?":"+ctx.verse:"");
+ if(label)label.textContent=selected?(selected.abbreviation||selected.name):"Escolher módulo";
+ if(title)title.textContent=selected?selected.name:"Comentários bíblicos";
+}
+function choices(query){
+ var selected=current.config.readModule(),filter=String(query||"").toLocaleLowerCase("pt-BR").trim();
+ var all=installed().filter(function(m){return (m.name+" "+m.abbreviation).toLocaleLowerCase("pt-BR").includes(filter);});
+ if(!all.length)return '<div class="pb-split-message">'+(installed().length?"Nenhum comentário corresponde à pesquisa.":"Nenhum comentário instalado. Importe um módulo pelo menu Módulos.")+'</div>';
+ return all.map(function(m){
+  var active=m.id===selected;
+  return '<button type="button" class="pb-split-choice'+(active?" active":"")+'" data-pbsplit="select" data-module-id="'+esc(m.id)+'" aria-pressed="'+active+'"><span class="pb-split-code">'+esc(m.abbreviation||"COM")+'</span><span class="pb-split-longname">'+esc(m.name)+'</span>'+(active?'<span class="pb-split-check">✓</span>':'')+'</button>';
+ }).join("");
+}
+function showChoices(query){if(!current)return;var e=current.root.querySelector("#pb-split-choices");if(e)e.innerHTML=choices(query);}
+function menu(force){
+ if(!current)return;
+ var picker=current.root.querySelector("#pb-split-picker"),button=current.root.querySelector("#pb-split-menu-button");
+ if(!picker||!button)return;
+ var show=typeof force==="boolean"?force:picker.hidden;
+ picker.hidden=!show;button.setAttribute("aria-expanded",String(show));
+ if(show){
+  var field=current.root.querySelector("#pb-split-filter");
+  if(field){field.value="";showChoices("");field.focus();}
+ }
+}
+function renderRows(rows,ctx,selected){
+ if(!rows.length)return '<div class="pb-split-message"><strong>Não há comentário do módulo '+esc(selected.name)+' para esta passagem.</strong><p>Toque em outro versículo ou escolha outro comentário no seletor.</p></div>';
+ return rows.map(function(r,i){
+  var ref=(ctx.name||ctx.book)+" "+(r.fromChapter||ctx.chapter)+(r.fromVerse?":"+r.fromVerse:"");
+  return '<article class="pb-split-entry"><div class="pb-split-entry-heading"><strong>'+esc(ref)+'</strong><small>'+esc(r.marker||"")+'</small></div>'+
+   '<div class="pb-split-entry-text">'+esc(r.text)+'</div><div class="pb-split-entry-actions">'+
+   '<button data-pbsplit="sermon" data-index="'+i+'" type="button">▤ Inserir no sermão</button>'+
+   '<button data-pbsplit="copy" data-index="'+i+'" type="button">▣ Copiar</button></div></article>';
+ }).join("");
+}
+function refresh(force){
+ if(!current||!current.root.isConnected)return;
+ var context=current.config.readReference(),module=pickModule(),target=current.root.querySelector("#pb-split-content");
+ updateLabels();
+ if(!target)return;
+ var key=[context.book,context.chapter,context.verse,module&&module.id].join("/");
+ if(!force&&key===current.lastKey)return;
+ current.lastKey=key;
+ var seq=++version;
+ current.rows=[];
+ if(!module){
+  target.innerHTML='<div class="pb-split-message"><strong>Instale um módulo de comentários.</strong><p>Para acompanhar a Bíblia como no vídeo, entre em Módulos e importe o comentário Champlin ou outro módulo compatível.</p><button type="button" class="btn primary slim" data-page="modulos">⇩ Instalar comentário</button></div>';
+  return;
+ }
+ target.innerHTML='<p class="pb-split-loading">Buscando '+esc(module.name)+' em '+esc((context.name||context.book)+" "+context.chapter+(context.verse?":"+context.verse:""))+'…</p>';
+ global.PBModules.getCommentaries(context.book,context.chapter,context.verse,module.id).then(function(rows){
+  if(!current||seq!==version||!current.root.isConnected)return;
+  current.rows=rows;
+  target.innerHTML=renderRows(rows,context,module);
+  var pane=current.root.querySelector("#pb-split-scroll");if(pane)pane.scrollTop=0;
+ }).catch(function(err){
+  if(seq!==version||!current)return;
+  target.innerHTML='<div class="pb-split-message">Falha ao carregar comentários: '+esc(err.message||String(err))+'</div>';
+ });
+}
+function resize(delta){
+ if(!current)return;
+ var n=Math.max(24,Math.min(67,(Number(current.config.readSize())||44)+delta));
+ current.root.style.setProperty("--pb-comment-height",n+"%");
+ current.config.onResize(n);
+}
+function handler(event){
+ var c=current;if(!c||!c.root.contains(event.target))return;
+ var btn=event.target.closest("[data-pbsplit]");
+ if(!btn)return;
+ event.preventDefault();event.stopPropagation();
+ switch(btn.dataset.pbsplit){
+ case "menu":menu();return;
+ case "close":c.config.onClose();return;
+ case "prev":case "next":{
+  var all=installed(),idx=all.findIndex(function(m){return m.id===c.config.readModule();});
+  if(all.length)c.config.onModuleChange(all[(idx+(btn.dataset.pbsplit==="next"?1:-1)+all.length)%all.length].id);
+  menu(false);refresh(true);return;
+ }
+ case "select":
+  c.config.onModuleChange(btn.dataset.moduleId);menu(false);refresh(true);return;
+ case "grow":resize(8);return;
+ case "shrink":resize(-8);return;
+ case "sermon":{
+  var row=c.rows[Number(btn.dataset.index)];
+  if(row)c.config.onSermon(row);return;
+ }
+ case "copy":{
+  var item=c.rows[Number(btn.dataset.index)];
+  if(item&&navigator.clipboard&&navigator.clipboard.writeText){
+   navigator.clipboard.writeText(item.text).then(function(){c.config.notify("Comentário copiado");}).catch(function(){c.config.notify("Não foi possível copiar");});
+  }return;
+ }
+ }
+}
+function keyHandler(e){
+ if(!current||!current.root.contains(e.target))return;
+ if(e.key==="Escape"){menu(false);return;}
+ if(e.target.closest("[data-pbsplit-resizer]")&&(e.key==="ArrowUp"||e.key==="ArrowDown")){
+  e.preventDefault();resize(e.key==="ArrowUp"?4:-4);
+ }
+}
+function bindDrag(grip,root){
+ if(!grip)return;
+ var move=null,finish=null;
+ grip.addEventListener("pointerdown",function(e){
+  if(e.button!==0)return;
+  var bounds=root.getBoundingClientRect(),startY=e.clientY,start=Number(current.config.readSize())||44;
+  e.preventDefault();
+  if(grip.setPointerCapture)try{grip.setPointerCapture(e.pointerId);}catch(_){}
+  move=function(ev){
+   if(ev.pointerId!==e.pointerId)return;
+   var pct=start-((ev.clientY-startY)/Math.max(bounds.height,1))*100;
+   pct=Math.max(24,Math.min(67,Math.round(pct)));
+   root.style.setProperty("--pb-comment-height",pct+"%");
+   current.dragSize=pct;
+  };
+  finish=function(){
+   if(move)grip.removeEventListener("pointermove",move);
+   if(finish){grip.removeEventListener("pointerup",finish);grip.removeEventListener("pointercancel",finish);}
+   if(current&&current.dragSize){current.config.onResize(current.dragSize);current.dragSize=null;}
+  };
+  grip.addEventListener("pointermove",move);grip.addEventListener("pointerup",finish);grip.addEventListener("pointercancel",finish);
+ });
+}
+function attach(config){
+ destroy();
+ var columns=document.querySelector(".reader-columns");
+ if(!columns||!columns.parentNode)return;
+ var host=document.createElement("div");host.id="pb-study-split";host.className="pb-study-split";
+ host.style.setProperty("--pb-comment-height",(Number(config.readSize())||44)+"%");
+ var top=document.createElement("div");top.className="pb-split-bible";top.id="pb-split-bible";
+ columns.parentNode.insertBefore(host,columns);
+ host.appendChild(top);top.appendChild(columns);
+ var grip=document.createElement("div");grip.className="pb-split-resizer";grip.setAttribute("role","separator");
+ grip.setAttribute("tabindex","0");grip.setAttribute("aria-label","Ajustar tamanho das janelas");
+ grip.setAttribute("data-pbsplit-resizer","");
+ grip.innerHTML='<span></span>';host.appendChild(grip);
+ var bottom=document.createElement("section");bottom.id="pb-split-comments";bottom.className="pb-split-comments";
+ bottom.innerHTML='<header class="pb-split-bar">'+
+ '<button id="pb-split-menu-button" type="button" class="pb-split-selector" data-pbsplit="menu" aria-expanded="false" aria-controls="pb-split-picker">▤ <span id="pb-split-name">Comentários</span> <b>⌄</b></button>'+
+ '<strong class="pb-split-ref" id="pb-split-ref"></strong><div class="pb-split-toolbar-actions">'+
+ '<button data-pbsplit="prev" type="button" aria-label="Módulo anterior">‹</button><button data-pbsplit="next" type="button" aria-label="Próximo módulo">›</button>'+
+ '<button data-pbsplit="grow" type="button" aria-label="Ampliar comentários">▴</button><button data-pbsplit="shrink" type="button" aria-label="Reduzir comentários">▾</button>'+
+ '<button data-pbsplit="close" type="button" aria-label="Fechar a janela de comentários">×</button></div></header>'+
+ '<div class="pb-split-picker" id="pb-split-picker" hidden>'+
+ '<div class="pb-split-picker-heading"><strong>Comentários instalados</strong><span>'+installed().length+' módulos</span></div>'+
+ '<input id="pb-split-filter" type="search" placeholder="Pesquisar comentário…" aria-label="Pesquisar comentário instalado">'+
+ '<div class="pb-split-choices" id="pb-split-choices"></div><button type="button" data-page="modulos" class="pb-split-install">⇩ Instalar outro módulo</button></div>'+
+ '<div class="pb-split-scroll" id="pb-split-scroll"><div class="pb-split-heading"><strong id="pb-split-title">Comentários</strong><span>Passagem sincronizada</span></div><div id="pb-split-content" aria-live="polite"></div></div>';
+ host.appendChild(bottom);
+ current={root:host,config:config,rows:[],lastKey:""};
+ host.addEventListener("click",handler);
+ host.addEventListener("keydown",keyHandler);
+ var filter=host.querySelector("#pb-split-filter");
+ if(filter)filter.addEventListener("input",function(e){showChoices(e.target.value);});
+ bindDrag(grip,host);
+ updateLabels();
+ refresh(true);
+}
+function destroy(){
+ version++;
+ if(current&&current.root){current.root.removeEventListener("click",handler);current.root.removeEventListener("keydown",keyHandler);}
+ current=null;
+}
+global.PBSplitStudy={attach:attach,destroy:destroy,refresh:refresh,menu:menu};
+})(window);
+
+;
 (function(){
 "use strict";
 var API="https://api.midvash.com/v1";
@@ -885,7 +1073,7 @@ var MAIN=document.getElementById("app-main");
 var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
-var defaults={page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[],parallelVersion:"bpm"};
+var defaults={splitStudy:true,splitPct:44,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[],parallelVersion:"bpm"};
 var saved={};try{saved=JSON.parse(localStorage.getItem(STORE_KEY)||"{}");}catch(e){}
 var state=Object.assign({},defaults,saved);
 state.sermon=Object.assign({},defaults.sermon,state.sermon||{});
@@ -903,8 +1091,9 @@ var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapt
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
 
 window.PBConnections.init({
+ shouldOpenVersePanel:function(){return !state.splitStudy;},
  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse,name:activeBook.name};},
- setVerse:function(n){if(Number(n)>0){state.selectedVerse=Number(n);persist();}},
+ setVerse:function(n){if(Number(n)>0){state.selectedVerse=Number(n);persist();window.PBSplitStudy.refresh();}},
  onNote:function(ctx){if(ctx&&ctx.reference&&ctx.reference.verse)state.selectedVerse=ctx.reference.verse;persist();noteModal();},
  onSermon:function(ctx){
   if(!ctx)return;
@@ -1055,7 +1244,8 @@ function toolbarAction(action){
  }
  case "prev":if(state.chapter>1)setRef(state.book,state.chapter-1);return;
  case "next":if(state.chapter<activeBook.chapters)setRef(state.book,state.chapter+1);return;
- case "comments":TS.actions.setPreference("showComments",!TS.getState().showComments);toolbarAction("preferences-changed");return;
+ case "comments":state.splitStudy=!state.splitStudy;persist();renderReader();return;
+ case "split-study":state.splitStudy=!state.splitStudy;persist();renderReader();return;
  case "strong":page("original");return;
  case "notes":case "bookmarks":page("caderno");return;
  case "modules":page("modulos");return;
@@ -1104,13 +1294,30 @@ function renderReaderContent(){
  var el=document.getElementById("selected-reference");if(el)el.textContent=ref();
  var b=document.getElementById("bookmark-btn");if(b)b.textContent=currentMarked()?"★ Favorito":"☆ Favorito";
  if(state.showParallel)loadParallelText();
- if(state.showComments)loadInstalledComments();
+ if(state.showComments&&!state.splitStudy)loadInstalledComments();
+ if(state.splitStudy)window.PBSplitStudy.refresh();
  refreshVerseDecorations();
 }
 function readerOptions(){
  return books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(state.book===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("");
 }
+
+function attachSplitStudy(){
+ if(!state.splitStudy)return;
+ window.PBSplitStudy.attach({
+  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse||0,name:activeBook.name};},
+  readModule:function(){return state.commentModuleId||"";},
+  readSize:function(){return state.splitPct||44;},
+  onResize:function(n){state.splitPct=n;persist();},
+  onModuleChange:function(id){state.commentModuleId=id;persist();},
+  onClose:function(){state.splitStudy=false;persist();renderReader();},
+  onSermon:function(row){state.sermon.context+=(state.sermon.context?"\n\n":"")+row.moduleName+" — "+ref()+"\n"+row.text;persist();notify("Comentário inserido no sermão");},
+  notify:notify
+ });
+}
+
 function renderReader(){
+ window.PBSplitStudy.destroy();
  var other=state.parallelVersion||"bpm";
  MAIN.innerHTML='<section class="reader-screen"><div id="dynamic-toolbar"></div><div class="reader-commandbar">'+
  '<div class="reader-top-controls"><div class="reader-brand"><span class="brand-small">✦</span><strong>Púlpito Bible</strong><span class="reader-tagline">Leitor avançado</span></div><div class="reader-passage-control"><select class="reader-select book-control" id="book-select" aria-label="Selecionar livro">'+readerOptions()+'</select><select class="reader-select chapter-control" id="chapter-select" aria-label="Selecionar capítulo">'+chapterOptions()+'</select><select class="reader-select version-control" id="version-select" aria-label="Selecionar tradução"><option value="alm1911"'+(state.version==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(state.version==="bpm"?" selected":"")+'>BPM</option><option value="onbv"'+(state.version==="onbv"?" selected":"")+'>ONBV</option><option value="nva"'+(state.version==="nva"?" selected":"")+'>NVA</option>'+window.PBModules.bibleOptions(state.version)+'</select></div><div class="reader-arrows"><button class="reader-icon" data-act="prev-chapter" aria-label="Capítulo anterior">‹</button><button class="reader-icon" data-act="next-chapter" aria-label="Próximo capítulo">›</button></div></div>'+
@@ -1122,6 +1329,7 @@ function renderReader(){
  (state.showComments||state.showCrossRefs?'<div class="reader-bottom-panels">'+(state.showComments?'<section class="card card-pad reader-extras"><div class="caps">COMENTÁRIOS</div><h2 class="section-heading">Observações do estudo</h2><p class="feature-note">'+(state.book==="john"&&state.chapter===15?"A figura da videira relaciona permanência em Cristo e frutificação. Leia João 15:1–8 como uma unidade literária antes de tirar conclusões a partir de um único verbo.":state.book==="psalms"&&state.chapter===73?"O salmista percebe a prosperidade dos ímpios e enfrenta uma crise de entendimento. A virada interpretativa ocorre no versículo 17. Palavra no original: ímpios <button class=\"comment-strong-badge\" data-strong=\"H7563\">H7563</button>.":"Ainda não há comentários teológicos importados para este capítulo. Você pode criar suas próprias notas.")+' </p><div id="installed-comments" class="module-comment-list"><p class="tiny muted">Buscando comentários instalados…</p></div><button class="btn slim" data-act="note">✎ Escrever anotação</button><button class="btn slim" data-page="modulos">⇩ Instalar comentários</button></section>':"")+
  (state.showCrossRefs?'<section class="card card-pad reader-extras"><div class="caps">REFERÊNCIAS CRUZADAS</div><h2 class="section-heading">Passagens relacionadas</h2><p class="feature-note">Sugestões temáticas iniciais, não geradas automaticamente por um comentário externo.</p><div class="row">'+(state.book==="john"&&state.chapter===15?'<button class="btn slim" data-ref-open="João 6:56">João 6:56</button><button class="btn slim" data-ref-open="Gálatas 5:22">Gálatas 5:22</button>':'<button class="btn slim" data-ref-open="João 1:1">João 1:1</button>')+'</div></section>':"")+'</div>':"")+
  '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-page="tutor">✧ Interpretar</button></div></div></section>';
+ if(state.splitStudy)attachSplitStudy();
  mountAppToolbar();
  loadChapter();
 }
@@ -1334,7 +1542,8 @@ document.addEventListener("click",function(ev){
  TS.actions.toggleVerse(v.dataset.usfm||verseGlobalId(state.selectedVerse));
  refreshVerseDecorations();
  var title=document.getElementById("selected-reference");if(title)title.textContent=ref();
- if(state.showComments)loadInstalledComments();
+ if(state.showComments&&!state.splitStudy)loadInstalledComments();
+ if(state.splitStudy)window.PBSplitStudy.refresh();
  return;
  }
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
@@ -1348,7 +1557,7 @@ document.addEventListener("click",function(ev){
  var a=el.dataset.act;
 
  if(a==="toggle-strong"){state.showStrong=!state.showStrong;persist();renderReaderContent();var button=document.querySelector('[data-act="toggle-strong"]');if(button)button.classList.toggle("on",state.showStrong);return;}
- if(a==="toggle-comments"){state.showComments=!state.showComments;persist();renderReader();return;}
+ if(a==="toggle-comments"){state.splitStudy=!state.splitStudy;persist();renderReader();return;}
  if(a==="toggle-crossrefs"){state.showCrossRefs=!state.showCrossRefs;persist();renderReader();return;}
  if(a==="toggle-parallel"){state.showParallel=!state.showParallel;persist();renderReader();return;}
  if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);TS.actions.setFontSize(state.fontSize);persist();renderReader();return;}
