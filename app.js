@@ -1,4 +1,4 @@
-/* Púlpito Bible — leitor com Bíblia acima e painel inferior alternável: Comentários / Dicionários. */
+/* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
@@ -25,26 +25,85 @@ function bibleOptions(selected){return modules.filter(function(m){return m.type=
 function getModuleByVersion(version){return modules.find(function(m){return "local:"+m.id===version&&m.type==="bible";});}
 async function getChapter(version,book,chapter){await dbOpen();var m=getModuleByVersion(version);if(!m)throw Error("Módulo de Bíblia não instalado neste dispositivo");var key=m.id+"/"+book+"/"+chapter;var db=await dbOpen();var row=await request(db.transaction("chapters","readonly").objectStore("chapters").get(key));if(!row||!row.verses||!row.verses.length)throw Error("Este módulo não contém "+book+" "+chapter);return {verses:row.verses,copyright:"Módulo instalado localmente · "+m.name+" · "+(m.license||"Licença não informada no arquivo")+". Verifique as condições de uso da edição.",version:m.abbreviation||m.name};}
 
+
+/* Commentary-to-verse matching shared by coverage badges and the opened text.
+   Empty verse ranges describe a chapter note; a lone starting verse describes
+   that one verse, avoiding indicators on unrelated verses. */
+function commentaryCovers(e,chapter,verse){
+ var first=Number(e.fromChapter)||0,last=Number(e.toChapter)||first,chap=Number(chapter);
+ if(first&&chap<first)return false;
+ if(last&&chap>last)return false;
+ if(!verse)return true;
+ var from=Number(e.fromVerse)||0,to=Number(e.toVerse)||0,n=Number(verse);
+ if(first===chap&&from&&n<from)return false;
+ if(last===chap){
+  if(to&&n>to)return false;
+  if(!to&&from&&first===last&&n>from)return false;
+ }
+ return true;
+}
+function forEachIndexedCommentary(db,moduleId,book,chapter,visitor,maxMatches){
+ return new Promise(function(resolve,reject){
+  var count=0,tx=db.transaction("commentaryEntries","readonly");
+  var index=tx.objectStore("commentaryEntries").index("passage");
+  var request=index.openCursor(IDBKeyRange.only([moduleId,book,Number(chapter)]));
+  request.onerror=function(){reject(request.error||Error("Não foi possível consultar comentários"));};
+  tx.onabort=function(){reject(tx.error||Error("Consulta interrompida"));};
+  request.onsuccess=function(){
+   var cursor=request.result;
+   if(!cursor){resolve(count);return;}
+   if(visitor(cursor.value))count++;
+   if(maxMatches&&count>=maxMatches){resolve(count);return;}
+   cursor.continue();
+  };
+ });
+}
 async function getCommentaries(book,chapter,verse,moduleId){
  var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary"&&(!moduleId||m.id===moduleId);});
- var entries=await Promise.all(active.map(async function(m){
-  var records=[];
+ var found=await Promise.all(active.map(async function(m){
+  var results=[];
+  function accept(e){if(!commentaryCovers(e,chap,verse))return false;
+   results.push({moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse});
+   return true;
+  }
   if(m.storage==="entries-v1"){
-   var idx=db.transaction("commentaryEntries","readonly").objectStore("commentaryEntries").index("passage");
-   records=await request(idx.getAll(IDBKeyRange.only([m.id,book,chap]),180));
+   await forEachIndexedCommentary(db,m.id,book,chap,accept,45);
   }else{
    var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));
-   records=row&&row.entries||[];
+   var list=row&&row.entries||[];
+   for(var i=0;i<list.length&&results.length<45;i++)accept(list[i]);
   }
-  return records.filter(function(e){
-   if(e.fromChapter&&chap<e.fromChapter)return false;
-   if(e.toChapter&&chap>e.toChapter)return false;
-   if(verse&&e.fromChapter===chap&&e.fromVerse&&verse<e.fromVerse)return false;
-   if(verse&&e.toChapter===chap&&e.toVerse&&verse>e.toVerse)return false;
-   return true;
-  }).slice(0,45).map(function(e){return {moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse};});
+  return results;
  }));
- return entries.flat().slice(0,100);
+ return found.flat().slice(0,100);
+}
+/* Single indexed scan per installed commentary module for the visible chapter.
+   Indicators appear only where a real module entry covers the verse. */
+async function getCommentaryCoverage(book,chapter,verseNumbers){
+ var nums=Array.from(new Set((verseNumbers||[]).map(Number).filter(function(v){return Number.isInteger(v)&&v>0&&v<=200;})));
+ var coverage=Object.create(null);
+ nums.forEach(function(v){coverage[v]=[];});
+ if(!nums.length)return coverage;
+ var chosen=modules.filter(function(m){return m.type==="commentary";});
+ if(!chosen.length)return coverage;
+ var db=await dbOpen();
+ await Promise.all(chosen.map(async function(m){
+  var count=Object.create(null);
+  nums.forEach(function(v){count[v]=0;});
+  function countEntry(e){
+   var any=false;
+   nums.forEach(function(v){if(commentaryCovers(e,chapter,v)){count[v]++;any=true;}});
+   return any;
+  }
+  if(m.storage==="entries-v1"){
+   await forEachIndexedCommentary(db,m.id,book,chapter,countEntry,0);
+  }else{
+   var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));
+   (row&&row.entries||[]).forEach(countEntry);
+  }
+  nums.forEach(function(v){if(count[v])coverage[v].push({moduleId:m.id,moduleName:m.name,count:count[v]});});
+ }));
+ return coverage;
 }
 function renderVerse(raw,book,showStrong){var source=String(raw||"");var pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
  function chunk(str){return clean(str.replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&"));}
@@ -366,7 +425,7 @@ document.addEventListener("click",function(e){
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
 });
-window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getDictionaryEntry:getDictionaryEntry,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
+window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
 })();
 ;
 (function (global) {
@@ -1272,6 +1331,183 @@ global.PBDictionaryStudy={attach:attach,destroy:destroy,lookup:lookup,isAttached
 })(window);
 
 ;
+(function(global){
+"use strict";
+/* Púlpito Bible — verse-specific comment indicators and long-press chooser.
+   One delegated set of handlers, one IndexedDB scan per chapter, no scroll
+   listeners. Word/Strong buttons keep their own short-tap behavior. */
+var opts={},started=false,generation=0,reference=null,coverage=Object.create(null);
+var press=null,holdTimer=null,holdHandledUntil=0,lastTap=null,lastOpened={verse:0,at:0},picker=null;
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function verseElement(target){return target&&target.closest&&target.closest("#chapter-body .verse-line");}
+function indicatorElement(target){return target&&target.closest&&target.closest("[data-comment-indicator]");}
+function candidates(n){return Array.isArray(coverage[Number(n)])?coverage[Number(n)]:[];}
+function closePicker(){
+ if(picker){picker.remove();picker=null;}
+}
+function invalidate(){
+ ++generation;reference=null;coverage=Object.create(null);lastTap=null;
+ closePicker();
+ if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}
+ press=null;
+}
+function decorate(book,chapter,verses){
+ var gen=++generation;
+ var valid=(verses||[]).map(Number).filter(function(n){return Number.isInteger(n)&&n>0;});
+ reference={book:book,chapter:Number(chapter)};
+ coverage=Object.create(null);
+ closePicker();
+ document.querySelectorAll("#chapter-body [data-comment-indicator]").forEach(function(b){b.remove();});
+ if(!valid.length||!global.PBModules.getInstalled().some(function(m){return m.type==="commentary";}))return;
+ global.PBModules.getCommentaryCoverage(book,chapter,valid).then(function(found){
+  if(gen!==generation||!reference||reference.book!==book||reference.chapter!==Number(chapter))return;
+  coverage=found||Object.create(null);
+  document.querySelectorAll("#chapter-body .verse-line").forEach(function(line){
+   var n=Number(line.dataset.verse),mods=candidates(n);
+   if(!mods.length||line.querySelector("[data-comment-indicator]"))return;
+   var total=mods.reduce(function(sum,m){return sum+(m.count||0);},0);
+   var button=document.createElement("button");
+   button.type="button";button.className="pb-verse-comment-indicator";
+   button.setAttribute("data-comment-indicator",String(n));
+   button.setAttribute("aria-label",total+" comentário(s) em "+book+" "+chapter+":"+n+". Toque duas vezes para abrir.");
+   button.setAttribute("title","Comentários deste versículo — toque duas vezes para abrir");
+   button.textContent="▤ Coment."+(total>1?" "+total:"");
+   line.appendChild(button);
+  });
+ }).catch(function(err){
+  if(gen===generation&&global.console&&console.warn)console.warn("Indicadores de comentários indisponíveis",err);
+ });
+}
+function chooseForVerse(verse,moduleId){
+ var n=Number(verse),matches=candidates(n);
+ var chosen=matches.find(function(m){return m.moduleId===moduleId;});
+ if(!chosen)chosen=matches.find(function(m){return m.moduleId===opts.readPreferredModule();})||matches[0];
+ closePicker();
+ if(!chosen)return;
+ lastOpened={verse:n,at:Date.now()};
+ if(opts.openCommentary)opts.openCommentary(n,chosen.moduleId);
+}
+function pickerContents(verse){
+ var n=Number(verse),matches=candidates(n),installed=global.PBModules.getInstalled().filter(function(m){return m.type==="commentary";});
+ var count=matches.reduce(function(sum,m){return sum+(m.count||0);},0);
+ var choices=matches.map(function(m){
+  var active=opts.readPreferredModule&&opts.readPreferredModule()===m.moduleId;
+  return '<button class="pb-vc-choice'+(active?' active':'')+'" data-vc-choice="'+esc(m.moduleId)+'" type="button">'+
+   '<span class="pb-vc-label">'+esc(m.moduleName)+'</span><small>'+m.count+' comentário(s)</small>'+(active?'<span class="pb-vc-check">✓</span>':'')+'</button>';
+ }).join("");
+ return '<div class="pb-vc-head"><div><strong>Escolher comentário</strong><small>'+esc(opts.readBookName?opts.readBookName():reference&&reference.book||"Bíblia")+' '+esc(reference&&reference.chapter||"")+':'+n+'</small></div>'+
+ '<button class="pb-vc-close" data-vc-action="close" type="button" aria-label="Fechar">×</button></div>'+
+ (matches.length?'<p class="pb-vc-hint">'+count+' comentário(s) encontrado(s) neste versículo. Escolha o módulo:</p><div class="pb-vc-list">'+choices+'</div>':
+ '<p class="pb-vc-empty">'+(installed.length?'Nenhum comentário instalado corresponde a este versículo.':'Você ainda não instalou comentários neste navegador.')+'</p>')+
+ '<button data-vc-action="modules" type="button" class="pb-vc-manage">⇩ Gerenciar módulos</button>';
+}
+function showPicker(verse,anchor){
+ if(!reference)return;
+ var n=Number(verse);if(!n||!Number.isInteger(n))return;
+ closePicker();
+ if(opts.selectVerse)opts.selectVerse(n);
+ var el=document.createElement("div");
+ el.id="pb-verse-comment-picker";el.className="pb-vc-picker";
+ el.setAttribute("role","dialog");el.setAttribute("aria-label","Escolher comentário para o versículo "+n);
+ el.innerHTML=pickerContents(n);
+ el.dataset.verse=String(n);
+ el.addEventListener("click",function(e){
+  var choice=e.target.closest("[data-vc-choice]");
+  if(choice){e.preventDefault();e.stopPropagation();chooseForVerse(n,choice.dataset.vcChoice);return;}
+  var action=e.target.closest("[data-vc-action]");
+  if(action){e.preventDefault();e.stopPropagation();if(action.dataset.vcAction==="modules"&&opts.openModules){closePicker();opts.openModules();}else closePicker();}
+ });
+ document.body.appendChild(el);picker=el;
+ if(anchor&&typeof anchor.getBoundingClientRect==="function"&&global.innerWidth>720){
+  var rect=anchor.getBoundingClientRect();
+  var width=el.offsetWidth||300,height=el.offsetHeight||250;
+  el.style.position="fixed";
+  el.style.left=Math.max(8,Math.min(global.innerWidth-width-8,rect.right+10))+"px";
+  el.style.top=Math.max(12,Math.min(global.innerHeight-height-12,rect.top))+"px";
+ }
+ if(!candidates(n).length&&global.PBModules.getInstalled().some(function(m){return m.type==="commentary";})){
+  var book=reference.book,chapter=reference.chapter,gen=generation;
+  global.PBModules.getCommentaryCoverage(book,chapter,[n]).then(function(data){
+   if(picker===el&&gen===generation&&reference&&reference.book===book&&reference.chapter===chapter){
+    coverage[n]=data[n]||[];
+    el.innerHTML=pickerContents(n);
+   }
+  }).catch(function(){});
+ }
+}
+function stopPress(){if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}press=null;}
+function onPointerDown(e){
+ if(picker&&!picker.contains(e.target)&&!verseElement(e.target)){closePicker();}
+ var marker=indicatorElement(e.target),verse=verseElement(e.target);
+ if(marker||!verse||e.button!==0){stopPress();return;}
+ stopPress();
+ press={verse:Number(verse.dataset.verse),node:verse,x:e.clientX,y:e.clientY,pointerId:e.pointerId};
+ holdTimer=setTimeout(function(){
+  if(!press)return;
+  var old=press;press=null;holdTimer=null;
+  holdHandledUntil=Date.now()+900;
+  showPicker(old.verse,old.node);
+ },560);
+}
+function onPointerMove(e){
+ if(!press||e.pointerId!==press.pointerId)return;
+ if(Math.abs(e.clientX-press.x)>13||Math.abs(e.clientY-press.y)>13)stopPress();
+}
+function onPointerEnd(e){if(press&&e.pointerId===press.pointerId)stopPress();}
+function onContextMenu(e){
+ var verse=verseElement(e.target);
+ if(!verse||indicatorElement(e.target))return;
+ e.preventDefault();
+ stopPress();holdHandledUntil=Date.now()+900;
+ showPicker(verse.dataset.verse,verse);
+}
+function onClick(e){
+ var badge=indicatorElement(e.target);
+ if(badge){
+  e.preventDefault();e.stopImmediatePropagation();
+  var n=Number(badge.dataset.commentIndicator),now=Date.now();
+  if(lastTap&&lastTap.verse===n&&now-lastTap.at<480){
+   lastTap=null;
+   if(now-lastOpened.at>700||lastOpened.verse!==n)chooseForVerse(n);
+  }else lastTap={verse:n,at:now};
+  return;
+ }
+ if(Date.now()<holdHandledUntil&&verseElement(e.target)){
+  e.preventDefault();e.stopImmediatePropagation();holdHandledUntil=0;return;
+ }
+ if(picker&&!picker.contains(e.target)&&!verseElement(e.target))closePicker();
+}
+function onDoubleClick(e){
+ var badge=indicatorElement(e.target);
+ if(!badge)return;
+ e.preventDefault();e.stopImmediatePropagation();
+ var n=Number(badge.dataset.commentIndicator),now=Date.now();
+ if(lastOpened.verse!==n||now-lastOpened.at>700)chooseForVerse(n);
+}
+function onKeydown(e){
+ if(e.key==="Escape"){closePicker();stopPress();return;}
+ var badge=indicatorElement(e.target);
+ if(!badge||(e.key!=="Enter"&&e.key!==" "))return;
+ e.preventDefault();e.stopImmediatePropagation();
+ chooseForVerse(badge.dataset.commentIndicator);
+}
+function init(config){
+ opts=config||{};
+ if(started)return;
+ started=true;
+ document.addEventListener("pointerdown",onPointerDown,true);
+ document.addEventListener("pointermove",onPointerMove,true);
+ document.addEventListener("pointerup",onPointerEnd,true);
+ document.addEventListener("pointercancel",onPointerEnd,true);
+ document.addEventListener("contextmenu",onContextMenu,true);
+ document.addEventListener("click",onClick,true);
+ document.addEventListener("dblclick",onDoubleClick,true);
+ document.addEventListener("keydown",onKeydown,true);
+}
+global.PBVerseComments={init:init,decorate:decorate,invalidate:invalidate,showPicker:showPicker};
+})(window);
+
+;
 (function(){
 "use strict";
 var API="https://api.midvash.com/v1";
@@ -1295,6 +1531,40 @@ state.focusMode=false;
 var books=booksFallback.slice(),activeBook=books.find(function(b){return b.slug===state.book;})||books[42];
 var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v2")||"{}");}catch(e){}
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
+
+var focusCommentVerse=0;
+window.PBVerseComments.init({
+ readBookName:function(){return activeBook.name;},
+ readPreferredModule:function(){return state.commentModuleId||"";},
+ selectVerse:function(verse){
+  state.selectedVerse=Number(verse)||0;
+  persist();
+  var label=document.getElementById("selected-reference");if(label)label.textContent=ref();
+ },
+ openCommentary:function(verse,moduleId){
+  var n=Number(verse);
+  if(!Number.isInteger(n)||n<1)return;
+  var valid=window.PBModules.getInstalled().some(function(m){return m.type==="commentary"&&m.id===moduleId;});
+  if(!valid)return;
+  state.selectedVerse=n;
+  state.commentModuleId=moduleId;
+  state.splitStudy=true;
+  var hadSplit=!!document.getElementById("pb-study-split");
+  var hadDictionary=state.dictionaryOpen;
+  state.dictionaryOpen=false;
+  persist();
+  if(!hadSplit){
+   focusCommentVerse=n;
+   renderReader();
+  }else{
+   if(hadDictionary)window.PBDictionaryStudy.destroy();
+   window.PBSplitStudy.refresh(true);
+   var reference=document.getElementById("selected-reference");if(reference)reference.textContent=ref();
+  }
+ },
+ openModules:function(){page("modulos");}
+});
+
 
 window.PBConnections.init({
  onWord:function(word,verse){openDictionaryTerm(word,verse);return true;},
@@ -1328,11 +1598,11 @@ function closeTopMenu(){
  if(menu)menu.hidden=true;
  if(trigger)trigger.setAttribute("aria-expanded","false");
 }
-function page(s){window.PBConnections.close();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
+function page(s){if(s!=="leitura")window.PBVerseComments.invalidate();window.PBConnections.close();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
-function setRef(book,ch,verse){window.PBConnections.close();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
+function setRef(book,ch,verse){window.PBVerseComments.invalidate();window.PBConnections.close();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
 function chapterOptions(){var opts="";for(var i=1;i<=activeBook.chapters;i++) opts+='<option value="'+i+'"'+(i===state.chapter?" selected":"")+'>'+i+'</option>';return opts;}
 function readBooks(){
  fetch(API+"/books").then(function(r){if(!r.ok)throw Error("API");return r.json();}).then(function(j){var list=Array.isArray(j.data)?j.data:(j.data&&j.data.books)||[];if(!Array.isArray(list)||list.length<60)return;books=list.map(function(b){var name=typeof b.name==="string"?b.name:(b.name&&b.name["pt-br"])||b.name.en||"";var slug=typeof b.slug==="string"?b.slug:(b.slug&&b.slug.en)||"";return {name:name,slug:slug,chapters:Number(b.chapters)||1,testament:b.testament};}).filter(function(b){return b.name&&b.slug;});activeBook=books.find(function(b){return b.slug===state.book;})||activeBook;if(state.page==="leitura")render();}).catch(function(){});
@@ -1506,6 +1776,12 @@ function renderReaderContent(){
  if(state.splitStudy)window.PBSplitStudy.refresh();
  if(state.dictionaryOpen)window.PBDictionaryStudy.syncReference();
  refreshVerseDecorations();
+ window.PBVerseComments.decorate(state.book,state.chapter,latestChapter.verses.map(function(v){return v.number;}));
+ if(focusCommentVerse){
+  var selected=holder.querySelector('.verse-line[data-verse="'+focusCommentVerse+'"]');
+  if(selected&&selected.scrollIntoView)selected.scrollIntoView({block:"nearest",behavior:"instant"});
+  focusCommentVerse=0;
+ }
 }
 function readerOptions(){
  return books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(state.book===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("");
@@ -1574,6 +1850,7 @@ function attachSplitStudy(){
 }
 
 function renderReader(){
+ window.PBVerseComments.invalidate();
  if(state.dictionaryOpen)state.splitStudy=true;
  window.PBDictionaryStudy.destroy();
  window.PBSplitStudy.destroy();
