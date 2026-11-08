@@ -40,7 +40,7 @@ var inlineStrongMap={
  "john/15/4":[{pattern:/\b(?:permanecei|permaneçam|permaneça)\b/i,id:"G3306a"},{pattern:/\bramo\b/i,id:"G2814"}],
  "john/15/5":[{pattern:/\b(?:permanece|permanece[m]?|permanecendo)\b/i,id:"G3306b"}],
  "genesis/1/1":[{pattern:/\bcriou\b/i,id:"H1254"}],
- "psalms/73/3":[{pattern:/\b(?:ímpios|impios)\b/i,id:"H7563"}]
+ "psalms/73/3":[{pattern:/(?:ímpios|impios)/i,id:"H7563"}]
 };
 function annotateVerse(text,num){
  var specs=inlineStrongMap[state.book+"/"+state.chapter+"/"+num]||[];
