@@ -138,3 +138,7 @@
  .strong-balloon{border-radius:17px 17px 0 0;padding:21px 19px max(22px,env(safe-area-inset-bottom));max-height:88dvh;width:100%}
  .strong-actions .btn{min-width:100px}
 }
+
+
+.reader-extras .comment-strong-badge{display:inline-block;background:#0d63be;color:#fff;font:700 10px "DM Sans",sans-serif;border:1px solid #0a4d9b;border-radius:5px;padding:3px 5px;vertical-align:middle;cursor:pointer;margin:0 2px}
+.reader-extras .comment-strong-badge:hover{background:#073d82}
