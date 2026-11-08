@@ -1,0 +1,18 @@
+{
+  "name": "MERCADO — Lista de Compras",
+  "short_name": "MERCADO",
+  "description": "Compras e orçamento",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7f5",
+  "theme_color": "#145c49",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
