@@ -133,6 +133,7 @@ function onClick(e){
  if(badge){
   e.preventDefault();e.stopImmediatePropagation();
   var n=Number(badge.dataset.commentIndicator),now=Date.now();
+  if(opts.selectVerse)opts.selectVerse(n);
   if(lastTap&&lastTap.verse===n&&now-lastTap.at<480){
    lastTap=null;
    if(now-lastOpened.at>700||lastOpened.verse!==n)chooseForVerse(n);
