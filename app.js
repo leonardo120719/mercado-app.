@@ -1,4 +1,4 @@
-/* Púlpito Bible deploy: modules.js + toolbar-store.js + connections.js + app-core.js. */
+/* Púlpito Bible: modules + toolbar + floating windows + connections + reader. */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=2;
@@ -453,6 +453,127 @@ window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bible
 ;
 (function(global){
 "use strict";
+/* Shared visual and interaction manager for MyBible-style floating study windows.
+   The reader beneath remains scrollable; small panels can be moved on desktop. */
+var layer=1100;
+var MOBILE_BREAKPOINT=720;
+function getPanel(root){return root&&root.querySelector(".myb-window");}
+function applyTab(root,id){
+ var panel=getPanel(root);if(!panel)return;
+ var tabs=panel.querySelectorAll("[data-pb-win-tab]");
+ var known=Array.from(tabs).some(function(el){return el.dataset.pbWinTab===id;});
+ if(!known&&tabs.length)id=tabs[0].dataset.pbWinTab;
+ tabs.forEach(function(btn){
+  var selected=btn.dataset.pbWinTab===id;
+  btn.classList.toggle("active",selected);
+  btn.setAttribute("aria-selected",selected?"true":"false");
+  btn.setAttribute("tabindex",selected?"0":"-1");
+ });
+ panel.querySelectorAll("[data-pb-win-panel]").forEach(function(body){
+  var on=body.dataset.pbWinPanel===id;
+  body.hidden=!on;
+  body.setAttribute("aria-hidden",on?"false":"true");
+ });
+ panel.dataset.activeTab=id||"";
+}
+function mount(root,config){
+ config=config||{};
+ if(!root)return function(){};
+ var panel=getPanel(root);if(!panel)return function(){};
+ layer+=2;
+ root.style.zIndex=String(layer);
+ panel.tabIndex=-1;
+ var onClose=typeof config.onClose==="function"?config.onClose:function(){root.remove();};
+ applyTab(root,config.defaultTab||"strong");
+ if(config.anchor&&global.innerWidth>=MOBILE_BREAKPOINT&&typeof config.anchor.getBoundingClientRect==="function"){
+  try{
+   var around=config.anchor.getBoundingClientRect(),size=panel.getBoundingClientRect();
+   var left=around.right+14,top=around.top-34;
+   if(left+size.width>global.innerWidth-8)left=around.left-size.width-14;
+   if(left<8)left=global.innerWidth-size.width-12;
+   panel.style.left=Math.max(8,left)+"px";
+   panel.style.top=Math.max(8,Math.min(top,global.innerHeight-size.height-8))+"px";
+   panel.style.right="auto";
+  }catch(_){}
+ }
+
+ function handleClick(event){
+  var tab=event.target.closest("[data-pb-win-tab]");
+  if(tab&&panel.contains(tab)){
+   event.preventDefault();event.stopPropagation();
+   applyTab(root,tab.dataset.pbWinTab);
+   return;
+  }
+  var action=event.target.closest("[data-pb-win-action]");
+  if(!action||!panel.contains(action))return;
+  event.preventDefault();event.stopPropagation();
+  var name=action.dataset.pbWinAction;
+  if(name==="close"){onClose();return;}
+  if(name==="minimize"){
+   var minimized=panel.classList.toggle("myb-is-minimized");
+   panel.classList.remove("myb-is-maximized");
+   action.setAttribute("aria-label",minimized?"Restaurar janela":"Recolher janela");
+   action.textContent=minimized?"▢":"—";
+   var max=panel.querySelector('[data-pb-win-action="maximize"]');
+   if(max)max.setAttribute("aria-label","Ampliar janela");
+   return;
+  }
+  if(name==="maximize"){
+   if(panel.classList.contains("myb-is-minimized")){
+    panel.classList.remove("myb-is-minimized");
+    var min=panel.querySelector('[data-pb-win-action="minimize"]');
+    if(min){min.textContent="—";min.setAttribute("aria-label","Recolher janela");}
+   }
+   var bigger=panel.classList.toggle("myb-is-maximized");
+   action.setAttribute("aria-label",bigger?"Restaurar tamanho":"Ampliar janela");
+   action.textContent=bigger?"❐":"▣";
+   return;
+  }
+ }
+ function bringForward(){
+  layer+=2;root.style.zIndex=String(layer);
+ }
+ function moveStart(event){
+  if(event.button!==0||event.target.closest("button, a, input, select, textarea"))return;
+  if(event.pointerType==="touch"||global.innerWidth<MOBILE_BREAKPOINT)return;
+  if(panel.classList.contains("myb-is-maximized")||panel.classList.contains("myb-is-minimized"))return;
+  var target=event.currentTarget,rect=panel.getBoundingClientRect(),startX=event.clientX,startY=event.clientY;
+  var left=rect.left,top=rect.top;
+  if(target.setPointerCapture)try{target.setPointerCapture(event.pointerId);}catch(_){}
+  panel.classList.add("myb-is-dragging");
+  function moving(e){
+   if(e.pointerId!==event.pointerId)return;
+   var x=Math.max(6,Math.min(global.innerWidth-140,left+e.clientX-startX));
+   var y=Math.max(6,Math.min(global.innerHeight-60,top+e.clientY-startY));
+   panel.style.left=x+"px";panel.style.top=y+"px";
+   panel.style.right="auto";panel.style.bottom="auto";
+  }
+  function finish(){
+   panel.classList.remove("myb-is-dragging");
+   target.removeEventListener("pointermove",moving);
+   target.removeEventListener("pointerup",finish);
+   target.removeEventListener("pointercancel",finish);
+  }
+  target.addEventListener("pointermove",moving);
+  target.addEventListener("pointerup",finish);
+  target.addEventListener("pointercancel",finish);
+ }
+ root.addEventListener("click",handleClick);
+ panel.addEventListener("pointerdown",bringForward);
+ var titlebar=panel.querySelector("[data-pb-win-titlebar]");
+ if(titlebar)titlebar.addEventListener("pointerdown",moveStart);
+ return function(){
+  root.removeEventListener("click",handleClick);
+  panel.removeEventListener("pointerdown",bringForward);
+  if(titlebar)titlebar.removeEventListener("pointerdown",moveStart);
+ };
+}
+global.PBWindowUI={mount:mount,activate:applyTab};
+})(window);
+
+;
+(function(global){
+"use strict";
 var config=null,requestId=0,selectedContext=null,initialized=false;
 function escapeHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function wrapHtml(html){
@@ -508,25 +629,24 @@ function drawResults(targetId,markup,seq){
  var element=document.getElementById(targetId);
  if(element)element.innerHTML=markup;
 }
-function open(kind,verse,word){
+function open(kind,verse,word,anchor){
  close();
  var seq=requestId,context=getReference(verse);
  var query=String(word||"").trim().slice(0,110);
  selectedContext={kind:kind,query:query,reference:context,comments:[]};
  if(config&&config.setVerse)config.setVerse(context.verse);
- var modal=document.createElement("div");modal.id="pb-connected-panel";modal.className="pb-connected-backdrop";
- modal.innerHTML='<section class="pb-connected-sheet" role="dialog" aria-label="Estudo integrado" aria-modal="false">'+
- '<div class="pb-connected-top"><div><div class="eyebrow">ESTUDO INTEGRADO · '+(kind==="word"?"PALAVRA":"VERSÍCULO")+'</div>'+
- '<h2>'+escapeHtml(kind==="word"?query:(context.name+" "+context.chapter+":"+context.verse))+'</h2>'+
- '<small>'+escapeHtml(context.name+" "+context.chapter+(context.verse?":"+context.verse:""))+'</small></div>'+
- '<button class="reader-icon" type="button" data-pb-close aria-label="Fechar">×</button></div>'+
- '<p class="pb-connected-guidance">'+(kind==="word"?"Pesquisa pela grafia portuguesa. Um número Strong só é atribuído quando o texto possui ligação documentada.":"Comentários associados à referência e definições dos números Strong efetivamente marcados no versículo.")+'</p>'+
- '<div class="pb-connected-scroll"><section><h3> <span>α</span> Dicionários e Strong</h3><div id="pb-connected-dictionary"><p class="feature-note">Consultando os léxicos instalados…</p></div></section>'+
- '<section><h3> <span>▤</span> Comentários bíblicos dos módulos</h3><div id="pb-connected-commentaries"><p class="feature-note">Consultando os comentários vinculados ao versículo…</p></div></section></div>'+
- '<div class="pb-connected-actions"><button class="btn slim" type="button" data-pb-note>✎ Anotar</button><button class="btn slim" type="button" data-pb-sermon>▤ Inserir referência no sermão</button><button class="btn primary slim" type="button" data-page="modulos">⇩ Módulos</button></div>'+
+ var modal=document.createElement("div");modal.id="pb-connected-panel";modal.className="pb-connected-backdrop myb-window-backdrop";
+ modal.innerHTML='<section class="pb-connected-sheet myb-window" role="dialog" aria-label="Estudo conectado" aria-modal="false">'+
+ '<header class="myb-titlebar" data-pb-win-titlebar><div class="myb-titlebar-icon">▤</div><div class="myb-titlebar-info"><strong>ESTUDO CONECTADO</strong><small>'+escapeHtml(kind==="word"?query:(context.name+" "+context.chapter+":"+context.verse))+' · '+escapeHtml(context.name+" "+context.chapter+(context.verse?":"+context.verse:""))+'</small></div>'+
+ '<div class="myb-window-controls"><button type="button" data-pb-win-action="minimize" aria-label="Recolher janela" title="Recolher">—</button><button type="button" data-pb-win-action="maximize" aria-label="Ampliar janela" title="Ampliar">▣</button><button type="button" data-pb-win-action="close" aria-label="Fechar janela" title="Fechar">×</button></div></header>'+
+ '<nav class="myb-window-tabs" aria-label="Conteúdo da janela" role="tablist"><button type="button" data-pb-win-tab="dictionary" role="tab">α Dicionário</button><button type="button" data-pb-win-tab="commentaries" role="tab">▤ Comentários</button></nav>'+
+ '<div class="myb-window-main"><div class="myb-quick-reference"><span class="myb-reference-label">'+escapeHtml(context.name+" "+context.chapter+":"+context.verse)+'</span><span class="myb-reference-info">'+(kind==="word"?"Pesquisa pela palavra portuguesa, sem atribuir Strong automaticamente.":"Referência selecionada · módulos instalados")+'</span></div>'+
+ '<section data-pb-win-panel="dictionary" class="myb-window-panel"><div id="pb-connected-dictionary"><p class="feature-note">Consultando os léxicos instalados…</p></div></section>'+
+ '<section data-pb-win-panel="commentaries" class="myb-window-panel"><div id="pb-connected-commentaries"><p class="feature-note">Consultando os comentários vinculados à passagem…</p></div></section></div>'+
+ '<footer class="myb-window-footer"><button class="btn slim" type="button" data-pb-note>✎ Nota</button><button class="btn slim" type="button" data-pb-sermon>▤ Sermão</button><button class="btn primary slim" type="button" data-page="modulos">⇩ Módulos</button></footer>'+
  '</section>';
- modal.addEventListener("click",function(e){if(e.target===modal)close();});
  document.body.appendChild(modal);
+ if(global.PBWindowUI)global.PBWindowUI.mount(modal,{defaultTab:kind==="word"?"dictionary":"commentaries",onClose:close,anchor:anchor});
  var list=kind==="word"?[query]:verseCodes(context.verse);
  if(!list.length){
   drawResults("pb-connected-dictionary",'<p class="feature-note">Nenhum Strong confirmado para esse versículo. Toque diretamente numa palavra para pesquisar verbetes em português.</p>',seq);
@@ -571,18 +691,18 @@ function init(opts){
   if(word){
    e.preventDefault();e.stopImmediatePropagation();
    var parent=word.closest("[data-verse]");
-   open("word",parent?parent.dataset.verse:null,word.dataset.pbWord);
+   open("word",parent?parent.dataset.verse:null,word.dataset.pbWord,word);
    return;
   }
   if(e.target.closest("[data-strong]"))return;
   var verse=e.target.closest("#chapter-body [data-verse]");
-  if(verse)open("verse",verse.dataset.verse,"");
+  if(verse)open("verse",verse.dataset.verse,"",verse);
  },true);
  document.addEventListener("keydown",function(e){
   if(e.key==="Escape"){close();return;}
   if((e.key==="Enter"||e.key===" ")&&e.target&&e.target.dataset&&e.target.dataset.pbWord){
    e.preventDefault();e.stopImmediatePropagation();
-   var parent=e.target.closest("[data-verse]");open("word",parent?parent.dataset.verse:null,e.target.dataset.pbWord);
+   var parent=e.target.closest("[data-verse]");open("word",parent?parent.dataset.verse:null,e.target.dataset.pbWord,e.target);
   }
  },true);
 }
@@ -861,33 +981,55 @@ function loadInstalledComments(){
   }).join("");
  }).catch(function(e){var node=document.getElementById("installed-comments");if(node)node.innerHTML='<p class="tiny muted">Comentários indisponíveis: '+esc(e.message)+'</p>';});
 }
-function openStrongPopup(wordId){
+function openStrongPopup(wordId,anchor){
  var w=words.find(function(x){return x.id===wordId;});
- if(!w){var code=String(wordId).toUpperCase();if(!/^[GH][0-9]{1,5}$/.test(code))return;var val=Number(code.slice(1));w={id:code,code:code,label:"—",reading:"Não disponível",lemma:"Não disponível",book:ref(),type:"Morfologia não instalada",tense:"A consultar",voice:"A consultar",mood:"A consultar",person:"A consultar",meaning:"Entrada Strong sem dicionário conectado",note:"O número Strong identifica uma entrada lexical, não a forma gramatical específica desta ocorrência. A definição, o tempo verbal, o modo e a voz exigem um léxico e uma base morfológica alinhada a este versículo; não serão deduzidos pelo código.",source:"https://biblehub.com/"+(code[0]==="H"?"hebrew":"greek")+"/"+val+".htm"};}
+ if(!w){
+  var code=String(wordId).toUpperCase(),value=Number(code.slice(1));
+  if(!/^[GH][0-9]{1,5}$/.test(code))return;
+  w={id:code,code:code,label:"—",reading:"Não disponível",lemma:"Não disponível",book:ref(),type:"Morfologia não instalada",tense:"A consultar",voice:"A consultar",mood:"A consultar",person:"A consultar",meaning:"Entrada Strong sem dicionário conectado",note:"O código Strong sozinho não informa o tempo verbal, a voz ou a forma gramatical desta ocorrência. Esses dados exigem um módulo morfológico alinhado ao versículo.",source:"https://biblehub.com/"+(code[0]==="H"?"hebrew":"greek")+"/"+value+".htm"};
+ }
  currentWord=w;
+ var book=state.book,ch=state.chapter,verse=state.selectedVerse,refLabel=ref();
  document.getElementById("strong-window")?.remove();
- var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay";frame.setAttribute("role","presentation");
- frame.innerHTML='<section class="strong-balloon" role="dialog" aria-modal="true" aria-label="Dicionário Strong '+esc(w.code)+'"><div class="strong-balloon-bar"><span class="caps">DICIONÁRIO STRONG · '+esc(w.book)+'</span><button class="reader-icon" data-act="close-strong" aria-label="Fechar">✕</button></div><div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div><p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO NO CONTEXTO</div><h3>'+esc(w.meaning)+'</h3><div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div><p class="feature-note">'+esc(w.note)+'</p><p class="lexicon-caveat">A forma original, o aspecto e o contexto devem ser examinados juntos. Strong não é tradução automática.</p><div class="strong-actions"><button class="btn" data-act="strong-copy">▣ Copiar</button><button class="btn" data-act="strong-study">α Estudar</button><button class="btn primary" data-act="strong-sermon">▤ Inserir no sermão</button></div><div id="connected-strong-comments" class="module-comment-list" aria-live="polite"></div><div id="installed-strong-entry" class="module-comment-list" aria-live="polite"><p class="tiny muted">Consultando dicionários instalados…</p></div><p class="strong-reference"><a href="'+esc(w.source)+'" target="_blank" rel="noopener">Consultar referência lexical ↗</a></p></section>';
- frame.addEventListener("click",function(e){if(e.target===frame)frame.remove();});
+ var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay myb-window-backdrop";
+ frame.innerHTML='<section class="strong-balloon myb-window" role="dialog" aria-label="Léxico Strong '+esc(w.code)+'" aria-modal="false">'+
+ '<header class="myb-titlebar" data-pb-win-titlebar><div class="myb-titlebar-icon">α</div><div class="myb-titlebar-info"><strong>STRONG '+esc(w.code)+'</strong><small>'+esc(refLabel)+' · '+esc(w.reading)+'</small></div>'+
+ '<div class="myb-window-controls"><button type="button" data-pb-win-action="minimize" aria-label="Recolher janela" title="Recolher">—</button><button type="button" data-pb-win-action="maximize" aria-label="Ampliar janela" title="Ampliar">▣</button><button type="button" data-pb-win-action="close" aria-label="Fechar janela" title="Fechar">×</button></div></header>'+
+ '<nav class="myb-window-tabs" role="tablist" aria-label="Painéis de estudo"><button type="button" role="tab" data-pb-win-tab="strong">α Análise</button><button type="button" role="tab" data-pb-win-tab="dictionary">▣ Dicionários</button><button type="button" role="tab" data-pb-win-tab="commentaries">▤ Comentários</button></nav>'+
+ '<div class="myb-window-main">'+
+ '<section class="myb-window-panel" data-pb-win-panel="strong">'+
+ '<div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div>'+
+ '<p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO E MORFOLOGIA</div><h3>'+esc(w.meaning)+'</h3>'+
+ '<div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div>'+
+ '<p class="feature-note">'+esc(w.note)+'</p>'+
+ '<p class="lexicon-caveat">Uma definição lexical não determina, isoladamente, a interpretação da passagem. Compare o contexto e a forma original.</p>'+
+ '<p class="strong-reference"><a href="'+esc(w.source)+'" target="_blank" rel="noopener noreferrer">Consultar referência lexical ↗</a></p>'+
+ '</section>'+
+ '<section class="myb-window-panel" data-pb-win-panel="dictionary"><div id="installed-strong-entry" class="module-comment-list" aria-live="polite"><p class="tiny muted">Consultando dicionários instalados…</p></div></section>'+
+ '<section class="myb-window-panel" data-pb-win-panel="commentaries"><div id="connected-strong-comments" class="module-comment-list" aria-live="polite"><p class="tiny muted">Buscando comentários desta passagem…</p></div></section>'+
+ '</div>'+
+ '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
+ if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();},anchor:anchor});
  window.PBModules.getDictionaryEntry(w.code).then(function(entries){
-  var el=document.getElementById("installed-strong-entry");
-  if(!el)return;
-  if(!entries.length){el.innerHTML='<p class="feature-note">Nenhum verbete deste número Strong em módulos instalados. Você pode instalar um léxico em Módulos.</p>';return;}
-  el.innerHTML='<div class="caps">DICIONÁRIOS INSTALADOS</div>'+entries.map(function(entry){
-    return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+esc(entry.definition)+'</p></article>';
-  }).join("");
- }).catch(function(err){var el=document.getElementById("installed-strong-entry");if(el)el.textContent="Não foi possível consultar o módulo: "+(err.message||String(err));});
- 
- window.PBModules.getCommentaries(state.book,state.chapter,state.selectedVerse).then(function(items){
-  var target=document.getElementById("connected-strong-comments");if(!target)return;
-  target.innerHTML='<div class="caps">COMENTÁRIOS DO VERSÍCULO · '+esc(ref())+'</div>'+
-   (items.length?items.slice(0,15).map(function(item){
-     return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><p>'+esc(item.text)+'</p></article>';
-   }).join(""):'<p class="feature-note">Nenhum comentário de módulo encontrado nesta referência.</p>');
- }).catch(function(e){var target=document.getElementById("connected-strong-comments");if(target)target.textContent="Não foi possível carregar comentários: "+(e.message||String(e));});
-
- frame.querySelector("[data-act='close-strong']").focus();
+  var holder=frame.querySelector("#installed-strong-entry");if(!holder)return;
+  holder.innerHTML=entries.length?entries.map(function(entry){
+   return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+esc(entry.definition)+'</p></article>';
+  }).join(""):'<p class="feature-note">Não há verbetes deste Strong nos dicionários instalados. Importe um léxico na seção Módulos.</p>';
+ }).catch(function(err){
+  var holder=frame.querySelector("#installed-strong-entry");
+  if(holder)holder.textContent="Não foi possível consultar o léxico: "+(err.message||String(err));
+ });
+ window.PBModules.getCommentaries(book,ch,verse).then(function(items){
+  var holder=frame.querySelector("#connected-strong-comments");if(!holder)return;
+  holder.innerHTML=items.length?items.slice(0,25).map(function(item){
+   return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><small>'+esc(refLabel)+'</small><p>'+esc(item.text)+'</p></article>';
+  }).join(""):'<p class="feature-note">Nenhum comentário instalado para esta referência.</p>';
+ }).catch(function(err){
+  var holder=frame.querySelector("#connected-strong-comments");
+  if(holder)holder.textContent="Não foi possível carregar comentários: "+(err.message||String(err));
+ });
+ var focus=frame.querySelector('[data-pb-win-action="close"]');if(focus)focus.focus();
 }
 var words=[
  {id:"G3306a",label:"μείνατε",reading:"meínate",lemma:"μένω",code:"G3306",book:"João 15:4",type:"Verbo",tense:"Aoristo",voice:"Ativa",mood:"Imperativo",person:"2ª pessoa do plural",meaning:"Permaneçam / permanecei",note:"O imperativo chama os discípulos à permanência em Cristo. A forma aorista apresenta a ação como um todo; não prova, sozinha, que a permanência seja pontual. A ideia continuada se estabelece no contexto.",source:"https://biblehub.com/text/john/15-4.htm"},
@@ -1018,7 +1160,7 @@ document.addEventListener("click",function(ev){
 
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
  var sw=ev.target.closest("[data-strong]");
- if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}openStrongPopup(sw.dataset.strong);return;}
+ if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}openStrongPopup(sw.dataset.strong,sw);return;}
  var v=ev.target.closest("[data-verse]");if(v){
  state.selectedVerse=Number(v.dataset.verse);persist();
  TS.actions.toggleVerse(v.dataset.usfm||verseGlobalId(state.selectedVerse));
@@ -1080,7 +1222,7 @@ document.addEventListener("input",function(ev){
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
  if(t.id==="note-filter"){state.noteFilter=t.value;persist();var p=t.selectionStart;renderNotebook();var n=document.getElementById("note-filter");n.focus();n.setSelectionRange(p,p);}
 });
-document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.strong){ev.preventDefault();openStrongPopup(ev.target.dataset.strong);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.strong){ev.preventDefault();openStrongPopup(ev.target.dataset.strong,ev.target);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
 document.getElementById("menu-toggle").addEventListener("click",function(event){
  event.preventDefault();
  var menu=document.getElementById("top-menu"),button=document.getElementById("menu-toggle");
