@@ -1,4 +1,4 @@
-/* Púlpito Bible — deploy bundle: modules.js + toolbar-store.js + app-core.js */
+/* Púlpito Bible — complete deploy bundle: modules.js + toolbar-store.js + app-core.js. */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=1;
@@ -442,7 +442,12 @@ function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}ca
 function notify(s){var el=document.getElementById("toast");el.textContent=s;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("show");},3000);}
 function ref(){return activeBook.name+" "+state.chapter+(state.selectedVerse?":"+state.selectedVerse:"");}
 function title(k){return '<div class="eyebrow">PÚLPITO BIBLE / '+esc(TITLES[k]).toUpperCase()+'</div><h1 class="page-title">'+esc(TITLES[k])+'</h1>';}
-function page(s){if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();render();document.getElementById("sidebar").classList.remove("open");document.getElementById("mobile-overlay").classList.remove("active");window.scrollTo({top:0,behavior:"instant"});}
+function closeTopMenu(){
+ var menu=document.getElementById("top-menu"),trigger=document.getElementById("menu-toggle");
+ if(menu)menu.hidden=true;
+ if(trigger)trigger.setAttribute("aria-expanded","false");
+}
+function page(s){if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
@@ -769,7 +774,7 @@ function renderRoadmap(){
  MAIN.innerHTML='<div class="content">'+title("projeto")+'<p class="subtitle">Documento vivo da visão completa do Púlpito Bible: o que já funciona, o que necessita de dados licenciados e o que será desenvolvido por etapas.</p><div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Mapa de funcionalidades</h2><span class="chip goldish">Planejamento de produto</span></div>'+roadmap.map(function(a,i){return '<div class="feature-item"><span class="feature-number">'+(i+1)+'</span><div><h3>'+esc(a[0])+'</h3><p>'+esc(a[1])+'</p><p style="margin-top:7px"><strong>Situação: </strong>'+esc(a[2])+'</p></div></div>';}).join("")+'</div><div class="tip">Fontes principais: <a href="https://api.midvash.com/pt-br" target="_blank">Midvash</a> para versões livres com atribuição e <a href="https://github.com/STEPBible/STEPBible-Data" target="_blank">STEPBible Data</a> (CC BY 4.0) para morfologia e léxicos. NVI, ARA, NVT e outras versões protegidas dependem de permissão contratual.</div></div>';
 }
 function render(){
- document.querySelectorAll(".nav-item").forEach(function(el){el.classList.toggle("active",el.dataset.page===state.page);});
+ document.querySelectorAll(".nav-item").forEach(function(el){var active=el.dataset.page===state.page;el.classList.toggle("active",active);el.setAttribute("aria-current",active?"page":"false");});
  document.getElementById("page-location").textContent=TITLES[state.page]||"Púlpito Bible";
  document.documentElement.classList.toggle("dark",state.theme==="dark");document.body.classList.toggle("reader-active",state.page==="leitura");document.body.classList.toggle("focus-reading",!!state.focusMode&&state.page==="leitura");document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");
  if(state.page==="leitura")renderReader();
@@ -862,8 +867,18 @@ document.addEventListener("input",function(ev){
  if(t.id==="note-filter"){state.noteFilter=t.value;persist();var p=t.selectionStart;renderNotebook();var n=document.getElementById("note-filter");n.focus();n.setSelectionRange(p,p);}
 });
 document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.strong){ev.preventDefault();openStrongPopup(ev.target.dataset.strong);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
-document.getElementById("menu-toggle").addEventListener("click",function(){document.getElementById("sidebar").classList.toggle("open");document.getElementById("mobile-overlay").classList.toggle("active");});
-document.getElementById("mobile-overlay").addEventListener("click",function(){document.getElementById("sidebar").classList.remove("open");document.getElementById("mobile-overlay").classList.remove("active");});
+document.getElementById("menu-toggle").addEventListener("click",function(event){
+ event.preventDefault();
+ var menu=document.getElementById("top-menu"),button=document.getElementById("menu-toggle");
+ if(!menu)return;
+ menu.hidden=!menu.hidden;
+ button.setAttribute("aria-expanded",String(!menu.hidden));
+});
+document.addEventListener("click",function(event){
+ var menu=document.getElementById("top-menu"),button=document.getElementById("menu-toggle");
+ if(menu&&!menu.hidden&&!menu.contains(event.target)&&!button.contains(event.target))closeTopMenu();
+});
+document.addEventListener("keydown",function(event){if(event.key==="Escape")closeTopMenu();});
 document.getElementById("brand-link").addEventListener("click",function(e){e.preventDefault();page("leitura");});
 document.getElementById("theme-toggle").addEventListener("click",function(){var next=TS.getState().theme==="dark"?"sepia":"dark";TS.actions.setTheme(next);state.theme=next==="dark"?"dark":"light";state.readerTheme=next==="dark"?"night":next;persist();render();});
 document.getElementById("font-up").addEventListener("click",function(){state.fontSize=Math.min(30,state.fontSize+2);TS.actions.setFontSize(state.fontSize);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
