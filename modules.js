@@ -24,26 +24,85 @@ function bibleOptions(selected){return modules.filter(function(m){return m.type=
 function getModuleByVersion(version){return modules.find(function(m){return "local:"+m.id===version&&m.type==="bible";});}
 async function getChapter(version,book,chapter){await dbOpen();var m=getModuleByVersion(version);if(!m)throw Error("Módulo de Bíblia não instalado neste dispositivo");var key=m.id+"/"+book+"/"+chapter;var db=await dbOpen();var row=await request(db.transaction("chapters","readonly").objectStore("chapters").get(key));if(!row||!row.verses||!row.verses.length)throw Error("Este módulo não contém "+book+" "+chapter);return {verses:row.verses,copyright:"Módulo instalado localmente · "+m.name+" · "+(m.license||"Licença não informada no arquivo")+". Verifique as condições de uso da edição.",version:m.abbreviation||m.name};}
 
+
+/* Commentary-to-verse matching shared by coverage badges and the opened text.
+   Empty verse ranges describe a chapter note; a lone starting verse describes
+   that one verse, avoiding indicators on unrelated verses. */
+function commentaryCovers(e,chapter,verse){
+ var first=Number(e.fromChapter)||0,last=Number(e.toChapter)||first,chap=Number(chapter);
+ if(first&&chap<first)return false;
+ if(last&&chap>last)return false;
+ if(!verse)return true;
+ var from=Number(e.fromVerse)||0,to=Number(e.toVerse)||0,n=Number(verse);
+ if(first===chap&&from&&n<from)return false;
+ if(last===chap){
+  if(to&&n>to)return false;
+  if(!to&&from&&first===last&&n>from)return false;
+ }
+ return true;
+}
+function forEachIndexedCommentary(db,moduleId,book,chapter,visitor,maxMatches){
+ return new Promise(function(resolve,reject){
+  var count=0,tx=db.transaction("commentaryEntries","readonly");
+  var index=tx.objectStore("commentaryEntries").index("passage");
+  var request=index.openCursor(IDBKeyRange.only([moduleId,book,Number(chapter)]));
+  request.onerror=function(){reject(request.error||Error("Não foi possível consultar comentários"));};
+  tx.onabort=function(){reject(tx.error||Error("Consulta interrompida"));};
+  request.onsuccess=function(){
+   var cursor=request.result;
+   if(!cursor){resolve(count);return;}
+   if(visitor(cursor.value))count++;
+   if(maxMatches&&count>=maxMatches){resolve(count);return;}
+   cursor.continue();
+  };
+ });
+}
 async function getCommentaries(book,chapter,verse,moduleId){
  var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary"&&(!moduleId||m.id===moduleId);});
- var entries=await Promise.all(active.map(async function(m){
-  var records=[];
+ var found=await Promise.all(active.map(async function(m){
+  var results=[];
+  function accept(e){if(!commentaryCovers(e,chap,verse))return false;
+   results.push({moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse});
+   return true;
+  }
   if(m.storage==="entries-v1"){
-   var idx=db.transaction("commentaryEntries","readonly").objectStore("commentaryEntries").index("passage");
-   records=await request(idx.getAll(IDBKeyRange.only([m.id,book,chap]),180));
+   await forEachIndexedCommentary(db,m.id,book,chap,accept,45);
   }else{
    var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));
-   records=row&&row.entries||[];
+   var list=row&&row.entries||[];
+   for(var i=0;i<list.length&&results.length<45;i++)accept(list[i]);
   }
-  return records.filter(function(e){
-   if(e.fromChapter&&chap<e.fromChapter)return false;
-   if(e.toChapter&&chap>e.toChapter)return false;
-   if(verse&&e.fromChapter===chap&&e.fromVerse&&verse<e.fromVerse)return false;
-   if(verse&&e.toChapter===chap&&e.toVerse&&verse>e.toVerse)return false;
-   return true;
-  }).slice(0,45).map(function(e){return {moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse};});
+  return results;
  }));
- return entries.flat().slice(0,100);
+ return found.flat().slice(0,100);
+}
+/* Single indexed scan per installed commentary module for the visible chapter.
+   Indicators appear only where a real module entry covers the verse. */
+async function getCommentaryCoverage(book,chapter,verseNumbers){
+ var nums=Array.from(new Set((verseNumbers||[]).map(Number).filter(function(v){return Number.isInteger(v)&&v>0&&v<=200;})));
+ var coverage=Object.create(null);
+ nums.forEach(function(v){coverage[v]=[];});
+ if(!nums.length)return coverage;
+ var chosen=modules.filter(function(m){return m.type==="commentary";});
+ if(!chosen.length)return coverage;
+ var db=await dbOpen();
+ await Promise.all(chosen.map(async function(m){
+  var count=Object.create(null);
+  nums.forEach(function(v){count[v]=0;});
+  function countEntry(e){
+   var any=false;
+   nums.forEach(function(v){if(commentaryCovers(e,chapter,v)){count[v]++;any=true;}});
+   return any;
+  }
+  if(m.storage==="entries-v1"){
+   await forEachIndexedCommentary(db,m.id,book,chapter,countEntry,0);
+  }else{
+   var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));
+   (row&&row.entries||[]).forEach(countEntry);
+  }
+  nums.forEach(function(v){if(count[v])coverage[v].push({moduleId:m.id,moduleName:m.name,count:count[v]});});
+ }));
+ return coverage;
 }
 function renderVerse(raw,book,showStrong){var source=String(raw||"");var pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
  function chunk(str){return clean(str.replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&"));}
@@ -365,5 +424,5 @@ document.addEventListener("click",function(e){
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
 });
-window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getDictionaryEntry:getDictionaryEntry,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
+window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
 })();
