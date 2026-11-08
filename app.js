@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261108-strong-doubleclick-autoupdate-2";
+window.PB_BUILD_ID = "pb-20261108-strong-doubleclick-autoupdate-3";
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
@@ -2182,6 +2182,7 @@ document.getElementById("font-up").addEventListener("click",function(){state.fon
 document.getElementById("font-down").addEventListener("click",function(){state.fontSize=Math.max(14,state.fontSize-2);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 render();readBooks();
 
+
 function startBuildUpdateWatcher(){
  var currentBuild=window.PB_BUILD_ID,channel=null,reloadPending=false,reloadStarted=false,checkInProgress=false;
  function isEditing(){
@@ -2189,12 +2190,41 @@ function startBuildUpdateWatcher(){
   var tag=String(el.tagName||"").toLowerCase();
   return tag==="input"||tag==="textarea"||tag==="select"||!!el.isContentEditable;
  }
+ function reloadNow(){
+  try{if(channel)channel.postMessage({type:"reloading",build:currentBuild});}catch(e){}
+  window.location.reload();
+ }
  function reloadForUpdate(){
   if(reloadStarted)return;
   if(isEditing()){reloadPending=true;return;}
   reloadStarted=true;
-  try{if(channel)channel.postMessage({type:"reloading",build:currentBuild});}catch(e){}
-  window.location.reload();
+  if(!("serviceWorker" in navigator)){reloadNow();return;}
+  navigator.serviceWorker.getRegistration().then(function(registration){
+   if(!registration){reloadNow();return;}
+   var finished=false,timer=0;
+   function finish(){
+    if(finished)return;
+    finished=true;
+    if(timer)window.clearTimeout(timer);
+    reloadNow();
+   }
+   navigator.serviceWorker.addEventListener("controllerchange",finish,{once:true});
+   timer=window.setTimeout(finish,8000);
+   registration.update().then(function(){
+    if(registration.waiting){
+     registration.waiting.postMessage({type:"SKIP_WAITING"});
+     return;
+    }
+    var worker=registration.installing;
+    if(worker){
+     worker.addEventListener("statechange",function(){
+      if(worker.state==="activated")finish();
+     });
+     return;
+    }
+    finish();
+   }).catch(finish);
+  }).catch(reloadNow);
  }
  function receiveUpdate(event){
   var data=event&&event.data||{};
@@ -2233,7 +2263,9 @@ function startBuildUpdateWatcher(){
  window.setInterval(checkVersion,60000);
  window.setTimeout(checkVersion,15000);
  if("serviceWorker" in navigator){
-  navigator.serviceWorker.addEventListener("controllerchange",reloadForUpdate);
+  navigator.serviceWorker.addEventListener("controllerchange",function(){
+   if(reloadPending)reloadForUpdate();
+  });
   navigator.serviceWorker.addEventListener("message",function(event){
    if(event.data&&event.data.type==="PB_NEW_VERSION")reloadForUpdate();
   });
