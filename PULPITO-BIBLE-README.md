@@ -304,3 +304,22 @@ O modo de estudo ganhou um layout vertical com **Bíblia acima e comentário do 
 - Existe integração direta com o Criador de Sermões pelo botão de cada comentário, e comando de copiar texto.
 
 **Validação:** sintaxe do bundle completo; teste do controlador com dois módulos de comentários simulados (Champlin e Matthew Henry), incluindo mudança do módulo sem mudar a referência, atualização de João 15:4 para João 15:5 e inicialização do app com a área dividida. O resultado visual final ainda exige conferência no navegador do usuário. 
+
+
+## Dicionários em janela ligada ao texto — referência de vídeo MyBible
+
+Nesta atualização, os dicionários passam a funcionar como outra janela de estudo, inspirada na segunda gravação enviada:
+
+- **Painel lado a lado:** em telas largas ou na horizontal, a Bíblia continua à esquerda e o dicionário fica à direita, cada um com rolagem independente; o painel de comentários pode continuar na parte inferior, quando ativado.
+- **Celular em retrato:** a consulta passa para um painel inferior ao texto bíblico, evitando colunas estreitas. Enquanto o dicionário está em foco, o painel inferior de comentários é ocultado visualmente e recuperado ao fechar o dicionário.
+- **Palavra clicável:** \`connections.js\` encaminha o toque e o acionamento por teclado (Enter/Espaço) para o painel de dicionários, selecionando automaticamente o tópico pesquisado. Não se infere Strong por aproximação.
+- **Número Strong clicável:** abre o mesmo painel com seu código H/G. O botão **Análise Strong** permite abrir a janela lexical avançada existente, sem substituí-la.
+- **Seletor de módulo:** lista escura dos dicionários efetivamente instalados com destaque no escolhido, busca por nome, troca para anterior/próximo; a mesma palavra é pesquisada automaticamente no dicionário escolhido.
+- **Links dentro dos verbetes:** referências explícitas como \`João 15:5\` / \`Jo 15:5\` podem abrir a Bíblia no trecho. Códigos escritos como \`G3306\` e \`H7563\` são clicáveis.
+- **Navegação e pesquisa:** campo de busca por palavra ou código Strong, histórico local da janela para voltar/avançar, botão copiar e fechamento que restaura a área anterior.
+- **Persistência:** \`dictionaryOpen\`, \`dictionaryModuleId\` e \`dictionaryTerm\` são propriedades do estado existente do Púlpito Bible. Os módulos permanecem no IndexedDB local.
+- **Arquitetura:** \`dictionary-study.js\` é responsável apenas pela interface e orquestração, usando \`PBModules.getDictionaryEntry(term, moduleId?)\` com indexação por módulo/tópico; a definição continua proveniente do módulo instalado pelo usuário. Não há conteúdo de dicionário embutido no frontend nem serviço de consulta externa obrigatório.
+
+No Render o \`app.js\` agrega os fontes na ordem \`modules.js\` → \`toolbar-store.js\` → \`window-ui.js\` → \`connections.js\` → \`split-study.js\` → \`dictionary-study.js\` → \`app-core.js\`. Os textos das traduções, comentários e dicionários instalados **não são enviados ao GitHub nem ao Render**.
+
+**Validação simulada:** teste de dois dicionários, pesquisa por “Jezreel”, troca entre os dicionários sem perder o termo, atualização da referência de João 15:4 para 15:8, fechamento/restauração, e inicialização do bundle completo com Bíblia, painel de comentários, dicionário e toolbar. Falta conferir detalhes de rolagem e orientação em aparelho real.
