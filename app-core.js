@@ -21,6 +21,26 @@ state.focusMode=false;
 var books=booksFallback.slice(),activeBook=books.find(function(b){return b.slug===state.book;})||books[42];
 var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v2")||"{}");}catch(e){}
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
+
+window.PBConnections.init({
+ readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse,name:activeBook.name};},
+ setVerse:function(n){if(Number(n)>0){state.selectedVerse=Number(n);persist();}},
+ onNote:function(ctx){if(ctx&&ctx.reference&&ctx.reference.verse)state.selectedVerse=ctx.reference.verse;persist();noteModal();},
+ onSermon:function(ctx){
+  if(!ctx)return;
+  var r=ctx.reference,reference=r.name+" "+r.chapter+":"+r.verse;
+  var line=reference+(ctx.query?" — Palavra em português: "+ctx.query:"");
+  state.sermon.context+=(state.sermon.context?"\n\n":"")+line;
+  persist();notify("Referência integrada ao sermão");
+ },
+ onComment:function(row,ctx){
+  if(!row)return;
+  var reference=ctx&&ctx.reference?ctx.reference.name+" "+ctx.reference.chapter+":"+ctx.reference.verse:"";
+  state.sermon.context+=(state.sermon.context?"\n\n":"")+row.moduleName+" — "+reference+"\n"+row.text;
+  persist();notify("Comentário do módulo inserido no sermão");
+ }
+});
+
 window.PBModules.init({notify:notify,onUpdated:function(select){if(select){state.version=select;state.selectedVerse=0;state.page="leitura";}else if(state.version.startsWith("local:")&&!window.PBModules.getModuleByVersion(state.version)){state.version="alm1911";}persist();render();}}).then(function(){if(state.page==="modulos"||state.page==="leitura")render();}).catch(function(err){console.warn("Biblioteca externa indisponível:",err);});
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){notify("Não foi possível salvar no navegador");}}
@@ -32,11 +52,11 @@ function closeTopMenu(){
  if(menu)menu.hidden=true;
  if(trigger)trigger.setAttribute("aria-expanded","false");
 }
-function page(s){if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
+function page(s){window.PBConnections.close();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
-function setRef(book,ch,verse){TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
+function setRef(book,ch,verse){window.PBConnections.close();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
 function chapterOptions(){var opts="";for(var i=1;i<=activeBook.chapters;i++) opts+='<option value="'+i+'"'+(i===state.chapter?" selected":"")+'>'+i+'</option>';return opts;}
 function readBooks(){
  fetch(API+"/books").then(function(r){if(!r.ok)throw Error("API");return r.json();}).then(function(j){var list=Array.isArray(j.data)?j.data:(j.data&&j.data.books)||[];if(!Array.isArray(list)||list.length<60)return;books=list.map(function(b){var name=typeof b.name==="string"?b.name:(b.name&&b.name["pt-br"])||b.name.en||"";var slug=typeof b.slug==="string"?b.slug:(b.slug&&b.slug.en)||"";return {name:name,slug:slug,chapters:Number(b.chapters)||1,testament:b.testament};}).filter(function(b){return b.name&&b.slug;});activeBook=books.find(function(b){return b.slug===state.book;})||activeBook;if(state.page==="leitura")render();}).catch(function(){});
@@ -198,7 +218,7 @@ function renderReaderContent(){
  var rows=latestChapter.verses.map(function(v){
   var r=activeBook.name+" "+state.chapter+":"+v.number;
   var vid=verseGlobalId(v.number),color=TS.COLORS[TS.getState().highlights[vid]]||"";
-  return '<span class="verse-line'+(state.selectedVerse===v.number?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" role="button" tabindex="0" title="Selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+(state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number))+'</span>';
+  return '<span class="verse-line'+(state.selectedVerse===v.number?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" role="button" tabindex="0" title="Selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+window.PBConnections.wrapHtml((state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number)))+'</span>';
  }).join(state.readerMode==="verses"?"":" ");
  holder.innerHTML='<div class="verse-list '+(state.readerMode==="verses"?"segmented":"")+'">'+rows+'</div><div class="credit">'+esc(latestChapter.copyright||"Texto disponibilizado pela API Midvash; consulte os termos da tradução.")+'</div>';
  var el=document.getElementById("selected-reference");if(el)el.textContent=ref();
@@ -255,7 +275,7 @@ function openStrongPopup(wordId){
  currentWord=w;
  document.getElementById("strong-window")?.remove();
  var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay";frame.setAttribute("role","presentation");
- frame.innerHTML='<section class="strong-balloon" role="dialog" aria-modal="true" aria-label="Dicionário Strong '+esc(w.code)+'"><div class="strong-balloon-bar"><span class="caps">DICIONÁRIO STRONG · '+esc(w.book)+'</span><button class="reader-icon" data-act="close-strong" aria-label="Fechar">✕</button></div><div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div><p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO NO CONTEXTO</div><h3>'+esc(w.meaning)+'</h3><div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div><p class="feature-note">'+esc(w.note)+'</p><p class="lexicon-caveat">A forma original, o aspecto e o contexto devem ser examinados juntos. Strong não é tradução automática.</p><div class="strong-actions"><button class="btn" data-act="strong-copy">▣ Copiar</button><button class="btn" data-act="strong-study">α Estudar</button><button class="btn primary" data-act="strong-sermon">▤ Inserir no sermão</button></div><div id="installed-strong-entry" class="module-comment-list" aria-live="polite"><p class="tiny muted">Consultando dicionários instalados…</p></div><p class="strong-reference"><a href="'+esc(w.source)+'" target="_blank" rel="noopener">Consultar referência lexical ↗</a></p></section>';
+ frame.innerHTML='<section class="strong-balloon" role="dialog" aria-modal="true" aria-label="Dicionário Strong '+esc(w.code)+'"><div class="strong-balloon-bar"><span class="caps">DICIONÁRIO STRONG · '+esc(w.book)+'</span><button class="reader-icon" data-act="close-strong" aria-label="Fechar">✕</button></div><div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div><p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO NO CONTEXTO</div><h3>'+esc(w.meaning)+'</h3><div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div><p class="feature-note">'+esc(w.note)+'</p><p class="lexicon-caveat">A forma original, o aspecto e o contexto devem ser examinados juntos. Strong não é tradução automática.</p><div class="strong-actions"><button class="btn" data-act="strong-copy">▣ Copiar</button><button class="btn" data-act="strong-study">α Estudar</button><button class="btn primary" data-act="strong-sermon">▤ Inserir no sermão</button></div><div id="connected-strong-comments" class="module-comment-list" aria-live="polite"></div><div id="installed-strong-entry" class="module-comment-list" aria-live="polite"><p class="tiny muted">Consultando dicionários instalados…</p></div><p class="strong-reference"><a href="'+esc(w.source)+'" target="_blank" rel="noopener">Consultar referência lexical ↗</a></p></section>';
  frame.addEventListener("click",function(e){if(e.target===frame)frame.remove();});
  document.body.appendChild(frame);
  window.PBModules.getDictionaryEntry(w.code).then(function(entries){
@@ -266,6 +286,15 @@ function openStrongPopup(wordId){
     return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+esc(entry.definition)+'</p></article>';
   }).join("");
  }).catch(function(err){var el=document.getElementById("installed-strong-entry");if(el)el.textContent="Não foi possível consultar o módulo: "+(err.message||String(err));});
+ 
+ window.PBModules.getCommentaries(state.book,state.chapter,state.selectedVerse).then(function(items){
+  var target=document.getElementById("connected-strong-comments");if(!target)return;
+  target.innerHTML='<div class="caps">COMENTÁRIOS DO VERSÍCULO · '+esc(ref())+'</div>'+
+   (items.length?items.slice(0,15).map(function(item){
+     return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><p>'+esc(item.text)+'</p></article>';
+   }).join(""):'<p class="feature-note">Nenhum comentário de módulo encontrado nesta referência.</p>');
+ }).catch(function(e){var target=document.getElementById("connected-strong-comments");if(target)target.textContent="Não foi possível carregar comentários: "+(e.message||String(e));});
+
  frame.querySelector("[data-act='close-strong']").focus();
 }
 var words=[
@@ -397,7 +426,7 @@ document.addEventListener("click",function(ev){
 
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
  var sw=ev.target.closest("[data-strong]");
- if(sw){ev.preventDefault();ev.stopPropagation();openStrongPopup(sw.dataset.strong);return;}
+ if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}openStrongPopup(sw.dataset.strong);return;}
  var v=ev.target.closest("[data-verse]");if(v){
  state.selectedVerse=Number(v.dataset.verse);persist();
  TS.actions.toggleVerse(v.dataset.usfm||verseGlobalId(state.selectedVerse));
