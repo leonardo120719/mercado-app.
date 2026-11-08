@@ -42,10 +42,10 @@ jobs:
           cd target
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- app.js pulpito.html styles.css; then
+          if git diff --quiet -- app.js pulpito.html styles.css pulpito-sw.js; then
             echo "Os sites já estão sincronizados."
             exit 0
           fi
-          git add app.js pulpito.html styles.css
+          git add app.js pulpito.html styles.css pulpito-sw.js
           git commit -m "Sincroniza Púlpito Bible a partir da versão PWA [skip ci]"
           git push origin HEAD:pulpito-bible
