@@ -1,4 +1,4 @@
-/* Púlpito Bible — module library + global toolbar + floating lexicon + connected reader + split study + app core. */
+/* Púlpito Bible deployment bundle: modules + toolbar + windows + connected study + comments split + dictionary split + reader. */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
@@ -70,9 +70,9 @@ function normalizeDictionary(rows){
  if(!entries.size)throw Error("A tabela dictionary não contém verbetes válidos.");
  return {groups:Array.from(entries.values()),count:entries.size};
 }
-async function getDictionaryEntry(term){
+async function getDictionaryEntry(term,moduleId){
  var topic=dictTopic(term);if(!topic)return [];
- var db=await dbOpen(),selected=modules.filter(function(m){return m.type==="dictionary";});
+ var db=await dbOpen(),selected=modules.filter(function(m){return m.type==="dictionary"&&(!moduleId||m.id===moduleId);});
  var entries=await Promise.all(selected.map(async function(m){
   var row=await request(db.transaction("lexicon","readonly").objectStore("lexicon").get(m.id+"/"+topic));
   return row?{topic:row.original||row.topic,definition:row.definition,moduleId:m.id,moduleName:m.name,license:m.license}:null;
@@ -526,7 +526,7 @@ window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bible
       '<div class="mtb-menu-modes"><button data-toolbar-mode="normal" class="'+(s.readingMode==="normal"?"active":"")+'">Leitura</button><button data-toolbar-mode="study" class="'+(s.readingMode==="study"?"active":"")+'">Estudo</button><button data-toolbar-mode="fullscreen" class="'+(s.readingMode==="fullscreen"?"active":"")+'">Tela cheia</button></div>'+
       '<div class="mtb-menu-grid">'+
         item("search","Pesquisar","⌕")+item("notes","Minhas notas","✎")+
-        item("modules","Módulos","⇩")+item("strong","Dicionário","α")+
+        item("modules","Módulos","⇩")+item("dictionary-pane","Painel de dicionários","α")+
         item("bookmarks","Favoritos","☆")+item("sermon","Sermões","▤")+
         item("tutor","Interpretar","✧")+item("split-study","Painel dividido","◫")+item("theme","Alternar tema","◐")+
       '</div><div class="mtb-menu-prefs">'+prefs.map(([key,label])=>'<label><input type="checkbox" data-toolbar-pref="'+key+'" '+(s[key]?'checked':'')+'> '+escapeHtml(label)+'</label>').join('')+'</div>'+
@@ -859,7 +859,9 @@ function init(opts){
   if(word){
    e.preventDefault();e.stopImmediatePropagation();
    var parent=word.closest("[data-verse]");
-   open("word",parent?parent.dataset.verse:null,word.dataset.pbWord,word);
+   var wordVerse=parent?parent.dataset.verse:null;
+   if(config.onWord&&config.onWord(word.dataset.pbWord,wordVerse,word)===true)return;
+   open("word",wordVerse,word.dataset.pbWord,word);
    return;
   }
   if(e.target.closest("[data-strong]"))return;
@@ -870,7 +872,9 @@ function init(opts){
   if(e.key==="Escape"){close();return;}
   if((e.key==="Enter"||e.key===" ")&&e.target&&e.target.dataset&&e.target.dataset.pbWord){
    e.preventDefault();e.stopImmediatePropagation();
-   var parent=e.target.closest("[data-verse]");open("word",parent?parent.dataset.verse:null,e.target.dataset.pbWord,e.target);
+   var parent=e.target.closest("[data-verse]"),verse=parent?parent.dataset.verse:null;
+   if(config.onWord&&config.onWord(e.target.dataset.pbWord,verse,e.target)===true)return;
+   open("word",verse,e.target.dataset.pbWord,e.target);
   }
  },true);
 }
@@ -1066,6 +1070,207 @@ global.PBSplitStudy={attach:attach,destroy:destroy,refresh:refresh,menu:menu};
 })(window);
 
 ;
+(function(global){
+"use strict";
+/* Dictionary study workspace: linked words/Strong -> right-hand lexicon window,
+   matching the MyBible two-window interaction. Existing data stays in IndexedDB. */
+var session=null,requestSerial=0;
+function esc(v){return String(v==null?"":v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function dictionaryModules(){return global.PBModules.getInstalled().filter(function(m){return m.type==="dictionary";});}
+function selectedModule(){
+ if(!session)return null;
+ var modules=dictionaryModules(),active=modules.find(function(m){return m.id===session.config.readModule();});
+ if(!active&&modules.length){
+  active=modules[0];session.config.onModuleChange(active.id);
+ }
+ return active||null;
+}
+function refLabel(){if(!session)return "";var c=session.config.readReference();return (c.name||c.book)+" "+c.chapter+(c.verse?":"+c.verse:"");}
+function normalizeTerm(text){return String(text||"").trim().replace(/^[.,:;!?]+|[.,:;!?]+$/g,"").slice(0,120);}
+function linkText(value){
+ var raw=String(value||""),out="",cursor=0,match;
+ var re=/\b([GH])0*(\d{1,5})\b|\b(João|Jo|Gênesis|Gn|Lucas|Lc|Mateus|Mt|Marcos|Mc|Salmos|Sl|Atos|At|Romanos|Rm|Isaías|Is)\s+(\d{1,3}):(\d{1,3})(?:[-–](\d{1,3}))?/gi;
+ while((match=re.exec(raw))!==null){
+  out+=esc(raw.slice(cursor,match.index));
+  if(match[1]){
+   var code=match[1].toUpperCase()+Number(match[2]);
+   out+='<button type="button" class="pb-dict-inline-link" data-pbdict="term" data-term="'+esc(code)+'" title="Consultar Strong '+esc(code)+'">'+esc(code)+'</button>';
+  }else{
+   var label=match[0];
+   out+='<button type="button" class="pb-dict-inline-link" data-pbdict="reference" data-reference="'+esc(label)+'" title="Abrir '+esc(label)+' na Bíblia">'+esc(label)+'</button>';
+  }
+  cursor=match.index+match[0].length;
+ }
+ return out+esc(raw.slice(cursor));
+}
+function choices(filter){
+ var modules=dictionaryModules(),q=String(filter||"").toLocaleLowerCase("pt-BR").trim();
+ var valid=modules.filter(function(m){return (m.name+" "+m.abbreviation).toLocaleLowerCase("pt-BR").includes(q);});
+ if(!valid.length)return '<p class="pb-dict-empty">'+(modules.length?"Não há dicionário com esse nome.":"Nenhum dicionário instalado neste navegador. Abra Módulos para importar um arquivo SQLite3 compatível.")+'</p>';
+ return valid.map(function(m){
+  var active=m.id===session.config.readModule();
+  return '<button type="button" class="pb-dict-choice'+(active?" active":"")+'" data-pbdict="select" data-dict-id="'+esc(m.id)+'" aria-pressed="'+active+'">'+
+   '<span class="pb-dict-short">'+esc(m.abbreviation||"DIC")+'</span><span class="pb-dict-full">'+esc(m.name)+'</span>'+(active?'<b>✓</b>':'')+'</button>';
+ }).join("");
+}
+function picker(force){
+ if(!session)return;
+ var box=session.root.querySelector("#pb-dictionary-picker"),button=session.root.querySelector("#pb-dictionary-select");
+ if(!box||!button)return;
+ var show=typeof force==="boolean"?force:box.hidden;
+ box.hidden=!show;button.setAttribute("aria-expanded",String(show));
+ if(show){
+  var input=session.root.querySelector("#pb-dictionary-module-filter"),list=session.root.querySelector("#pb-dictionary-choices");
+  if(input)input.value="";
+  if(list)list.innerHTML=choices("");
+  if(input)input.focus();
+ }
+}
+function labels(){
+ if(!session)return;
+ var root=session.root,m=selectedModule(),name=root.querySelector("#pb-dictionary-name"),title=root.querySelector("#pb-dictionary-title"),ref=root.querySelector("#pb-dictionary-reference");
+ if(name)name.textContent=m?(m.abbreviation||m.name):"Dicionários";
+ if(title)title.textContent=normalizeTerm(session.term)||"Selecione uma palavra";
+ if(ref)ref.textContent=refLabel();
+ var analyze=root.querySelector('[data-pbdict="analyze"]');
+ if(analyze)analyze.hidden=!/^[GH]\d{1,5}$/i.test(session.term||"");
+}
+function recordTerm(term){
+ if(!session)return;
+ var normalized=normalizeTerm(term);
+ if(!normalized)return;
+ if(session.history[session.index]===normalized)return;
+ session.history=session.history.slice(0,session.index+1);
+ session.history.push(normalized);
+ if(session.history.length>40)session.history.shift();
+ session.index=session.history.length-1;
+}
+function lookup(term,opts){
+ if(!session||!session.root.isConnected)return;
+ var normalized=normalizeTerm(term),selected=selectedModule(),target=session.root.querySelector("#pb-dictionary-definition");
+ if(!normalized||!target)return;
+ opts=opts||{};
+ session.term=normalized;
+ if(!opts.noHistory)recordTerm(normalized);
+ if(session.config.onTermChange)session.config.onTermChange(normalized);
+ labels();
+ var serial=++requestSerial;
+ if(!selected){
+  target.innerHTML='<div class="pb-dict-empty"><strong>Instale um dicionário para consultar “'+esc(normalized)+'”.</strong><p>Você pode importar dicionários MyBible SQLite3 ou ZIP na Biblioteca de Módulos.</p><button class="btn slim primary" data-page="modulos">⇩ Abrir módulos</button></div>';
+  return;
+ }
+ target.innerHTML='<div class="pb-dict-loading">Buscando “'+esc(normalized)+'” em '+esc(selected.name)+'…</div>';
+ global.PBModules.getDictionaryEntry(normalized,selected.id).then(function(entries){
+  if(!session||serial!==requestSerial||!session.root.isConnected||session.config.readModule()!==selected.id||session.term!==normalized)return;
+  if(!entries.length){
+   target.innerHTML='<div class="pb-dict-empty"><strong>“'+esc(normalized)+'” não foi encontrado em '+esc(selected.name)+'.</strong><p>A busca usa o tópico do verbete. Palavras em português nem sempre são as mesmas formas originais; escolha outro dicionário ou toque em um número Strong identificado na Bíblia.</p></div>';return;
+  }
+  target.innerHTML=entries.map(function(e){
+   return '<article class="pb-dict-entry"><div class="pb-dict-entry-title"><strong>'+esc(e.topic)+'</strong><small>'+esc(e.moduleName)+'</small></div>'+
+    '<div class="pb-dict-definition">'+linkText(e.definition)+'</div></article>';
+  }).join("");
+  var scroll=session.root.querySelector("#pb-dictionary-scroll");if(scroll)scroll.scrollTop=0;
+ }).catch(function(err){if(session&&serial===requestSerial)target.innerHTML='<p class="pb-dict-error">Falha ao consultar o dicionário: '+esc(err.message||String(err))+'</p>';});
+}
+function changeModule(id){
+ if(!session||!dictionaryModules().some(function(m){return m.id===id;}))return;
+ session.config.onModuleChange(id);picker(false);labels();
+ if(session.term)lookup(session.term,{noHistory:true});
+}
+function cycleModule(offset){
+ var all=dictionaryModules();if(!all.length||!session)return;
+ var i=all.findIndex(function(m){return m.id===session.config.readModule();});
+ changeModule(all[(i+offset+all.length)%all.length].id);
+}
+function historyMove(direction){
+ if(!session)return;
+ var next=session.index+direction;
+ if(next<0||next>=session.history.length)return;
+ session.index=next;
+ lookup(session.history[next],{noHistory:true});
+}
+function handleClick(event){
+ if(!session||!session.root.contains(event.target))return;
+ var button=event.target.closest("[data-pbdict]");
+ if(!button)return;
+ event.preventDefault();event.stopPropagation();
+ var act=button.dataset.pbdict;
+ switch(act){
+ case "picker":picker();break;
+ case "select":changeModule(button.dataset.dictId);break;
+ case "prev-module":cycleModule(-1);break;
+ case "next-module":cycleModule(1);break;
+ case "back":historyMove(-1);break;
+ case "forward":historyMove(1);break;
+ case "term":lookup(button.dataset.term);break;
+ case "reference":session.config.onReference(button.dataset.reference);break;
+ case "close":session.config.onClose();break;
+ case "analyze":session.config.onAnalyze(session.term);break;
+ case "search":{var field=session.root.querySelector("#pb-dictionary-search");if(field)lookup(field.value);break;}
+ case "copy":{
+  var module=selectedModule(),content=session.root.querySelector("#pb-dictionary-definition");
+  if(content&&navigator.clipboard&&navigator.clipboard.writeText){
+   navigator.clipboard.writeText((module?module.name+" — ":"")+session.term+"\n"+content.innerText).then(function(){session.config.notify("Verbete copiado");}).catch(function(){session.config.notify("Não foi possível copiar");});
+  }
+  break;
+ }
+ }
+}
+function handleKey(e){
+ if(!session||!session.root.contains(e.target))return;
+ if(e.key==="Escape"){picker(false);return;}
+ if(e.key==="Enter"&&e.target.id==="pb-dictionary-search"){e.preventDefault();lookup(e.target.value);}
+}
+function attach(config){
+ destroy();
+ var host=document.getElementById("pb-split-bible")||document.querySelector(".reader-columns");
+ if(!host)return;
+ host.classList.add("pb-dictionary-open");
+ var panel=document.createElement("section");panel.id="pb-dictionary-pane";panel.className="pb-dictionary-pane";
+ panel.setAttribute("aria-label","Janela de dicionários sincronizada com a Bíblia");
+ panel.innerHTML='<header class="pb-dictionary-bar">'+
+  '<button type="button" class="pb-dictionary-select" id="pb-dictionary-select" data-pbdict="picker" aria-controls="pb-dictionary-picker" aria-expanded="false">'+
+   '<span>α</span><strong id="pb-dictionary-name">Dicionários</strong><b>⌄</b></button>'+
+  '<div class="pb-dictionary-nav"><button data-pbdict="back" aria-label="Verbete anterior" title="Voltar">‹</button><button data-pbdict="forward" aria-label="Próximo verbete" title="Avançar">›</button>'+
+   '<button data-pbdict="prev-module" aria-label="Dicionário anterior" title="Dicionário anterior">⇤</button><button data-pbdict="next-module" aria-label="Próximo dicionário" title="Próximo dicionário">⇥</button>'+
+   '<button data-pbdict="close" aria-label="Fechar dicionário" title="Fechar dicionário">×</button></div></header>'+
+  '<div class="pb-dictionary-picker" id="pb-dictionary-picker" hidden><div class="pb-dict-picker-heading"><strong>Dicionários instalados</strong><span>'+dictionaryModules().length+' módulo(s)</span></div>'+
+   '<input type="search" id="pb-dictionary-module-filter" placeholder="Buscar módulo…" aria-label="Buscar módulo de dicionário">'+
+   '<div class="pb-dictionary-choices" id="pb-dictionary-choices"></div><button class="pb-dict-install" data-page="modulos" type="button">⇩ Instalar novo dicionário</button></div>'+
+  '<div class="pb-dictionary-search-row"><input id="pb-dictionary-search" type="search" placeholder="Palavra, nome ou Strong G/H" aria-label="Pesquisar verbete">'+
+   '<button type="button" data-pbdict="search" aria-label="Pesquisar">⌕</button></div>'+
+  '<div id="pb-dictionary-scroll" class="pb-dictionary-scroll"><div class="pb-dictionary-heading"><strong id="pb-dictionary-title">Dicionário</strong><small id="pb-dictionary-reference"></small></div>'+
+   '<div id="pb-dictionary-definition"><div class="pb-dict-empty">Toque numa palavra da Bíblia ou pesquise um verbete para abrir o significado aqui.</div></div></div>'+
+  '<footer class="pb-dictionary-footer"><button data-pbdict="analyze" type="button">α Análise Strong</button><button data-pbdict="copy" type="button">▣ Copiar</button></footer>';
+ host.appendChild(panel);
+ var hostSplit=document.getElementById("pb-study-split");if(hostSplit)hostSplit.classList.add("pb-dictionary-focused");
+ session={root:panel,host:host,config:config,term:"",history:[],index:-1};
+ panel.addEventListener("click",handleClick);
+ panel.addEventListener("keydown",handleKey);
+ var moduleFilter=panel.querySelector("#pb-dictionary-module-filter");
+ if(moduleFilter)moduleFilter.addEventListener("input",function(e){var list=panel.querySelector("#pb-dictionary-choices");if(list)list.innerHTML=choices(e.target.value);});
+ labels();
+ var term=normalizeTerm(config.readTerm());
+ if(term)lookup(term);else{
+  var title=panel.querySelector("#pb-dictionary-title");if(title)title.textContent="Toque numa palavra";
+ }
+}
+function destroy(){
+ ++requestSerial;
+ if(!session)return;
+ session.root.removeEventListener("click",handleClick);
+ session.root.removeEventListener("keydown",handleKey);
+ session.root.remove();
+ session.host.classList.remove("pb-dictionary-open");
+ var split=document.getElementById("pb-study-split");if(split)split.classList.remove("pb-dictionary-focused");
+ session=null;
+}
+function syncReference(){if(session)labels();}
+function isAttached(){return Boolean(session&&session.root&&session.root.isConnected);}
+global.PBDictionaryStudy={attach:attach,destroy:destroy,lookup:lookup,isAttached:isAttached,picker:picker,syncReference:syncReference};
+})(window);
+
+;
 (function(){
 "use strict";
 var API="https://api.midvash.com/v1";
@@ -1073,7 +1278,7 @@ var MAIN=document.getElementById("app-main");
 var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
-var defaults={splitStudy:true,splitPct:44,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[],parallelVersion:"bpm"};
+var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:44,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[],parallelVersion:"bpm"};
 var saved={};try{saved=JSON.parse(localStorage.getItem(STORE_KEY)||"{}");}catch(e){}
 var state=Object.assign({},defaults,saved);
 state.sermon=Object.assign({},defaults.sermon,state.sermon||{});
@@ -1091,6 +1296,7 @@ var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapt
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
 
 window.PBConnections.init({
+ onWord:function(word,verse){openDictionaryTerm(word,verse);return true;},
  shouldOpenVersePanel:function(){return !state.splitStudy;},
  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse,name:activeBook.name};},
  setVerse:function(n){if(Number(n)>0){state.selectedVerse=Number(n);persist();window.PBSplitStudy.refresh();}},
@@ -1246,7 +1452,8 @@ function toolbarAction(action){
  case "next":if(state.chapter<activeBook.chapters)setRef(state.book,state.chapter+1);return;
  case "comments":state.splitStudy=!state.splitStudy;persist();renderReader();return;
  case "split-study":state.splitStudy=!state.splitStudy;persist();renderReader();return;
- case "strong":page("original");return;
+ case "strong":if(!state.dictionaryOpen){state.dictionaryOpen=true;persist();attachDictionaryStudy();}else if(state.dictionaryTerm)window.PBDictionaryStudy.lookup(state.dictionaryTerm,{noHistory:true});return;
+ case "dictionary-pane":state.dictionaryOpen=!state.dictionaryOpen;persist();renderReader();return;
  case "notes":case "bookmarks":page("caderno");return;
  case "modules":page("modulos");return;
  case "sermon":page("sermao");return;
@@ -1296,10 +1503,45 @@ function renderReaderContent(){
  if(state.showParallel)loadParallelText();
  if(state.showComments&&!state.splitStudy)loadInstalledComments();
  if(state.splitStudy)window.PBSplitStudy.refresh();
+ if(state.dictionaryOpen)window.PBDictionaryStudy.syncReference();
  refreshVerseDecorations();
 }
 function readerOptions(){
  return books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(state.book===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("");
+}
+
+
+/* Persistent linked dictionary window. Independent of the commentary panel. */
+function attachDictionaryStudy(){
+ if(!state.dictionaryOpen)return;
+ window.PBDictionaryStudy.attach({
+  readModule:function(){return state.dictionaryModuleId||"";},
+  readTerm:function(){return state.dictionaryTerm||"";},
+  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse||0,name:activeBook.name};},
+  onModuleChange:function(id){state.dictionaryModuleId=id;persist();},
+  onTermChange:function(term){state.dictionaryTerm=term;persist();},
+  onClose:function(){state.dictionaryOpen=false;persist();window.PBDictionaryStudy.destroy();},
+  onReference:function(reference){
+   var aliases={Jo:"João",Gn:"Gênesis",Lc:"Lucas",Mt:"Mateus",Mc:"Marcos",Sl:"Salmos",At:"Atos",Rm:"Romanos",Is:"Isaías"};
+   var parts=/^([A-Za-zÀ-ÿ]+)\s+(\d+(?::\d+(?:[-–]\d+)?)?)/.exec(String(reference||"").trim());
+   var resolved=parts&&aliases[parts[1]]?aliases[parts[1]]+" "+parts[2]:reference;
+   lookupReference(resolved);
+  },
+  onAnalyze:function(code){openStrongPopup(code);},
+  notify:notify
+ });
+}
+function openDictionaryTerm(term,verse){
+ var token=String(term||"").trim();
+ if(!token)return;
+ if(verse!==null&&verse!==undefined&&Number(verse)>0){
+  state.selectedVerse=Number(verse);
+  window.PBSplitStudy.refresh();
+ }
+ state.dictionaryTerm=token;
+ state.dictionaryOpen=true;persist();
+ if(!window.PBDictionaryStudy.isAttached())attachDictionaryStudy();
+ window.PBDictionaryStudy.lookup(token);
 }
 
 function attachSplitStudy(){
@@ -1317,6 +1559,7 @@ function attachSplitStudy(){
 }
 
 function renderReader(){
+ window.PBDictionaryStudy.destroy();
  window.PBSplitStudy.destroy();
  var other=state.parallelVersion||"bpm";
  MAIN.innerHTML='<section class="reader-screen"><div id="dynamic-toolbar"></div><div class="reader-commandbar">'+
@@ -1330,6 +1573,7 @@ function renderReader(){
  (state.showCrossRefs?'<section class="card card-pad reader-extras"><div class="caps">REFERÊNCIAS CRUZADAS</div><h2 class="section-heading">Passagens relacionadas</h2><p class="feature-note">Sugestões temáticas iniciais, não geradas automaticamente por um comentário externo.</p><div class="row">'+(state.book==="john"&&state.chapter===15?'<button class="btn slim" data-ref-open="João 6:56">João 6:56</button><button class="btn slim" data-ref-open="Gálatas 5:22">Gálatas 5:22</button>':'<button class="btn slim" data-ref-open="João 1:1">João 1:1</button>')+'</div></section>':"")+'</div>':"")+
  '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-page="tutor">✧ Interpretar</button></div></div></section>';
  if(state.splitStudy)attachSplitStudy();
+ if(state.dictionaryOpen)attachDictionaryStudy();
  mountAppToolbar();
  loadChapter();
 }
@@ -1536,7 +1780,7 @@ document.addEventListener("click",function(ev){
 
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
  var sw=ev.target.closest("[data-strong]");
- if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}openStrongPopup(sw.dataset.strong,sw);return;}
+ if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}var matching=words.find(function(w){return w.id===sw.dataset.strong;});var strongCode=matching?matching.code:sw.dataset.strong;openDictionaryTerm(strongCode,state.selectedVerse);return;}
  var v=ev.target.closest("[data-verse]");if(v){
  state.selectedVerse=Number(v.dataset.verse);persist();
  TS.actions.toggleVerse(v.dataset.usfm||verseGlobalId(state.selectedVerse));
@@ -1544,6 +1788,7 @@ document.addEventListener("click",function(ev){
  var title=document.getElementById("selected-reference");if(title)title.textContent=ref();
  if(state.showComments&&!state.splitStudy)loadInstalledComments();
  if(state.splitStudy)window.PBSplitStudy.refresh();
+ if(state.dictionaryOpen)window.PBDictionaryStudy.syncReference();
  return;
  }
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
