@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261108-commentary-window-module-labels-1";
+window.PB_BUILD_ID = "pb-20261108-commentary-labels-above-isolated-2";
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
@@ -1373,9 +1373,10 @@ function decorate(book,chapter,verses){
   document.querySelectorAll("#chapter-body .verse-line").forEach(function(line){
    var n=Number(line.dataset.verse),mods=candidates(n);
    if(!mods.length)return;
-   var labels=document.createElement("span");
+   var labels=document.createElement("div");
    labels.className="pb-verse-comment-labels";
    labels.setAttribute("role","group");
+   labels.setAttribute("data-comment-verse",String(n));
    labels.setAttribute("aria-label","Comentários vinculados a "+book+" "+chapter+":"+n);
    mods.forEach(function(mod){
     var button=document.createElement("button");
@@ -1383,12 +1384,12 @@ function decorate(book,chapter,verses){
     button.className="pb-verse-comment-indicator";
     button.setAttribute("data-comment-indicator",String(n));
     button.setAttribute("data-comment-module",String(mod.moduleId||""));
-    button.setAttribute("aria-label","Abrir "+(mod.moduleName||"comentário")+" em "+book+" "+chapter+":"+n+". Toque duas vezes para abrir.");
-    button.setAttribute("title",(mod.moduleName||"Comentário")+" — toque duas vezes para abrir");
+    button.setAttribute("aria-label","Abrir "+(mod.moduleName||"comentário")+" em "+book+" "+chapter+":"+n+". Clique ou toque duas vezes para abrir.");
+    button.setAttribute("title",(mod.moduleName||"Comentário")+" — clique ou toque duas vezes para abrir");
     button.textContent=mod.moduleName||"Comentário";
     labels.appendChild(button);
    });
-   if(labels.childNodes.length)line.insertBefore(labels,line.firstChild);
+   if(labels.childNodes.length&&line.parentNode)line.parentNode.insertBefore(labels,line);
   });
  }).catch(function(err){
   if(gen===generation&&global.console&&console.warn)console.warn("Indicadores de comentários indisponíveis",err);
