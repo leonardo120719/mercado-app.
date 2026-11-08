@@ -267,11 +267,19 @@ async function parseZip(file){
  return [pickJson(JSON.parse(await first.async("string")),file.name)];
 }
 async function parseFile(file){
- if(file.size>70*1024*1024)throw Error("O arquivo ultrapassa 70 MB.");
  var name=file.name.toLowerCase();
- if(name.endsWith(".zip"))return parseZip(file);
- if(/\.(sqlite3?|db)$/.test(name))return [await parseSQLite(await file.arrayBuffer(),file.name)];
- if(name.endsWith(".json"))return [pickJson(JSON.parse(await file.text()),file.name)];
+ if(name.endsWith(".zip")){
+  if(file.size>70*1024*1024)throw Error("O ZIP excede 70 MB compactados.");
+  return parseZip(file);
+ }
+ if(/\.(sqlite3?|db)$/.test(name)){
+  if(file.size>160*1024*1024)throw Error("O SQLite excede 160 MB.");
+  return [await parseSQLite(await file.arrayBuffer(),file.name)];
+ }
+ if(name.endsWith(".json")){
+  if(file.size>70*1024*1024)throw Error("O arquivo JSON excede 70 MB.");
+  return [pickJson(JSON.parse(await file.text()),file.name)];
+ }
  throw Error("Formato incompatível. Escolha um ZIP, SQLite3 ou JSON.");
 }
 async function deleteRelated(store,id){
