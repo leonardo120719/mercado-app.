@@ -95,3 +95,19 @@ Oportunidade: **integrar ferramentas já existentes, ensinar a utilizá-las corr
 ## Critérios para as próximas entregas
 
 Não apresentar análises morfológicas não confirmadas como se fossem automáticas ou exaustivas. Nunca inferir que um número Strong determine o sentido de um texto. A interface deve sinalizar recursos demonstrativos, funcionalidades ativas e futuras. Guardar histórico e material pessoal com políticas claras de privacidade, exportação e eliminação.
+
+
+## Atualização do leitor inspirada no MyBible — 08/11/2026
+
+A experiência de leitura foi reorganizada com cabeçalho azul compacto, seletores de livro/capítulo/tradução, navegação por capítulos, barra de ações de estudo, texto serifado em fundo sépia/branco/noturno e dock de ações de favoritos, notas, sermão e interpretação. Inclui ajuste de fonte, modo contínuo ou separado por versículo, tela de leitura focada, opção de duas traduções paralelas, painel de comentários didáticos e sugestões de referências cruzadas.
+
+### Strong ao lado da palavra em português
+
+- Exemplos de vínculo morfológico auditado: João 15:4 (**permanecei**, G3306 e **ramo**, G2814), João 15:5 (**permanece**, G3306), Gênesis 1:1 (**criou**, H1254), Salmos 73:3 (**ímpios**, H7563).
+- O número aparece **imediatamente depois da palavra** em português; a própria palavra também é clicável para abrir o dicionário quando números estão ocultos.
+- Pop-up lexical contém forma original, lema, transliteração, classe, morfologia, contexto, referência externa e ações de copiar, aprofundar ou inserir no sermão.
+- Em Salmos 73, o painel de comentários apresenta um exemplo clicável H7563 que não pretende etiquetar automaticamente todo comentário em PDF.
+- **Limite atual:** as associações são explicitamente anotadas em poucas passagens. O programa NÃO gera automaticamente códigos para todos os termos, capítulos, comentários ou traduções. Será necessário um pipeline que alinhe de modo confiável as ocorrências em textos hebraico/grego às palavras da tradução portuguesa, por edição, com revisão de ambiguidades.
+- **Inspiração funcional:** os recursos do MyBible foram estudados a partir de sua documentação oficial em https://mybible.zone/android/tips/main/. A interface mantém marca, arte e código próprios do Púlpito Bible.
+
+As preferências de leitura e estudo permanecem no armazenamento local; ainda não há sincronização ou importação automática da biblioteca do Púlpito Expositivo.
