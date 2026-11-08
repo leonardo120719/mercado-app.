@@ -24,7 +24,10 @@ function bibleOptions(selected){return modules.filter(function(m){return m.type=
 function getModuleByVersion(version){return modules.find(function(m){return "local:"+m.id===version&&m.type==="bible";});}
 async function getChapter(version,book,chapter){await dbOpen();var m=getModuleByVersion(version);if(!m)throw Error("Módulo de Bíblia não instalado neste dispositivo");var key=m.id+"/"+book+"/"+chapter;var db=await dbOpen();var row=await request(db.transaction("chapters","readonly").objectStore("chapters").get(key));if(!row||!row.verses||!row.verses.length)throw Error("Este módulo não contém "+book+" "+chapter);return {verses:row.verses,copyright:"Módulo instalado localmente · "+m.name+" · "+(m.license||"Licença não informada no arquivo")+". Verifique as condições de uso da edição.",version:m.abbreviation||m.name};}
 async function getCommentaries(book,chapter,verse){await dbOpen();var active=modules.filter(function(m){return m.type==="commentary";});var db=await dbOpen();var entries=await Promise.all(active.map(async function(m){var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));if(!row)return [];return row.entries.filter(function(e){if(e.fromChapter&&chapter<e.fromChapter)return false;if(e.toChapter&&chapter>e.toChapter)return false;if(verse&&e.fromChapter===chapter&&e.fromVerse&&verse<e.fromVerse)return false;if(verse&&e.toChapter===chapter&&e.toVerse&&verse>e.toVerse)return false;return true;}).slice(0,45).map(function(e){return {moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse};});}));return entries.flat().slice(0,100);}
-function renderVerse(raw,book,showStrong){var source=String(raw||"");var pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;while((match=pattern.exec(source))!==null){output+=clean(simplifyText(source.slice(position,match.index)));var prefix=canonical.indexOf(book)<39?"H":"G";var code=prefix+Number(match[1]);if(showStrong){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'">'+code+'</button>';}position=match.index+match[0].length;}output+=clean(simplifyText(source.slice(position)));return output;}
+function renderVerse(raw,book,showStrong){var source=String(raw||"");var pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
+ function chunk(str){return clean(str.replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&"));}
+ while((match=pattern.exec(source))!==null){output+=chunk(source.slice(position,match.index));var prefix=canonical.indexOf(book)<39?"H":"G";var code=prefix+Number(match[1]);if(showStrong){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'">'+code+'</button>';}position=match.index+match[0].length;}
+ output+=chunk(source.slice(position));return output;}
 function filenameSlug(s){return String(s||"modulo").replace(/\.[^.]+$/,"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,58)||"modulo";}
 function recordSet(result){return (result||[]).flatMap(function(r){return r.values.map(function(values){var o={};r.columns.forEach(function(c,i){o[c.toLowerCase()]=values[i];});return o;});});}
 function getInfo(db){if(!recordSet(db.exec("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='info'")).length)return {};try{var rows=recordSet(db.exec("SELECT * FROM info")),obj={};rows.forEach(function(r){obj[String(r.name||r.key||"").toLowerCase()]=String(r.value||"");});return obj;}catch(e){return {};}}
@@ -90,19 +93,17 @@ async function parseFile(file){
 async function deleteRelated(store,id){
  return new Promise(function(resolve,reject){var idx=store.index("moduleId"),range=IDBKeyRange.only(id),req=idx.openCursor();req.onsuccess=function(){var cur=req.result;if(cur){cur.delete();cur.continue();}else resolve();};req.onerror=function(){reject(req.error);};});
 }
+async function relatedKeys(store,id){var db=await dbOpen();return request(db.transaction(store,"readonly").objectStore(store).index("moduleId").getAllKeys(IDBKeyRange.only(id)));}
 async function saveModule(parsed,filename){
  var id="ext-"+filenameSlug(filename)+"-"+(parsed.type==="bible"?"b":"c");var db=await dbOpen();
  var meta={id:id,type:parsed.type,name:String(parsed.name||filename).slice(0,130),abbreviation:String(parsed.abbreviation||"EXT").slice(0,30),language:String(parsed.language||"").slice(0,60),license:String(parsed.license||"não informada").slice(0,400),description:String(parsed.description||"").slice(0,400),format:parsed.format,count:parsed.count,file:filename,installedAt:Date.now()};
- var tx=db.transaction(["modules","chapters","commentaries"],"readwrite");
- var collection=parsed.type==="bible"?"chapters":"commentaries",store=tx.objectStore(collection);
- var transactionDone=new Promise(function(resolve,reject){tx.oncomplete=function(){resolve();};tx.onerror=function(){reject(tx.error||Error("Falha ao gravar módulo"));};tx.onabort=function(){reject(tx.error||Error("Importação cancelada"));};});
- await deleteRelated(store,id);
+ var collection=parsed.type==="bible"?"chapters":"commentaries";
+ var oldKeys=await relatedKeys(collection,id),tx=db.transaction(["modules",collection],"readwrite");
+ var done=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error||Error("Falha ao gravar módulo"));};tx.onabort=function(){reject(tx.error||Error("Importação cancelada"));};});
+ var store=tx.objectStore(collection);oldKeys.forEach(function(key){store.delete(key);});
  parsed.groups.forEach(function(group){var key=id+"/"+group.book+(parsed.type==="bible"?"/"+group.chapter:"");store.put(Object.assign({key:key,moduleId:id},group));});
  tx.objectStore("modules").put(meta);
- await transactionDone;
- await loadCatalog();
- onUpdated();
- return meta;
+ await done;await loadCatalog();onUpdated();return meta;
 }
 async function importFiles(files){
  if(busy)return;
@@ -120,11 +121,11 @@ async function importFiles(files){
 async function removeModule(id){
  var m=modules.find(function(m){return m.id===id;});if(!m)return;
  if(!confirm("Excluir o módulo '"+m.name+"' deste navegador? Suas notas pessoais não serão apagadas."))return;
- var db=await dbOpen(),tx=db.transaction(["modules","chapters","commentaries"],"readwrite");
+ var db=await dbOpen();var ckeys=await relatedKeys("chapters",id),nkeys=await relatedKeys("commentaries",id);
+ var tx=db.transaction(["modules","chapters","commentaries"],"readwrite");
  var done=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};});
- tx.objectStore("modules").delete(id);
- await deleteRelated(tx.objectStore("chapters"),id);
- await deleteRelated(tx.objectStore("commentaries"),id);
+ tx.objectStore("modules").delete(id);ckeys.forEach(function(key){tx.objectStore("chapters").delete(key);});
+ nkeys.forEach(function(key){tx.objectStore("commentaries").delete(key);});
  await done;await loadCatalog();onUpdated();notify("Módulo removido.");renderPage();
 }
 function getUiMarkup(){
@@ -138,7 +139,7 @@ function getUiMarkup(){
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
  (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
  '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Traduções desejadas</h2><span class="chip">Disponíveis via importação autorizada</span></div>'+
- '<div class="module-catalog">'+requested.map(function(t){var found=modules.find(function(m){return m.type==="bible"&&(m.abbreviation||"").toUpperCase()===t.code||(m.name||"").toLowerCase()===t.name.toLowerCase();});return '<div class="module-catalog-item"><div><strong>'+clean(t.code)+' · '+clean(t.name)+'</strong><p>'+clean(t.holder)+' · '+clean(t.status)+'</p></div><span class="chip '+(found?"greenish":"")+'">'+(found?"Instalado":"Não incluído")+'</span></div>';}).join("")+'</div>'+
+ '<div class="module-catalog">'+requested.map(function(t){var found=modules.find(function(m){return m.type==="bible"&&((m.abbreviation||"").toUpperCase()===t.code||(m.name||"").toLowerCase()===t.name.toLowerCase());});return '<div class="module-catalog-item"><div><strong>'+clean(t.code)+' · '+clean(t.name)+'</strong><p>'+clean(t.holder)+' · '+clean(t.status)+'</p></div><span class="chip '+(found?"greenish":"")+'">'+(found?"Instalado":"Não incluído")+'</span></div>';}).join("")+'</div>'+
  '<p class="feature-note">NVI, NTLH, NAA e ACF não são fornecidas nem baixadas automaticamente pelo aplicativo. A King James de 1611 também exige verificação dos direitos aplicáveis à edição e ao território. A instalação depende de arquivo compatível obtido com autorização.</p></section>'+
  '<section class="card card-pad" style="margin-top:18px"><h2 class="section-heading">Como instalar</h2><p class="feature-note">1. Obtenha legalmente o módulo e salve o arquivo ZIP ou SQLite3 no dispositivo. 2. Toque em “Escolher arquivos” e selecione o documento no aplicativo Arquivos. 3. Confirme o direito de utilização e a importação será iniciada. 4. Ative uma Bíblia instalada pelo botão “Ler agora” ou pelo seletor de traduções. 5. Ative “Comentários” no leitor para consultar comentários vinculados ao capítulo.</p><p class="feature-note">Os dados são armazenados em IndexedDB no navegador. Eles não são sincronizados entre aparelhos; limpar os dados do site pode apagá-los. Exporte ou mantenha cópia original dos seus ZIPs.</p></section></div>';
 }
