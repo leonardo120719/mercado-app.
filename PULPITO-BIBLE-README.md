@@ -323,3 +323,20 @@ Nesta atualização, os dicionários passam a funcionar como outra janela de est
 No Render o \`app.js\` agrega os fontes na ordem \`modules.js\` → \`toolbar-store.js\` → \`window-ui.js\` → \`connections.js\` → \`split-study.js\` → \`dictionary-study.js\` → \`app-core.js\`. Os textos das traduções, comentários e dicionários instalados **não são enviados ao GitHub nem ao Render**.
 
 **Validação simulada:** teste de dois dicionários, pesquisa por “Jezreel”, troca entre os dicionários sem perder o termo, atualização da referência de João 15:4 para 15:8, fechamento/restauração, e inicialização do bundle completo com Bíblia, painel de comentários, dicionário e toolbar. Falta conferir detalhes de rolagem e orientação em aparelho real.
+
+
+## Dicionário exatamente na janela inferior dos comentários (atualização 08/11/2026)
+
+A pedido do usuário, o comportamento de dicionários que antes ocupava uma coluna à direita foi substituído por **um único painel inferior compartilhado**, igual ao painel de comentários do MyBible:
+
+- A Bíblia fica **na parte superior**, com leitura e rolagem independentes.
+- A barra inferior pode mostrar **Comentários** ou **Dicionários**. O botão "α Dicionários" na barra dos comentários abre os dicionários na **mesma posição**, sem navegar para outra tela. O botão "▤ Comentários" na barra do dicionário retorna imediatamente aos comentários.
+- Cada modo tem sua **barra de seleção de módulo**, uma lista escura de módulos instalados, pesquisa dentro do painel e comandos de navegação próprios. O seletor não altera o versículo.
+- Selecionar uma palavra abre o dicionário inferior e consulta o verbete; clicar em um Strong H/G consulta seu código. O dicionário usa somente conteúdo de módulos instalados localmente. Uma palavra sem entrada exibe uma mensagem de resultado ausente, sem inventar definições.
+- As configurações \`dictionaryModuleId\`, \`dictionaryTerm\`, \`commentModuleId\`, \`splitPct\` continuam salvas no estado existente, sem apagar dados ou módulos importados.
+- A janela dos comentários não é destruída ao abrir o dicionário: é ocultada e recuperada com a rolagem/conteúdo anteriores. O divisor de altura permanece funcional em ambas.
+- Se o usuário abriu um dicionário estando na leitura simples, o aplicativo ativa o modo dividido; ao fechar o dicionário mostra novamente a área de comentários.
+- O CSS novo usa \`pb-dictionary-active\` no contêiner \`#pb-study-split\`, substituindo a geometria lateral anterior, inclusive em dispositivos estreitos. A interface completa é incorporada no \`app.js\` usado pela publicação no Render.
+- Testes automatizados simulados verificaram início com dicionário ativo, início com comentários ativos, troca de módulo com preservação do termo, retorno aos comentários sem remover a estrutura pré-existente, e parsing do JavaScript.
+
+A implantação é automática se o Render receber o evento de push; o estado da publicação deve ser confirmado separadamente.
