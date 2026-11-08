@@ -1,3 +1,4 @@
+window.PB_BUILD_ID = "pb-20261108-strong-doubleclick-autoupdate-1";
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
@@ -2180,4 +2181,64 @@ document.getElementById("theme-toggle").addEventListener("click",function(){var 
 document.getElementById("font-up").addEventListener("click",function(){state.fontSize=Math.min(30,state.fontSize+2);TS.actions.setFontSize(state.fontSize);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 document.getElementById("font-down").addEventListener("click",function(){state.fontSize=Math.max(14,state.fontSize-2);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 render();readBooks();
+
+function startBuildUpdateWatcher(){
+ var currentBuild=window.PB_BUILD_ID,channel=null,reloadPending=false,reloadStarted=false,checkInProgress=false;
+ function isEditing(){
+  var el=document.activeElement;if(!el)return false;
+  var tag=String(el.tagName||"").toLowerCase();
+  return tag==="input"||tag==="textarea"||tag==="select"||!!el.isContentEditable;
+ }
+ function reloadForUpdate(){
+  if(reloadStarted)return;
+  if(isEditing()){reloadPending=true;return;}
+  reloadStarted=true;
+  try{if(channel)channel.postMessage({type:"reloading",build:currentBuild});}catch(e){}
+  window.location.reload();
+ }
+ function receiveUpdate(event){
+  var data=event&&event.data||{};
+  if(data.type==="version"&&data.build&&data.build!==currentBuild)reloadForUpdate();
+ }
+ try{
+  if("BroadcastChannel" in window){
+   channel=new BroadcastChannel("pulpito-bible-version");
+   channel.onmessage=receiveUpdate;
+  }
+ }catch(e){}
+ async function checkVersion(){
+  if(checkInProgress||document.visibilityState==="hidden")return;
+  checkInProgress=true;
+  try{
+   var script=document.querySelector('script[src*="app.js"]');
+   if(!script)return;
+   var url=new URL(script.src,window.location.href);
+   url.searchParams.set("pb-update-check",String(Date.now()));
+   var response=await fetch(url.href,{cache:"no-store",credentials:"same-origin"});
+   if(!response.ok)return;
+   var source=await response.text();
+   var match=source.match(/window\.PB_BUILD_ID\s*=\s*["']([^"']+)["']/);
+   if(match&&match[1]&&match[1]!==currentBuild){
+    try{if(channel)channel.postMessage({type:"version",build:match[1]});}catch(e){}
+    reloadForUpdate();
+   }
+  }catch(e){}
+  finally{checkInProgress=false;}
+ }
+ document.addEventListener("visibilitychange",function(){
+  if(document.visibilityState==="visible"){if(reloadPending)reloadForUpdate();else checkVersion();}
+ });
+ document.addEventListener("focusout",function(){if(reloadPending)window.setTimeout(reloadForUpdate,250);});
+ window.addEventListener("focus",function(){if(reloadPending)reloadForUpdate();else checkVersion();});
+ window.setInterval(checkVersion,60000);
+ window.setTimeout(checkVersion,15000);
+ if("serviceWorker" in navigator){
+  navigator.serviceWorker.addEventListener("controllerchange",reloadForUpdate);
+  navigator.serviceWorker.addEventListener("message",function(event){
+   if(event.data&&event.data.type==="PB_NEW_VERSION")reloadForUpdate();
+  });
+ }
+}
+startBuildUpdateWatcher();
+
 })();
