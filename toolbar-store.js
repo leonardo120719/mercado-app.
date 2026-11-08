@@ -155,7 +155,7 @@
       '<div class="mtb-menu-modes"><button data-toolbar-mode="normal" class="'+(s.readingMode==="normal"?"active":"")+'">Leitura</button><button data-toolbar-mode="study" class="'+(s.readingMode==="study"?"active":"")+'">Estudo</button><button data-toolbar-mode="fullscreen" class="'+(s.readingMode==="fullscreen"?"active":"")+'">Tela cheia</button></div>'+
       '<div class="mtb-menu-grid">'+
         item("search","Pesquisar","⌕")+item("notes","Minhas notas","✎")+
-        item("modules","Módulos","⇩")+item("strong","Dicionário","α")+
+        item("modules","Módulos","⇩")+item("dictionary-pane","Painel de dicionários","α")+
         item("bookmarks","Favoritos","☆")+item("sermon","Sermões","▤")+
         item("tutor","Interpretar","✧")+item("split-study","Painel dividido","◫")+item("theme","Alternar tema","◐")+
       '</div><div class="mtb-menu-prefs">'+prefs.map(([key,label])=>'<label><input type="checkbox" data-toolbar-pref="'+key+'" '+(s[key]?'checked':'')+'> '+escapeHtml(label)+'</label>').join('')+'</div>'+
