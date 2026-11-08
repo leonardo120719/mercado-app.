@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css"></head>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/png" sizes="192x192" href="/pulpito-icon-192.png"><link rel="apple-touch-icon" href="/pulpito-icon-192.png"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css"></head>
 <body><div class="app-shell pb-top-shell"><div class="workarea">
 <header class="topbar" id="topbar">
   <div class="topbar-main">
     <a href="#" class="top-brand" id="brand-link" aria-label="Púlpito Bible — início"><span class="top-brand-icon">✦</span><span class="top-brand-word">PÚLPITO <strong>BIBLE</strong></span></a>
     <div class="header-context" id="page-location">Leitura bíblica</div>
-    <div class="header-tools">
+    <div class="header-tools"><button id="pwa-install" class="header-action pwa-install" type="button" title="Instalar Púlpito Bible no Android" aria-label="Instalar Púlpito Bible">⇩ <span>Instalar</span></button>
       <button id="theme-toggle" class="header-action" title="Alternar tema" aria-label="Alternar tema">◐</button>
       <button id="font-down" class="header-action font-action" title="Diminuir fonte" aria-label="Diminuir fonte">A−</button>
       <button id="font-up" class="header-action font-action" title="Aumentar fonte" aria-label="Aumentar fonte">A+</button>
@@ -41,6 +41,41 @@
 <main id="app-main" tabindex="-1"></main>
 <footer class="app-footer"><span>Púlpito Bible · Primeira versão de estudo</span><span>Conteúdo aberto com atribuição · <a href="https://api.midvash.com/pt-br" target="_blank" rel="noopener">Midvash</a> · <a href="https://github.com/STEPBible/STEPBible-Data" target="_blank" rel="noopener">STEPBible</a></span></footer></div></div>
 <div id="toast" role="status" aria-live="polite"></div>
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js" defer></script>
-<script src="./app.js" defer></script></body></html>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" crossorigin="anonymous" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js" crossorigin="anonymous" defer></script>
+<script src="./app.js" defer></script><script>
+(function(){
+  "use strict";
+  var button=document.getElementById("pwa-install");
+  var installPrompt=null;
+  if(!button)return;
+  var standalone=window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches;
+  if(standalone||window.navigator.standalone===true)button.hidden=true;
+  window.addEventListener("beforeinstallprompt",function(event){
+    event.preventDefault();
+    installPrompt=event;
+    button.classList.add("is-ready");
+  });
+  button.addEventListener("click",async function(){
+    if(installPrompt){
+      installPrompt.prompt();
+      var choice=await installPrompt.userChoice;
+      if(choice&&choice.outcome==="accepted")button.hidden=true;
+      installPrompt=null;
+      button.classList.remove("is-ready");
+      return;
+    }
+    var message=/Android/i.test(navigator.userAgent)
+      ?"No Android, abra esta página no Google Chrome, toque no menu ⋮ e escolha “Instalar app”. Se aparecer “Adicionar à tela inicial”, confirme."
+      :"Abra o menu do navegador e escolha “Instalar Púlpito Bible” ou “Adicionar à tela inicial”.";
+    window.alert(message);
+  });
+  window.addEventListener("appinstalled",function(){button.hidden=true;});
+  if("serviceWorker" in navigator){
+    window.addEventListener("load",function(){
+      navigator.serviceWorker.register("/pulpito-sw.js",{scope:"/"})
+        .catch(function(error){console.warn("Não foi possível registrar o modo instalável:",error);});
+    });
+  }
+})();
+</script></body></html>

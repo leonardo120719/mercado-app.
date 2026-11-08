@@ -1012,3 +1012,7 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
  .pb-vc-choice{min-height:49px}
  .reader-scripture .pb-verse-comment-indicator{padding:2px 5px;font-size:9px}
 }
+
+
+/* Instalação PWA do Púlpito Bible */
+.pwa-install{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-width:0;padding:0 9px;border:1px solid var(--border);background:var(--brand-soft);font:700 11px "DM Sans",sans-serif;white-space:nowrap}.pwa-install:hover,.pwa-install.is-ready{background:var(--brand);color:#fff}.pwa-install[hidden]{display:none!important}.pwa-install:focus-visible{outline:2px solid var(--brand);outline-offset:2px}@media(max-width:620px){.pwa-install span{display:none}.pwa-install{padding:0 8px}}

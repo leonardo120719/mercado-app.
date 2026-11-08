@@ -354,3 +354,12 @@ A implantação é automática se o Render receber o evento de push; o estado da
 - **Validação:** testes simulados das faixas dos comentários e de capítulos com mais de 180 linhas; teste dos marcadores nos versículos que efetivamente possuem comentários; toque duplo com abertura direta e pressão longa com abertura de menu; carregamento do aplicativo com a toolbar e leitor.
 
 O comportamento final de toque/pressão longa deve ser conferido no aparelho do usuário, pois Safari e Android podem diferir na exibição do menu de seleção nativo. Nenhum comentário é incluído no código; somente módulos legalmente instalados localmente alimentam as etiquetas.
+
+
+## Instalação no Android — Púlpito Bible como PWA
+
+- A página principal do Púlpito Bible inclui um manifesto próprio (`/pulpito-manifest.webmanifest`), ícones Android de 192×192 e 512×512 e um service worker (`/pulpito-sw.js`). Esses arquivos ficam separados do manifesto e do service worker do projeto Mercado.
+- O service worker mantém uma cópia do aplicativo (página, CSS, JavaScript e ícones) para permitir abrir a interface sem conexão depois da primeira visita. Arquivos estáticos de bibliotecas externas também podem ser armazenados após serem carregados online.
+- **Instalação:** abra `https://pulpito-bible.onrender.com` no Google Chrome do Android, toque em **Instalar** no cabeçalho ou abra o menu `⋮` e selecione **Instalar app**. Se o Chrome oferecer apenas **Adicionar à tela inicial**, confirme essa opção. Depois, o ícone Púlpito Bible ficará disponível junto aos demais aplicativos.
+- **Limite offline:** a interface e os módulos já importados no aparelho ficam disponíveis conforme o cache local do navegador. A consulta de novas passagens, a API Midvash e recursos que dependem de serviços externos continuam exigindo internet. Os módulos importados permanecem no armazenamento local do navegador e não são sincronizados automaticamente entre aparelhos.
+- O build do Render deve continuar copiando `pulpito.html` para `public/index.html`, `styles.css` para `public/styles.css` e `app.js` para `public/app.js`, preservando os novos arquivos PWA já existentes em `public/`.
