@@ -1,4 +1,4 @@
-/* Púlpito Bible bundle v2 — source: modules.js + toolbar-store.js + app-core.js. Render deploys this single file. */
+/* Púlpito Bible — deploy bundle: modules.js + toolbar-store.js + app-core.js */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=1;
@@ -462,7 +462,7 @@ function loadChapter(){
   latestChapter={verses:cleanVerses,copyright:result.copyright||"",version:result.version||state.version};
   if(!state.version.startsWith("local:")){
     chaptersCache[key]=latestChapter;var keys=Object.keys(chaptersCache);while(keys.length>18)delete chaptersCache[keys.shift()];
-    try{localStorage.setItem("pb-chapters-v1",JSON.stringify(chaptersCache));}catch(e){}
+    try{localStorage.setItem("pb-chapters-v2",JSON.stringify(chaptersCache));}catch(e){}
   }
   renderReaderContent();
  }
@@ -573,6 +573,34 @@ function toolbarAction(action){
  case "tutor":page("tutor");return;
  default:return;
  }
+}
+
+
+/* Restricted, checked mappings only; we do not infer Strong alignment automatically. */
+var inlineStrongMap={
+ "john/15/4":[{pattern:/(?:permanecei|permaneçam|permaneça)/i,id:"G3306a"},{pattern:/ramo/i,id:"G2814"}],
+ "john/15/5":[{pattern:/permanece/i,id:"G3306b"}],
+ "genesis/1/1":[{pattern:/criou/i,id:"H1254"}],
+ "psalms/73/3":[{pattern:/(?:ímpios|impios)/i,id:"H7563"}]
+};
+function annotateVerse(text,verseNumber){
+ var source=String(text==null?"":text);
+ var rules=inlineStrongMap[state.book+"/"+state.chapter+"/"+verseNumber]||[];
+ if(!rules.length)return esc(source);
+ var matches=[];
+ rules.forEach(function(rule){var m=rule.pattern.exec(source);if(m)matches.push({from:m.index,to:m.index+m[0].length,id:rule.id});});
+ matches.sort(function(a,b){return a.from-b.from;});
+ var html="",cursor=0;
+ matches.forEach(function(match){
+  if(match.from<cursor)return;
+  var word=words.find(function(w){return w.id===match.id;});
+  if(!word)return;
+  html+=esc(source.slice(cursor,match.from));
+  html+='<span class="strong-word" tabindex="0" role="button" data-strong="'+esc(match.id)+'" title="Consultar Strong '+esc(word.code)+'">'+esc(source.slice(match.from,match.to))+'</span>';
+  if(state.showStrong)html+='<button type="button" class="strong-badge" data-strong="'+esc(match.id)+'" aria-label="Dicionário Strong '+esc(word.code)+'">'+esc(word.code)+'</button>';
+  cursor=match.to;
+ });
+ return html+esc(source.slice(cursor));
 }
 
 function renderReaderContent(){
