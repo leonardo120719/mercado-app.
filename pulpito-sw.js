@@ -1,5 +1,5 @@
 /* Púlpito Bible — offline app shell */
-const CACHE_NAME = "pulpito-bible-shell-v3";
+const CACHE_NAME = "pulpito-bible-shell-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -45,6 +45,22 @@ self.addEventListener("fetch", event => {
         return response;
       }).catch(async () => {
         return (await caches.match(request)) || (await caches.match("/index.html"));
+      })
+    );
+    return;
+  }
+
+  const criticalAssets = new Set(["/app.js", "/styles.css", "/pulpito-manifest.webmanifest"]);
+  if (criticalAssets.has(url.pathname)) {
+    event.respondWith(
+      fetch(request, { cache: "no-store" }).then(response => {
+        if (response.ok) {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+        }
+        return response;
+      }).catch(async () => {
+        return (await caches.match(request)) || new Response("", { status: 504, statusText: "Offline" });
       })
     );
     return;
