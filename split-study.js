@@ -90,6 +90,7 @@ function handler(event){
  event.preventDefault();event.stopPropagation();
  switch(btn.dataset.pbsplit){
  case "menu":menu();return;
+ case "dictionary":if(c.config.onDictionary)c.config.onDictionary();return;
  case "close":c.config.onClose();return;
  case "prev":case "next":{
   var all=installed(),idx=all.findIndex(function(m){return m.id===c.config.readModule();});
@@ -158,7 +159,7 @@ function attach(config){
  var bottom=document.createElement("section");bottom.id="pb-split-comments";bottom.className="pb-split-comments";
  bottom.innerHTML='<header class="pb-split-bar">'+
  '<button id="pb-split-menu-button" type="button" class="pb-split-selector" data-pbsplit="menu" aria-expanded="false" aria-controls="pb-split-picker">▤ <span id="pb-split-name">Comentários</span> <b>⌄</b></button>'+
- '<strong class="pb-split-ref" id="pb-split-ref"></strong><div class="pb-split-toolbar-actions">'+
+ '<strong class="pb-split-ref" id="pb-split-ref"></strong><button class="pb-split-switch-dictionary" type="button" data-pbsplit="dictionary" aria-label="Abrir dicionários" title="Mostrar dicionários">α <span>Dicionários</span></button><div class="pb-split-toolbar-actions">'+
  '<button data-pbsplit="prev" type="button" aria-label="Módulo anterior">‹</button><button data-pbsplit="next" type="button" aria-label="Próximo módulo">›</button>'+
  '<button data-pbsplit="grow" type="button" aria-label="Ampliar comentários">▴</button><button data-pbsplit="shrink" type="button" aria-label="Reduzir comentários">▾</button>'+
  '<button data-pbsplit="close" type="button" aria-label="Fechar a janela de comentários">×</button></div></header>'+
