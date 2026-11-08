@@ -157,7 +157,7 @@
         item("search","Pesquisar","⌕")+item("notes","Minhas notas","✎")+
         item("modules","Módulos","⇩")+item("strong","Dicionário","α")+
         item("bookmarks","Favoritos","☆")+item("sermon","Sermões","▤")+
-        item("tutor","Interpretar","✧")+item("theme","Alternar tema","◐")+
+        item("tutor","Interpretar","✧")+item("split-study","Painel dividido","◫")+item("theme","Alternar tema","◐")+
       '</div><div class="mtb-menu-prefs">'+prefs.map(([key,label])=>'<label><input type="checkbox" data-toolbar-pref="'+key+'" '+(s[key]?'checked':'')+'> '+escapeHtml(label)+'</label>').join('')+'</div>'+
       '<div class="mtb-font-row"><span>Tamanho da leitura</span>'+item("font-down","Diminuir","A−","mtb-compact")+'<strong>'+s.fontSize+'px</strong>'+item("font-up","Aumentar","A+","mtb-compact")+'</div>'+
     '</section>';
