@@ -106,15 +106,27 @@ async function getCommentaryCoverage(book,chapter,verseNumbers){
  return coverage;
 }
 function renderVerse(raw,book,showStrong){
- var source=String(raw||""),pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
+ var source=String(raw||""),pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="";
  function rawChunk(str){return String(str||"").replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"');}
- function chunk(str,strongCode){
+ function chunk(str,strongCodes){
   var plain=rawChunk(str),tokens=Array.from(plain.matchAll(/[\p{L}\p{M}]+(?:[’'-][\p{L}\p{M}]+)*/gu));
-  if(strongCode&&tokens.length){var token=tokens[tokens.length-1],word=token[0],start=token.index;return clean(plain.slice(0,start))+'<span class="pb-linked-word pb-strong-word" data-pb-word="'+clean(word)+'" data-pb-strong="'+clean(strongCode)+'" role="button" tabindex="0" title="Consultar '+clean(word)+' no Strong '+clean(strongCode)+'">'+clean(word)+'</span>'+clean(plain.slice(start+word.length));}
+  if(strongCodes&&strongCodes.length&&tokens.length){
+   var token=tokens[tokens.length-1],word=token[0],start=token.index,first=strongCodes[0],list=strongCodes.join(",");
+   return clean(plain.slice(0,start))+'<span class="pb-linked-word pb-strong-word" data-pb-word="'+clean(word)+'" data-pb-strong="'+clean(first)+'" data-pb-strong-list="'+clean(list)+'" role="button" tabindex="0" title="Consultar '+clean(word)+' nos léxicos '+clean(list)+'">'+clean(word)+'</span>'+clean(plain.slice(start+word.length));
+  }
   return clean(plain);
  }
- while((match=pattern.exec(source))!==null){var prefix=canonical.indexOf(book)<39?"H":"G",code=prefix+Number(match[1]);output+=chunk(source.slice(position,match.index),code);if(showStrong)output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'" title="Toque duas vezes para consultar '+code+'">'+code+'</button>';position=match.index+match[0].length;}
- output+=chunk(source.slice(position),"");return output;
+ var matches=Array.from(source.matchAll(pattern)),i=0;
+ while(i<matches.length){
+  var match=matches[i],prefix=canonical.indexOf(book)<39?"H":"G",codes=[prefix+Number(match[1])],end=match.index+match[0].length;
+  i++;
+  while(i<matches.length&&matches[i].index===end){codes.push(prefix+Number(matches[i][1]));end=matches[i].index+matches[i][0].length;i++;}
+  output+=chunk(source.slice(position,match.index),codes);
+  if(showStrong)codes.forEach(function(code){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'" title="Toque duas vezes para consultar '+code+'">'+code+'</button>';});
+  position=end;
+ }
+ output+=chunk(source.slice(position),[]);
+ return output;
 }
 function filenameSlug(s){return String(s||"modulo").replace(/\.[^.]+$/,"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,58)||"modulo";}
 function recordSet(result){return (result||[]).flatMap(function(r){return r.values.map(function(values){var o={};r.columns.forEach(function(c,i){o[c.toLowerCase()]=values[i];});return o;});});}
