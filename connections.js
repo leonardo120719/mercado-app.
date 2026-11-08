@@ -114,6 +114,15 @@ function init(opts){
   if(sermon){e.preventDefault();if(config.onSermon)config.onSermon(selectedContext);return;}
   var comment=e.target.closest("[data-pb-comment]");
   if(comment){e.preventDefault();var row=selectedContext&&selectedContext.comments&&selectedContext.comments[Number(comment.dataset.pbComment)];if(row&&config.onComment)config.onComment(row,selectedContext);return;}
+  var strongNumber=e.target.closest("#chapter-body .strong-badge, #chapter-body button[data-strong]");
+  if(strongNumber){
+   e.preventDefault();e.stopImmediatePropagation();
+   var strongParent=strongNumber.closest("[data-verse]"),strongVerse=strongParent?strongParent.dataset.verse:null;
+   var strongCode=strongNumber.dataset.pbStrong||strongNumber.dataset.strong||"";
+   if(config.onStrong&&config.onStrong(strongCode,strongNumber.dataset.pbWord||strongNumber.textContent,strongVerse,strongNumber,[strongCode])===true)return;
+   open("word",strongVerse,strongCode,strongNumber);
+   return;
+  }
   var word=e.target.closest("[data-pb-word]");
   if(word){
    e.preventDefault();e.stopImmediatePropagation();
