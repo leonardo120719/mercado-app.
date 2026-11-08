@@ -269,7 +269,7 @@ function loadInstalledComments(){
   }).join("");
  }).catch(function(e){var node=document.getElementById("installed-comments");if(node)node.innerHTML='<p class="tiny muted">Comentários indisponíveis: '+esc(e.message)+'</p>';});
 }
-function openStrongPopup(wordId){
+function openStrongPopup(wordId,anchor){
  var w=words.find(function(x){return x.id===wordId;});
  if(!w){
   var code=String(wordId).toUpperCase(),value=Number(code.slice(1));
@@ -298,7 +298,7 @@ function openStrongPopup(wordId){
  '</div>'+
  '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
- if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();}});
+ if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();},anchor:anchor});
  window.PBModules.getDictionaryEntry(w.code).then(function(entries){
   var holder=frame.querySelector("#installed-strong-entry");if(!holder)return;
   holder.innerHTML=entries.length?entries.map(function(entry){
@@ -448,7 +448,7 @@ document.addEventListener("click",function(ev){
 
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
  var sw=ev.target.closest("[data-strong]");
- if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}openStrongPopup(sw.dataset.strong);return;}
+ if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}openStrongPopup(sw.dataset.strong,sw);return;}
  var v=ev.target.closest("[data-verse]");if(v){
  state.selectedVerse=Number(v.dataset.verse);persist();
  TS.actions.toggleVerse(v.dataset.usfm||verseGlobalId(state.selectedVerse));
@@ -510,7 +510,7 @@ document.addEventListener("input",function(ev){
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
  if(t.id==="note-filter"){state.noteFilter=t.value;persist();var p=t.selectionStart;renderNotebook();var n=document.getElementById("note-filter");n.focus();n.setSelectionRange(p,p);}
 });
-document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.strong){ev.preventDefault();openStrongPopup(ev.target.dataset.strong);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.strong){ev.preventDefault();openStrongPopup(ev.target.dataset.strong,ev.target);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
 document.getElementById("menu-toggle").addEventListener("click",function(event){
  event.preventDefault();
  var menu=document.getElementById("top-menu"),button=document.getElementById("menu-toggle");
