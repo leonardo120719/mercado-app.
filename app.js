@@ -887,8 +887,8 @@ function open(kind,verse,word,anchor){
 }
 function activateBibleLink(node){
  var verseNode=node&&node.closest?node.closest("#chapter-body [data-verse]"):null,verse=verseNode?Number(verseNode.dataset.verse):null;
- var strongId=node.dataset.pbStrong||node.dataset.strong||"",word=String(node.dataset.pbWord||node.textContent||"").trim();
- if(strongId){if(config&&config.onStrong&&config.onStrong(strongId,word,verse,node)===true)return;open("strong",verse,strongId,node);return;}
+ var strongId=node.dataset.pbStrong||node.dataset.strong||"",strongList=String(node.dataset.pbStrongList||strongId).split(",").map(function(x){return x.trim();}).filter(Boolean),word=String(node.dataset.pbWord||node.textContent||"").trim();
+ if(strongId){if(config&&config.onStrong&&config.onStrong(strongId,word,verse,node,strongList)===true)return;open("strong",verse,strongId,node);return;}
  if(config&&config.onWord&&config.onWord(word,verse,node,"")===true)return;open("word",verse,word,node);
 }
 function activateStudyLink(node){var kind=node.dataset.pbStudyLink;if(kind==="reference"){if(config&&config.onStudyReference){config.onStudyReference(node.dataset.reference||"",node);return;}open("verse",0,"",node);return;}if(kind==="strong"){var code=node.dataset.strongCode||"";if(config&&config.onStudyStrong){config.onStudyStrong(code,node);return;}open("strong",0,code,node);}}
@@ -1496,6 +1496,7 @@ booksFallback.forEach(function(b){BOOK_LINK_ALIASES[b.name.toLocaleLowerCase("pt
 Object.assign(BOOK_LINK_ALIASES,{"gn":"genesis","gen":"genesis","ex":"exodus","êx":"exodus","lv":"leviticus","lev":"leviticus","nm":"numbers","num":"numbers","dt":"deuteronomy","deut":"deuteronomy","js":"joshua","jz":"judges","rt":"ruth","1sm":"1-samuel","2sm":"2-samuel","1rs":"1-kings","2rs":"2-kings","1cr":"1-chronicles","2cr":"2-chronicles","ed":"ezra","ne":"nehemiah","et":"esther","jó":"job","sl":"psalms","ps":"psalms","pv":"proverbs","ec":"ecclesiastes","ct":"song-of-solomon","is":"isaiah","jr":"jeremiah","lm":"lamentations","ez":"ezekiel","dn":"daniel","os":"hosea","jl":"joel","am":"amos","ob":"obadiah","jn":"jonah","mq":"micah","na":"nahum","hc":"habakkuk","sf":"zephaniah","ag":"haggai","zc":"zechariah","ml":"malachi","mt":"matthew","matt":"matthew","mc":"mark","mk":"mark","lc":"luke","lk":"luke","jo":"john","at":"acts","rm":"romans","rom":"romans","1co":"1-corinthians","2co":"2-corinthians","gl":"galatians","ef":"ephesians","fp":"philippians","cl":"colossians","1ts":"1-thessalonians","2ts":"2-thessalonians","1tm":"1-timothy","2tm":"2-timothy","tt":"titus","fm":"philemon","hb":"hebrews","tg":"james","1pe":"1-peter","2pe":"2-peter","1jo":"1-john","2jo":"2-john","3jo":"3-john","jd":"jude","ap":"revelation","rev":"revelation","genesis":"genesis","exodus":"exodus","john":"john","psalms":"psalms","1 cor":"1-corinthians","2 cor":"2-corinthians","1 joão":"1-john","2 joão":"2-john","3 joão":"3-john","1 pedro":"1-peter","2 pedro":"2-peter"});
 var BOOK_ENGLISH_NAMES="Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|Psalms|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation".split("|");
 BOOK_ENGLISH_NAMES.forEach(function(name,i){BOOK_LINK_ALIASES[name.toLowerCase()]=booksFallback[i].slug;});
+Object.assign(BOOK_LINK_ALIASES,{"gen":"genesis","lev":"leviticus","num":"numbers","deut":"deuteronomy","josh":"joshua","judg":"judges","1sam":"1-samuel","2sam":"2-samuel","1kgs":"1-kings","2kgs":"2-kings","1chr":"1-chronicles","2chr":"2-chronicles","neh":"nehemiah","est":"esther","ps":"psalms","prov":"proverbs","eccl":"ecclesiastes","song":"song-of-solomon","isa":"isaiah","jer":"jeremiah","lam":"lamentations","ezek":"ezekiel","dan":"daniel","hos":"hosea","obad":"obadiah","jon":"jonah","mic":"micah","nah":"nahum","hab":"habakkuk","zeph":"zephaniah","hag":"haggai","zech":"zechariah","mal":"malachi","matt":"matthew","mk":"mark","lk":"luke","acts":"acts","rom":"romans","1cor":"1-corinthians","2cor":"2-corinthians","gal":"galatians","eph":"ephesians","phil":"philippians","col":"colossians","1thess":"1-thessalonians","2thess":"2-thessalonians","1tim":"1-timothy","2tim":"2-timothy","tit":"titus","philem":"philemon","heb":"hebrews","james":"james","1pet":"1-peter","2pet":"2-peter","1john":"1-john","2john":"2-john","3john":"3-john","jude":"jude","rev":"revelation"});
 window.PBVerseComments.init({
  readBookName:function(){return activeBook.name;},
  readPreferredModule:function(){return state.commentModuleId||"";},
@@ -1542,7 +1543,7 @@ window.PBConnections.init({
  },
  onStrong:function(strongId,word,verse,anchor){
   if(Number(verse)>0){state.selectedVerse=Number(verse);persist();}
-  openStrongPopup(strongId,anchor);
+  openStrongPopup(strongId,anchor,word,arguments.length>4?arguments[4]:[]);
   return true;
  },
  onStudyStrong:function(code,anchor){openStrongPopup(code,anchor);return true;},
@@ -1871,7 +1872,7 @@ function loadInstalledComments(){
   }).join("");
  }).catch(function(e){var node=document.getElementById("installed-comments");if(node)node.innerHTML='<p class="tiny muted">Comentários indisponíveis: '+esc(e.message)+'</p>';});
 }
-function openStrongPopup(wordId,anchor){
+function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  if(window.PBConnections)window.PBConnections.close();
  var w=words.find(function(x){return x.id===wordId;});
  if(!w){
@@ -1902,14 +1903,22 @@ function openStrongPopup(wordId,anchor){
  '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
  if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();},anchor:anchor});
- window.PBModules.getDictionaryEntry(w.code).then(function(entries){
+ var codes=Array.from(new Set([w.code].concat(extraStrongIds||[]).map(function(x){return String(x||"").toUpperCase();}).filter(function(x){return /^[GH][0-9]{1,5}$/.test(x);})));
+ var translated=String(wordTerm||"").trim();
+ if(/^[GH][0-9]{1,5}[A-Z]?$/.test(translated.toUpperCase()))translated="";
+ var lookups=codes.map(function(code){return {term:code,label:"Léxico Strong "+code};});
+ if(translated)lookups.push({term:translated,label:"Dicionários · "+translated});
+ Promise.all(lookups.map(function(item){return window.PBModules.getDictionaryEntry(item.term).then(function(entries){return {label:item.label,entries:entries};});})).then(function(groups){
   var holder=frame.querySelector("#installed-strong-entry");if(!holder)return;
-  holder.innerHTML=entries.length?entries.map(function(entry){
-   return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+window.PBConnections.linkifyText(entry.definition)+'</p></article>';
-  }).join(""):'<p class="feature-note">Não há verbetes deste Strong nos dicionários instalados. Importe um léxico na seção Módulos.</p>';
+  var html=groups.filter(function(group){return group.entries.length;}).map(function(group){
+   return '<div class="caps">'+esc(group.label)+'</div>'+group.entries.map(function(entry){
+    return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+window.PBConnections.linkifyText(entry.definition)+'</p></article>';
+   }).join("");
+  }).join("");
+  holder.innerHTML=html||'<p class="feature-note">Nenhuma entrada Strong ou dicionário correspondente foi encontrada. Verifique se os módulos lexicais estão instalados.</p>';
  }).catch(function(err){
   var holder=frame.querySelector("#installed-strong-entry");
-  if(holder)holder.textContent="Não foi possível consultar o léxico: "+(err.message||String(err));
+  if(holder)holder.textContent="Não foi possível consultar os léxicos: "+(err.message||String(err));
  });
  window.PBModules.getCommentaries(book,ch,verse).then(function(items){
   var holder=frame.querySelector("#connected-strong-comments");if(!holder)return;
