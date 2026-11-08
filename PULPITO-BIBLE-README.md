@@ -255,3 +255,18 @@ O fluxo de leitura tem integração cruzada (11/2026), preservando a navegação
 **Arquitetura:** \`connections.js\` implementa o subsistema de estudo conectado, delegado por eventos e carregado no bundle na ordem \`modules.js\` → \`toolbar-store.js\` → \`connections.js\` → \`app-core.js\`. O código escapa o texto importado e não executa marcação HTML de comentários. A instalação de módulos continua armazenada em IndexedDB.
 
 **Limites:** verbetes portugueses usam pesquisa exata (não há lematizador, stemming nem ligação automática confiável entre todas as palavras em português e grego/hebraico). Os códigos Strong aparecem apenas quando fornecidos por um módulo ou vinculados por amostras verificadas. Comentários abrangentes/intervalos dependem do formato e dos metadados do módulo instalado. O funcionamento com os arquivos reais do usuário exige validação no navegador em que foram importados.
+
+
+## Janelas flutuantes do estudo — estilo funcional MyBible
+
+Atualização da interface das janelas abertas no leitor (novembro de 2026):
+
+- \`window-ui.js\`: controlador comum das janelas de estudo, com navegação em abas, recolher, ampliar e fechar. No desktop, o título permite arrastar a janela com mouse; uma janela aberta junto a uma palavra é posicionada perto do termo quando há espaço.
+- \`connections.js\`: painel de palavras e versículos agora tem aparência de uma pequena janela flutuante com cabeçalho cinza-escuro, referência, abas **Dicionário** e **Comentários**, controles próprios e ações de nota, sermão e módulos.
+- \`app-core.js\`: a janela do Strong usa o mesmo padrão e alterna entre **Análise**, **Dicionários** e **Comentários**. Conserva as consultas aos módulos SQLite/ZIP/JSON previamente instalados, com leitura contextual e exportação para o sermão.
+- \`styles.css\`: geometria adaptável. Em celular, janela compacta flutuando sobre o terço inferior/metade da leitura, com expansão opcional. No desktop, janela sobreposta ao lado do texto, com possibilidade de movê-la.
+- A área de fundo é transparente e a janela não bloqueia toda a Bíblia. O modo ampliado toma quase toda a tela, enquanto o modo recolhido mantém o cabeçalho acessível.
+- Identidade visual do **Púlpito Bible** mantida; inspiração na ergonomia do MyBible, sem copiar marcas, ícones proprietários ou arquivos do produto.
+- Os testes realizados verificaram parsing, inicialização simulada, alternância de abas e estados minimizado/maximizado/fechado. A conferência de proporções e posicionamento em iPhone e Android reais ainda deve ser feita no dispositivo.
+
+Para manutenção, a compilação do deploy concatena na ordem \`modules.js\`, \`toolbar-store.js\`, \`window-ui.js\`, \`connections.js\` e \`app-core.js\` em \`app.js\`, usado pela implantação estática atual do Render.
