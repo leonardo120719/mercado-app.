@@ -223,3 +223,19 @@ Falhas reais encontradas no código anterior: (a) dependência \`modules.js\` n�
 Testes de lógica realizados sem navegador real: parsing do bundle, inicialização simulada do aplicativo e da biblioteca, renderização dos versículos, toolbar em estado normal/estudo/seleção/fullscreen, destaque persistido e limpeza automática da seleção.
 
 A validação de toque e viewport em iPhone real depende de abrir o site num navegador móvel; o deploy ativo por si só não garante que todas as funções da plataforma rodem no aparelho.
+
+
+## Correção do erro "SQLite sem tabela verses/commentaries" — dicionários Strong
+
+A importação original só reconhecia \`verses\` e \`commentaries\`. Os léxicos do MyBible usam a tabela \`dictionary(topic, definition)\`. A versão atual:
+
+- Identifica SQLite3 com tabela \`dictionary\` como módulo \`dictionary\`.
+- Normaliza os verbetes Strong \`H007563\` → \`H7563\`, \`G03306\` → \`G3306\`, mantendo os demais tópicos pesquisáveis.
+- Abre o IndexedDB \`PulpitoBibleModules\` **versão 2**, acrescentando a coleção \`lexicon\` sem eliminar as coleções pré-existentes \`modules\`, \`chapters\` e \`commentaries\`.
+- Salva verbetes com chave \`moduleId/topic\`; permite consultar vários dicionários instalados e remover módulos sem apagar dados de outros módulos.
+- Oferece campo de pesquisa Strong na página Módulos e mostra o conteúdo do léxico no popup do número Strong do leitor, com texto escapado para evitar executar HTML do arquivo.
+- Também aceita pacotes Púlpito Bible JSON do tipo \`dictionary\` com \`dictionary\` ou \`entries\` como lista de \`{topic, definition}\`.
+- Não confunde glossário lexical com morfologia contextual: tempo, modo e voz não são atribuídos a partir de uma entrada genérica de Strong.
+- Arquivos que contenham **somente** tabela \`words\` (mapeamento de variantes de palavras) são identificados com mensagem específica, mas ainda requerem o dicionário \`dictionary\` correspondente.
+
+O diagnóstico se baseia no erro exibido em uma captura de tela, não na análise do ZIP específico do usuário. Compatibilidade integral só pode ser confirmada após testar o arquivo real. Referências: https://mybible.zone/android/tips/modules/dictionary-modules/ e https://mybible.zone/doers/
