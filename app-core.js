@@ -22,6 +22,40 @@ var books=booksFallback.slice(),activeBook=books.find(function(b){return b.slug=
 var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v2")||"{}");}catch(e){}
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
 
+var focusCommentVerse=0;
+window.PBVerseComments.init({
+ readBookName:function(){return activeBook.name;},
+ readPreferredModule:function(){return state.commentModuleId||"";},
+ selectVerse:function(verse){
+  state.selectedVerse=Number(verse)||0;
+  persist();
+  var label=document.getElementById("selected-reference");if(label)label.textContent=ref();
+ },
+ openCommentary:function(verse,moduleId){
+  var n=Number(verse);
+  if(!Number.isInteger(n)||n<1)return;
+  var valid=window.PBModules.getInstalled().some(function(m){return m.type==="commentary"&&m.id===moduleId;});
+  if(!valid)return;
+  state.selectedVerse=n;
+  state.commentModuleId=moduleId;
+  state.splitStudy=true;
+  var hadSplit=!!document.getElementById("pb-study-split");
+  var hadDictionary=state.dictionaryOpen;
+  state.dictionaryOpen=false;
+  persist();
+  if(!hadSplit){
+   focusCommentVerse=n;
+   renderReader();
+  }else{
+   if(hadDictionary)window.PBDictionaryStudy.destroy();
+   window.PBSplitStudy.refresh(true);
+   var reference=document.getElementById("selected-reference");if(reference)reference.textContent=ref();
+  }
+ },
+ openModules:function(){page("modulos");}
+});
+
+
 window.PBConnections.init({
  onWord:function(word,verse){openDictionaryTerm(word,verse);return true;},
  shouldOpenVersePanel:function(){return !state.splitStudy;},
@@ -54,11 +88,11 @@ function closeTopMenu(){
  if(menu)menu.hidden=true;
  if(trigger)trigger.setAttribute("aria-expanded","false");
 }
-function page(s){window.PBConnections.close();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
+function page(s){if(s!=="leitura")window.PBVerseComments.invalidate();window.PBConnections.close();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
-function setRef(book,ch,verse){window.PBConnections.close();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
+function setRef(book,ch,verse){window.PBVerseComments.invalidate();window.PBConnections.close();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
 function chapterOptions(){var opts="";for(var i=1;i<=activeBook.chapters;i++) opts+='<option value="'+i+'"'+(i===state.chapter?" selected":"")+'>'+i+'</option>';return opts;}
 function readBooks(){
  fetch(API+"/books").then(function(r){if(!r.ok)throw Error("API");return r.json();}).then(function(j){var list=Array.isArray(j.data)?j.data:(j.data&&j.data.books)||[];if(!Array.isArray(list)||list.length<60)return;books=list.map(function(b){var name=typeof b.name==="string"?b.name:(b.name&&b.name["pt-br"])||b.name.en||"";var slug=typeof b.slug==="string"?b.slug:(b.slug&&b.slug.en)||"";return {name:name,slug:slug,chapters:Number(b.chapters)||1,testament:b.testament};}).filter(function(b){return b.name&&b.slug;});activeBook=books.find(function(b){return b.slug===state.book;})||activeBook;if(state.page==="leitura")render();}).catch(function(){});
@@ -232,6 +266,12 @@ function renderReaderContent(){
  if(state.splitStudy)window.PBSplitStudy.refresh();
  if(state.dictionaryOpen)window.PBDictionaryStudy.syncReference();
  refreshVerseDecorations();
+ window.PBVerseComments.decorate(state.book,state.chapter,latestChapter.verses.map(function(v){return v.number;}));
+ if(focusCommentVerse){
+  var selected=holder.querySelector('.verse-line[data-verse="'+focusCommentVerse+'"]');
+  if(selected&&selected.scrollIntoView)selected.scrollIntoView({block:"nearest",behavior:"instant"});
+  focusCommentVerse=0;
+ }
 }
 function readerOptions(){
  return books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(state.book===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("");
@@ -300,6 +340,7 @@ function attachSplitStudy(){
 }
 
 function renderReader(){
+ window.PBVerseComments.invalidate();
  if(state.dictionaryOpen)state.splitStudy=true;
  window.PBDictionaryStudy.destroy();
  window.PBSplitStudy.destroy();
