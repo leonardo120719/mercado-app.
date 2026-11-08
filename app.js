@@ -1887,8 +1887,8 @@ function loadInstalledComments(){
 }
 function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  if(window.PBConnections)window.PBConnections.close();
- var requestedCode=String(wordId||"").toUpperCase().replace(/\\s+/g,"");
- var canonicalCode=requestedCode.replace(/^([GH])0*(\\d{1,5})[A-Z]?$/,"$1$2");
+ var requestedCode=String(wordId||"").toUpperCase().replace(/\s+/g,"");
+ var canonicalCode=requestedCode.replace(/^([GH])0*(\d{1,5})[A-Z]?$/,"$1$2");
  var w=words.find(function(x){return String(x.id).toUpperCase()===requestedCode;})||
   words.find(function(x){return String(x.id).toUpperCase()===canonicalCode;});
  if(!w){
