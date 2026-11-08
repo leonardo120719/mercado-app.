@@ -271,31 +271,53 @@ function loadInstalledComments(){
 }
 function openStrongPopup(wordId){
  var w=words.find(function(x){return x.id===wordId;});
- if(!w){var code=String(wordId).toUpperCase();if(!/^[GH][0-9]{1,5}$/.test(code))return;var val=Number(code.slice(1));w={id:code,code:code,label:"—",reading:"Não disponível",lemma:"Não disponível",book:ref(),type:"Morfologia não instalada",tense:"A consultar",voice:"A consultar",mood:"A consultar",person:"A consultar",meaning:"Entrada Strong sem dicionário conectado",note:"O número Strong identifica uma entrada lexical, não a forma gramatical específica desta ocorrência. A definição, o tempo verbal, o modo e a voz exigem um léxico e uma base morfológica alinhada a este versículo; não serão deduzidos pelo código.",source:"https://biblehub.com/"+(code[0]==="H"?"hebrew":"greek")+"/"+val+".htm"};}
+ if(!w){
+  var code=String(wordId).toUpperCase(),value=Number(code.slice(1));
+  if(!/^[GH][0-9]{1,5}$/.test(code))return;
+  w={id:code,code:code,label:"—",reading:"Não disponível",lemma:"Não disponível",book:ref(),type:"Morfologia não instalada",tense:"A consultar",voice:"A consultar",mood:"A consultar",person:"A consultar",meaning:"Entrada Strong sem dicionário conectado",note:"O código Strong sozinho não informa o tempo verbal, a voz ou a forma gramatical desta ocorrência. Esses dados exigem um módulo morfológico alinhado ao versículo.",source:"https://biblehub.com/"+(code[0]==="H"?"hebrew":"greek")+"/"+value+".htm"};
+ }
  currentWord=w;
+ var book=state.book,ch=state.chapter,verse=state.selectedVerse,refLabel=ref();
  document.getElementById("strong-window")?.remove();
- var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay";frame.setAttribute("role","presentation");
- frame.innerHTML='<section class="strong-balloon" role="dialog" aria-modal="true" aria-label="Dicionário Strong '+esc(w.code)+'"><div class="strong-balloon-bar"><span class="caps">DICIONÁRIO STRONG · '+esc(w.book)+'</span><button class="reader-icon" data-act="close-strong" aria-label="Fechar">✕</button></div><div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div><p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO NO CONTEXTO</div><h3>'+esc(w.meaning)+'</h3><div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div><p class="feature-note">'+esc(w.note)+'</p><p class="lexicon-caveat">A forma original, o aspecto e o contexto devem ser examinados juntos. Strong não é tradução automática.</p><div class="strong-actions"><button class="btn" data-act="strong-copy">▣ Copiar</button><button class="btn" data-act="strong-study">α Estudar</button><button class="btn primary" data-act="strong-sermon">▤ Inserir no sermão</button></div><div id="connected-strong-comments" class="module-comment-list" aria-live="polite"></div><div id="installed-strong-entry" class="module-comment-list" aria-live="polite"><p class="tiny muted">Consultando dicionários instalados…</p></div><p class="strong-reference"><a href="'+esc(w.source)+'" target="_blank" rel="noopener">Consultar referência lexical ↗</a></p></section>';
- frame.addEventListener("click",function(e){if(e.target===frame)frame.remove();});
+ var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay myb-window-backdrop";
+ frame.innerHTML='<section class="strong-balloon myb-window" role="dialog" aria-label="Léxico Strong '+esc(w.code)+'" aria-modal="false">'+
+ '<header class="myb-titlebar" data-pb-win-titlebar><div class="myb-titlebar-icon">α</div><div class="myb-titlebar-info"><strong>STRONG '+esc(w.code)+'</strong><small>'+esc(refLabel)+' · '+esc(w.reading)+'</small></div>'+
+ '<div class="myb-window-controls"><button type="button" data-pb-win-action="minimize" aria-label="Recolher janela" title="Recolher">—</button><button type="button" data-pb-win-action="maximize" aria-label="Ampliar janela" title="Ampliar">▣</button><button type="button" data-pb-win-action="close" aria-label="Fechar janela" title="Fechar">×</button></div></header>'+
+ '<nav class="myb-window-tabs" role="tablist" aria-label="Painéis de estudo"><button type="button" role="tab" data-pb-win-tab="strong">α Análise</button><button type="button" role="tab" data-pb-win-tab="dictionary">▣ Dicionários</button><button type="button" role="tab" data-pb-win-tab="commentaries">▤ Comentários</button></nav>'+
+ '<div class="myb-window-main">'+
+ '<section class="myb-window-panel" data-pb-win-panel="strong">'+
+ '<div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div>'+
+ '<p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO E MORFOLOGIA</div><h3>'+esc(w.meaning)+'</h3>'+
+ '<div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div>'+
+ '<p class="feature-note">'+esc(w.note)+'</p>'+
+ '<p class="lexicon-caveat">Uma definição lexical não determina, isoladamente, a interpretação da passagem. Compare o contexto e a forma original.</p>'+
+ '<p class="strong-reference"><a href="'+esc(w.source)+'" target="_blank" rel="noopener noreferrer">Consultar referência lexical ↗</a></p>'+
+ '</section>'+
+ '<section class="myb-window-panel" data-pb-win-panel="dictionary"><div id="installed-strong-entry" class="module-comment-list" aria-live="polite"><p class="tiny muted">Consultando dicionários instalados…</p></div></section>'+
+ '<section class="myb-window-panel" data-pb-win-panel="commentaries"><div id="connected-strong-comments" class="module-comment-list" aria-live="polite"><p class="tiny muted">Buscando comentários desta passagem…</p></div></section>'+
+ '</div>'+
+ '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
+ if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();}});
  window.PBModules.getDictionaryEntry(w.code).then(function(entries){
-  var el=document.getElementById("installed-strong-entry");
-  if(!el)return;
-  if(!entries.length){el.innerHTML='<p class="feature-note">Nenhum verbete deste número Strong em módulos instalados. Você pode instalar um léxico em Módulos.</p>';return;}
-  el.innerHTML='<div class="caps">DICIONÁRIOS INSTALADOS</div>'+entries.map(function(entry){
-    return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+esc(entry.definition)+'</p></article>';
-  }).join("");
- }).catch(function(err){var el=document.getElementById("installed-strong-entry");if(el)el.textContent="Não foi possível consultar o módulo: "+(err.message||String(err));});
- 
- window.PBModules.getCommentaries(state.book,state.chapter,state.selectedVerse).then(function(items){
-  var target=document.getElementById("connected-strong-comments");if(!target)return;
-  target.innerHTML='<div class="caps">COMENTÁRIOS DO VERSÍCULO · '+esc(ref())+'</div>'+
-   (items.length?items.slice(0,15).map(function(item){
-     return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><p>'+esc(item.text)+'</p></article>';
-   }).join(""):'<p class="feature-note">Nenhum comentário de módulo encontrado nesta referência.</p>');
- }).catch(function(e){var target=document.getElementById("connected-strong-comments");if(target)target.textContent="Não foi possível carregar comentários: "+(e.message||String(e));});
-
- frame.querySelector("[data-act='close-strong']").focus();
+  var holder=frame.querySelector("#installed-strong-entry");if(!holder)return;
+  holder.innerHTML=entries.length?entries.map(function(entry){
+   return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+esc(entry.definition)+'</p></article>';
+  }).join(""):'<p class="feature-note">Não há verbetes deste Strong nos dicionários instalados. Importe um léxico na seção Módulos.</p>';
+ }).catch(function(err){
+  var holder=frame.querySelector("#installed-strong-entry");
+  if(holder)holder.textContent="Não foi possível consultar o léxico: "+(err.message||String(err));
+ });
+ window.PBModules.getCommentaries(book,ch,verse).then(function(items){
+  var holder=frame.querySelector("#connected-strong-comments");if(!holder)return;
+  holder.innerHTML=items.length?items.slice(0,25).map(function(item){
+   return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><small>'+esc(refLabel)+'</small><p>'+esc(item.text)+'</p></article>';
+  }).join(""):'<p class="feature-note">Nenhum comentário instalado para esta referência.</p>';
+ }).catch(function(err){
+  var holder=frame.querySelector("#connected-strong-comments");
+  if(holder)holder.textContent="Não foi possível carregar comentários: "+(err.message||String(err));
+ });
+ var focus=frame.querySelector('[data-pb-win-action="close"]');if(focus)focus.focus();
 }
 var words=[
  {id:"G3306a",label:"μείνατε",reading:"meínate",lemma:"μένω",code:"G3306",book:"João 15:4",type:"Verbo",tense:"Aoristo",voice:"Ativa",mood:"Imperativo",person:"2ª pessoa do plural",meaning:"Permaneçam / permanecei",note:"O imperativo chama os discípulos à permanência em Cristo. A forma aorista apresenta a ação como um todo; não prova, sozinha, que a permanência seja pontual. A ideia continuada se estabelece no contexto.",source:"https://biblehub.com/text/john/15-4.htm"},
