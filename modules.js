@@ -89,7 +89,7 @@ function importStatus(text){
  if(area)area.textContent=text;
 }
 function makeLargeModuleMeta(info,filename){
- var now=Date.now(),name=String(info.description||info.name||filename).slice(0,130);
+ var now=Date.now(),name=String(info.name||info.description||filename).slice(0,130);
  return {id:"ext-"+filenameSlug(filename).slice(0,35)+"-c-"+now.toString(36)+"-"+Math.floor(Math.random()*1679616).toString(36),
   type:"commentary",name:name,abbreviation:String(info.abbreviation||filename.split(".")[0]).slice(0,30),
   language:String(info.language||"pt").slice(0,60),license:String(info.license||info.copyright||"não informada").slice(0,400),
@@ -226,22 +226,44 @@ function pickJson(json,filename){
 }
 async function parseZip(file){
  if(!window.JSZip)throw Error("O leitor ZIP não carregou. Verifique a conexão e tente novamente.");
- var zip=await JSZip.loadAsync(file,{checkCRC32:true}),entries=Object.values(zip.files).filter(function(e){return !e.dir&&!/(^|\/)(__MACOSX|\.DS_Store)/i.test(e.name);});
- if(entries.length>30)throw Error("O ZIP contém arquivos demais. Limite: 30.");
- var total=entries.reduce(function(sum,e){return sum+(e._data&&e._data.uncompressedSize||0);},0);
- if(total>110*1024*1024)throw Error("O ZIP ultrapassa o limite de 110 MB descompactados.");
- var sqlite=entries.filter(function(e){return /\.(sqlite3?|db)$/i.test(e.name);});
- if(sqlite.length){var all=[];for(var e of sqlite){var bin=await e.async("uint8array");if(bin.byteLength>60*1024*1024)throw Error("Um módulo SQLite excede 60 MB.");all.push(await parseSQLite(bin,e.name.split("/").pop()));}return all;}
+ var zip=await JSZip.loadAsync(file,{checkCRC32:false}),entries=Object.values(zip.files).filter(function(e){return !e.dir&&!/(^|\/)(__MACOSX|\.DS_Store)/i.test(e.name);});
+
  var manifest=entries.find(function(e){return /(?:^|\/)(?:module|manifest)\.json$/i.test(e.name);});
+ var metadata=null;
  if(manifest){
-  var meta=JSON.parse(await manifest.async("string"));var kind=meta.type||meta.module&&meta.module.type;var body=entries.find(function(e){return kind==="commentary"?/(?:commentaries|comments)\.json$/i.test(e.name):kind==="dictionary"?/(?:dictionary|entries)\.json$/i.test(e.name):/verses\.json$/i.test(e.name);});
+  if((manifest._data&&manifest._data.uncompressedSize||0)>1024*1024)throw Error("Manifesto do ZIP muito grande.");
+  try{metadata=JSON.parse(await manifest.async("string"));}catch(e){throw Error("O arquivo module.json/manifest.json está inválido.");}
+ }
+ var isPacked=metadata&&metadata.type==="commentary"&&metadata.format==="pulpito-commentary-chapters-v1";
+ if(entries.length>(isPacked?2500:30))throw Error("O ZIP contém arquivos demais para este formato.");
+ var total=entries.reduce(function(sum,e){return sum+(e._data&&e._data.uncompressedSize||0);},0);
+ if(total>210*1024*1024)throw Error("O ZIP ultrapassa o limite de 210 MB descompactados.");
+ if(isPacked){
+  var chunks=entries.filter(function(e){return /^chapters\/[a-z0-9-]+\/[0-9]{1,3}\.json$/i.test(e.name);});
+  if(!chunks.length)throw Error("Pacote de comentários sem capítulos JSON.");
+  return [await streamPackedComments(chunks,metadata,file.name)];
+ }
+ var sqlite=entries.filter(function(e){return /\.(sqlite3?|db)$/i.test(e.name);});
+ if(sqlite.length){
+  var all=[];
+  for(var e of sqlite){
+   var size=e._data&&e._data.uncompressedSize||0;
+   if(size>160*1024*1024)throw Error("Este SQLite ultrapassa 160 MB. Divida o módulo para importação.");
+   importStatus("Preparando "+e.name.split("/").pop()+" ("+Math.ceil(size/1024/1024)+" MB descompactados)…");
+   var bin=await e.async("uint8array");
+   try{all.push(await parseSQLite(bin,e.name.split("/").pop()));}finally{bin=null;}
+  }
+  return all;
+ }
+ if(manifest){
+  var meta=metadata;var kind=meta.type||meta.module&&meta.module.type;var body=entries.find(function(e){return kind==="commentary"?/(?:commentaries|comments)\.json$/i.test(e.name):kind==="dictionary"?/(?:dictionary|entries)\.json$/i.test(e.name):/verses\.json$/i.test(e.name);});
   if(!body)throw Error("O ZIP tem módulo de descrição, mas não os dados .json.");
   var records=JSON.parse(await body.async("string"));
   if(!Array.isArray(records))throw Error("O arquivo de dados deve conter uma lista JSON.");
   return [pickJson(Object.assign({},meta,kind==="commentary"?{commentaries:records}:kind==="dictionary"?{dictionary:records}:{verses:records}),file.name)];
  }
  var first=entries.find(function(e){return /\.json$/i.test(e.name);});
- if(!first)throw Error("ZIP incompatível. Inclua arquivos .SQLite3 do MyBible ou module.json + versos/comentários JSON.");
+ if(!first)throw Error("ZIP incompatível. Use SQLite3 do MyBible ou pacote ZIP/JSON válido do Púlpito Bible.");
  return [pickJson(JSON.parse(await first.async("string")),file.name)];
 }
 async function parseFile(file){
@@ -297,7 +319,7 @@ function getUiMarkup(){
  '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
  '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher arquivos ZIP, SQLite3 ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.json"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
- '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Módulos criptografados e formatos diferentes podem não ser compatíveis. Limite: 70 MB por arquivo.</p>'+
+ '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
  '<button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
  (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
