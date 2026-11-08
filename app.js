@@ -1887,9 +1887,12 @@ function loadInstalledComments(){
 }
 function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  if(window.PBConnections)window.PBConnections.close();
- var w=words.find(function(x){return x.id===wordId;});
+ var requestedCode=String(wordId||"").toUpperCase().replace(/\\s+/g,"");
+ var canonicalCode=requestedCode.replace(/^([GH])0*(\\d{1,5})[A-Z]?$/,"$1$2");
+ var w=words.find(function(x){return String(x.id).toUpperCase()===requestedCode;})||
+  words.find(function(x){return String(x.id).toUpperCase()===canonicalCode;});
  if(!w){
-  var code=String(wordId).toUpperCase(),value=Number(code.slice(1));
+  var code=canonicalCode,value=Number(code.slice(1));
   if(!/^[GH][0-9]{1,5}$/.test(code))return;
   w={id:code,code:code,label:"—",reading:"Não disponível",lemma:"Não disponível",book:ref(),type:"Morfologia não instalada",tense:"A consultar",voice:"A consultar",mood:"A consultar",person:"A consultar",meaning:"Entrada Strong sem dicionário conectado",note:"O código Strong sozinho não informa o tempo verbal, a voz ou a forma gramatical desta ocorrência. Esses dados exigem um módulo morfológico alinhado ao versículo.",source:"https://biblehub.com/"+(code[0]==="H"?"hebrew":"greek")+"/"+value+".htm"};
  }
@@ -1916,7 +1919,7 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
  if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();},anchor:anchor});
- var codes=Array.from(new Set([w.code].concat(extraStrongIds||[]).map(function(x){var id=String(x||"").toUpperCase(),found=words.find(function(item){return String(item.id).toUpperCase()===id;});return found?found.code:id.replace(/^([GH][0-9]{1,5})[A-Z]+$/,"$1");}).filter(function(x){return /^[GH][0-9]{1,5}$/.test(x);})));
+ var codes=Array.from(new Set([w.code].concat(extraStrongIds||[]).map(function(x){var id=String(x||"").toUpperCase(),found=words.find(function(item){return String(item.id).toUpperCase()===id;});var resolved=found?String(found.code||found.id):id;return resolved.replace(/^([GH][0-9]{1,5})[A-Z]+$/,"$1");}).filter(function(x){return /^[GH][0-9]{1,5}$/.test(x);})));
  var translated=String(wordTerm||"").trim();
  if(/^[GH][0-9]{1,5}[A-Z]?$/.test(translated.toUpperCase()))translated="";
  var lookups=codes.map(function(code){return {term:code,label:"Léxico Strong "+code};});
