@@ -5,7 +5,7 @@ var MAIN=document.getElementById("app-main");
 var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",caderno:"Meu caderno",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
-var defaults={page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[]};
+var defaults={page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[]};
 var saved={};try{saved=JSON.parse(localStorage.getItem(STORE_KEY)||"{}");}catch(e){}
 var state=Object.assign({},defaults,saved);
 state.sermon=Object.assign({},defaults.sermon,state.sermon||{});
@@ -35,25 +35,73 @@ function loadChapter(){
  .then(function(j){if(seq!==loadSeq||state.page!=="leitura")return;var d=j.data||{},v=d.verses||[],arr=Array.isArray(v)?v:[];if(!arr.length&&d.text)arr=[d.text];if(!arr.length)throw Error("O serviço não retornou versículos");var cleaned=arr.map(function(x,i){if(typeof x==="string")return {number:i+1,text:x};return {number:Number(x.verse||x.number)||i+1,text:x.text||x.content||""};});latestChapter={verses:cleaned,copyright:j.meta&&j.meta.copyright||"",version:d.version||state.version};chaptersCache[key]=latestChapter;var keys=Object.keys(chaptersCache);while(keys.length>18)delete chaptersCache[keys.shift()];try{localStorage.setItem("pb-chapters-v1",JSON.stringify(chaptersCache));}catch(e){}renderReaderContent();})
  .catch(function(){if(seq!==loadSeq)return;var b=document.getElementById("chapter-body");if(b)b.innerHTML='<div class="empty">Não foi possível carregar o texto agora. Verifique sua conexão ou tente outro capítulo.<br><br><button class="btn primary" data-act="retry">Tentar novamente</button></div>';});
 }
+
+var inlineStrongMap={
+ "john/15/4":[{pattern:/\b(?:permanecei|permaneçam|permaneça)\b/i,id:"G3306a"},{pattern:/\bramo\b/i,id:"G2814"}],
+ "john/15/5":[{pattern:/\b(?:permanece|permanece[m]?|permanecendo)\b/i,id:"G3306b"}],
+ "genesis/1/1":[{pattern:/\bcriou\b/i,id:"H1254"}]
+};
+function annotateVerse(text,num){
+ var specs=inlineStrongMap[state.book+"/"+state.chapter+"/"+num]||[];
+ if(!specs.length)return esc(text);
+ var occurrences=[];
+ specs.forEach(function(spec){var m=spec.pattern.exec(text);if(m)occurrences.push({start:m.index,end:m.index+m[0].length,id:spec.id});});
+ occurrences.sort(function(a,b){return a.start-b.start;});
+ var output="",last=0;occurrences.forEach(function(o){if(o.start<last)return;var original=text.slice(o.start,o.end),word=words.find(function(w){return w.id===o.id;});if(!word)return;
+ output+=esc(text.slice(last,o.start))+'<span class="strong-word" data-strong="'+esc(o.id)+'" role="button" tabindex="0" title="Abrir dicionário Strong '+esc(word.code)+'">'+esc(original)+'</span>';
+ if(state.showStrong)output+='<button type="button" class="strong-badge" data-strong="'+esc(o.id)+'" aria-label="Abrir Strong '+esc(word.code)+'">'+esc(word.code)+'</button>';
+ last=o.end;});
+ return output+esc(text.slice(last));
+}
 function renderReaderContent(){
  var holder=document.getElementById("chapter-body");if(!holder||!latestChapter)return;
- var verses=latestChapter.verses.map(function(v){var r=activeBook.name+" "+state.chapter+":"+v.number;return '<button class="verse'+(state.selectedVerse===v.number?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+'" data-verse="'+v.number+'" title="Selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+esc(v.text)+'</button>';}).join(" ");
- holder.innerHTML='<div class="verse-list">'+verses+'</div><div class="credit">'+esc(latestChapter.copyright||"Tradução obtida da API Midvash. Consulte a licença da versão.")+'</div>';
- var el=document.getElementById("selected-reference");if(el)el.textContent=ref();var b=document.getElementById("bookmark-btn");if(b)b.textContent=currentMarked()?"★ Marcado":"☆ Favorito";
+ var rows=latestChapter.verses.map(function(v){
+  var r=activeBook.name+" "+state.chapter+":"+v.number;
+  return '<span class="verse-line'+(state.selectedVerse===v.number?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+'" data-verse="'+v.number+'" role="button" tabindex="0" title="Selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+annotateVerse(v.text,v.number)+'</span>';
+ }).join(state.readerMode==="verses"?"":" ");
+ holder.innerHTML='<div class="verse-list '+(state.readerMode==="verses"?"segmented":"")+'">'+rows+'</div><div class="credit">'+esc(latestChapter.copyright||"Texto disponibilizado pela API Midvash; consulte os termos da tradução.")+'</div>';
+ var el=document.getElementById("selected-reference");if(el)el.textContent=ref();
+ var b=document.getElementById("bookmark-btn");if(b)b.textContent=currentMarked()?"★ Favorito":"☆ Favorito";
+ if(state.showParallel)loadParallelText();
+}
+function readerOptions(){
+ return books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(state.book===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("");
 }
 function renderReader(){
- MAIN.innerHTML='<div class="content">'+title("leitura")+'<p class="subtitle">Leia, selecione um versículo e aprofunde seu significado com ferramentas de interpretação, morfologia e estudo.</p>'+
- '<div class="search-bar"><input class="field" id="reference-search" placeholder="Buscar referência · Ex.: João 3:16" aria-label="Pesquisar referência"><button class="btn" data-act="search-ref">⌕ Localizar passagem</button></div>'+
- '<div class="reading-layout"><div class="card reading-card">'+
- '<div class="ref-controls"><div><label class="label">LIVRO</label><select class="select" id="book-select" style="width:100%">'+books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(state.book===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("")+'</select></div><div><label class="label">CAPÍTULO</label><select class="select" id="chapter-select" style="width:100%">'+chapterOptions()+'</select></div><div><label class="label">TRADUÇÃO</label><select class="select" id="version-select" style="width:100%"><option value="alm1911"'+(state.version==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(state.version==="bpm"?" selected":"")+'>Bíblia Portuguesa Mundial</option><option value="onbv"'+(state.version==="onbv"?" selected":"")+'>Open Nova Bíblia Viva</option><option value="nva"'+(state.version==="nva"?" selected":"")+'>Nova Versão de Acesso Livre</option></select></div></div>'+
- '<div class="passage-header"><div><div class="eyebrow">A PALAVRA</div><h2 class="scripture-title">'+esc(activeBook.name)+' '+state.chapter+'</h2></div><div class="row"><button class="btn slim" data-act="prev-chapter">←</button><button class="btn slim" data-act="next-chapter">→</button></div></div>'+
- '<div id="chapter-body"><div class="loader">Carregando passagem…</div></div></div>'+
- '<div class="reading-aside aside-stack"><div class="card card-pad"><div class="caps">PASSAGEM SELECIONADA</div><h3 id="selected-reference" style="font-size:20px;margin:10px 0 16px">'+esc(ref())+'</h3><div class="row"><button class="btn slim" id="bookmark-btn" data-act="bookmark">'+(currentMarked()?"★ Marcado":"☆ Favorito")+'</button><button class="btn slim" data-act="note">✎ Anotar</button></div><div class="rule"></div><div class="aside-title">Continuar meu estudo</div><div class="aside-stack">'+
- '<button class="quick-action" data-page="original"><span class="quick-icon">α</span><span><strong>Examinar o texto original</strong><small>Strong, verbo, tempo, modo, voz e contexto</small></span></button>'+
- '<button class="quick-action" data-page="tutor"><span class="quick-icon">✧</span><span><strong>Interpretação passo a passo</strong><small>Observe, investigue e aprenda a interpretar</small></span></button>'+
- '<button class="quick-action" data-page="sermao"><span class="quick-icon">▤</span><span><strong>Preparar sermão</strong><small>Leve sua passagem ao criador de esboços</small></span></button></div></div>'+
- '<div class="card card-pad"><div class="caps">PARA ESTUDAR MELHOR</div><p class="feature-note">O significado de uma palavra depende da frase, do gênero literário, do contexto histórico e do argumento do autor. A morfologia ajuda, mas não substitui a leitura cuidadosa.</p><span class="chip goldish">Método exegético orientado</span></div></div></div></div>';
+ var other=state.version==="alm1911"?"bpm":"alm1911";
+ MAIN.innerHTML='<section class="reader-screen"><div class="reader-commandbar">'+
+ '<div class="reader-top-controls"><div class="reader-brand"><span class="brand-small">✦</span><strong>Púlpito Bible</strong><span class="reader-tagline">Leitor avançado</span></div><div class="reader-passage-control"><select class="reader-select book-control" id="book-select" aria-label="Selecionar livro">'+readerOptions()+'</select><select class="reader-select chapter-control" id="chapter-select" aria-label="Selecionar capítulo">'+chapterOptions()+'</select><select class="reader-select version-control" id="version-select" aria-label="Selecionar tradução"><option value="alm1911"'+(state.version==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(state.version==="bpm"?" selected":"")+'>BPM</option><option value="onbv"'+(state.version==="onbv"?" selected":"")+'>ONBV</option><option value="nva"'+(state.version==="nva"?" selected":"")+'>NVA</option></select></div><div class="reader-arrows"><button class="reader-icon" data-act="prev-chapter" aria-label="Capítulo anterior">‹</button><button class="reader-icon" data-act="next-chapter" aria-label="Próximo capítulo">›</button></div></div>'+
+ '<div class="reader-quicktools"><button class="reader-tool'+(state.showStrong?" on":"")+'" data-act="toggle-strong">H/G <strong>Strong</strong><span class="mini-switch"></span></button><button class="reader-tool'+(state.showComments?" on":"")+'" data-act="toggle-comments">▤ Comentários</button><button class="reader-tool'+(state.showCrossRefs?" on":"")+'" data-act="toggle-crossrefs">⇄ Referências</button><button class="reader-tool'+(state.showParallel?" on":"")+'" data-act="toggle-parallel">◫ Duas Bíblias</button><button class="reader-tool" data-page="original">α Dicionário</button><button class="reader-tool" data-page="tutor">✧ Interpretar</button></div>'+
+ '<div class="reader-appearance"><label>Texto <select id="reader-mode" aria-label="Formato dos versículos"><option value="continuous"'+(state.readerMode==="continuous"?" selected":"")+'>Contínuo</option><option value="verses"'+(state.readerMode==="verses"?" selected":"")+'>Por versículo</option></select></label><label>Fundo <select id="reader-paper" aria-label="Estilo do leitor"><option value="sepia"'+(state.readerTheme==="sepia"?" selected":"")+'>Sépia</option><option value="white"'+(state.readerTheme==="white"?" selected":"")+'>Branco</option><option value="night"'+(state.readerTheme==="night"?" selected":"")+'>Noturno</option></select></label><button class="reader-icon" data-act="reader-font-down" aria-label="Diminuir fonte">A−</button><span class="reader-size">'+state.fontSize+'px</span><button class="reader-icon" data-act="reader-font-up" aria-label="Aumentar fonte">A+</button><button class="reader-tool" data-act="focus-mode">'+(state.focusMode?"◧ Mostrar menus":"⛶ Tela de leitura")+'</button></div></div>'+
+ '<div class="reader-searchline"><input class="field" id="reference-search" placeholder="Ir para referência — João 15:4" aria-label="Ir para referência"><button class="btn slim" data-act="search-ref">Ir</button><span class="reader-hint">Toque no código azul para abrir o léxico.</span></div>'+
+ '<div class="reader-columns"><article class="reader-paper '+esc(state.readerTheme)+'"><div class="reader-paper-head"><span class="reader-module">'+esc(state.version.toUpperCase())+'</span><div><div class="reader-overline">LIVRO E CAPÍTULO</div><h1>'+esc(activeBook.name)+' '+state.chapter+'</h1></div><button class="reader-favorite" id="bookmark-btn" data-act="bookmark">'+(currentMarked()?"★ Favorito":"☆ Favorito")+'</button></div><div id="chapter-body" class="reader-scripture"><div class="loader">Carregando Escrituras…</div></div><div class="reader-note"><strong>Strong no texto:</strong> os vínculos exibidos nesta versão são amostras conferidas para João 15:4–5 e Gênesis 1:1. A numeração de todo o texto dependerá de uma base morfológica alinhada à tradução portuguesa.</div></article>'+
+ (state.showParallel?'<article class="reader-paper second '+esc(state.readerTheme)+'"><div class="reader-paper-head"><span class="reader-module">'+esc(other.toUpperCase())+'</span><h2>Tradução paralela</h2></div><div id="parallel-body" class="reader-scripture"><div class="loader">Carregando versão paralela…</div></div></article>':"")+'</div>'+
+ (state.showComments||state.showCrossRefs?'<div class="reader-bottom-panels">'+(state.showComments?'<section class="card card-pad reader-extras"><div class="caps">COMENTÁRIOS</div><h2 class="section-heading">Observações do estudo</h2><p class="feature-note">'+(state.book==="john"&&state.chapter===15?"A figura da videira relaciona permanência em Cristo e frutificação. Leia João 15:1–8 como uma unidade literária antes de tirar conclusões a partir de um único verbo.":"Ainda não há comentários teológicos importados para este capítulo. Você pode criar suas próprias notas.")+'</p><button class="btn slim" data-act="note">✎ Escrever anotação</button></section>':"")+
+ (state.showCrossRefs?'<section class="card card-pad reader-extras"><div class="caps">REFERÊNCIAS CRUZADAS</div><h2 class="section-heading">Passagens relacionadas</h2><p class="feature-note">Sugestões temáticas iniciais, não geradas automaticamente por um comentário externo.</p><div class="row">'+(state.book==="john"&&state.chapter===15?'<button class="btn slim" data-ref-open="João 6:56">João 6:56</button><button class="btn slim" data-ref-open="Gálatas 5:22">Gálatas 5:22</button>':'<button class="btn slim" data-ref-open="João 1:1">João 1:1</button>')+'</div></section>':"")+'</div>':"")+
+ '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-page="tutor">✧ Interpretar</button></div></div></section>';
  loadChapter();
+}
+function loadParallelText(){
+ if(!state.showParallel||state.page!=="leitura")return;
+ var dest=document.getElementById("parallel-body");if(!dest)return;
+ var other=state.version==="alm1911"?"bpm":"alm1911";
+ var url=API+"/"+other+"/"+state.book+"/"+state.chapter;
+ fetch(url).then(function(r){if(!r.ok)throw Error("O texto paralelo não foi localizado");return r.json();}).then(function(j){
+ if(!state.showParallel||state.page!=="leitura")return;
+ var target=document.getElementById("parallel-body");if(!target)return;
+ var data=j.data||{},verses=data.verses||[];
+ target.innerHTML='<div class="verse-list segmented">'+verses.map(function(v,i){return '<span class="verse-line"><sup class="verse-num">'+(i+1)+'</sup>'+esc(typeof v==="string"?v:v.text||"")+'</span>';}).join("")+'</div><div class="credit">'+esc(j.meta&&j.meta.copyright||"Créditos da tradução segundo a API Midvash.")+'</div>';
+ }).catch(function(){var t=document.getElementById("parallel-body");if(t)t.innerHTML='<p class="feature-note">Não foi possível carregar a versão paralela.</p>';});
+}
+function openStrongPopup(wordId){
+ var w=words.find(function(x){return x.id===wordId;});if(!w)return;
+ currentWord=w;
+ document.getElementById("strong-window")?.remove();
+ var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay";frame.setAttribute("role","presentation");
+ frame.innerHTML='<section class="strong-balloon" role="dialog" aria-modal="true" aria-label="Dicionário Strong '+esc(w.code)+'"><div class="strong-balloon-bar"><span class="caps">DICIONÁRIO STRONG · '+esc(w.book)+'</span><button class="reader-icon" data-act="close-strong" aria-label="Fechar">✕</button></div><div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div><p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO NO CONTEXTO</div><h3>'+esc(w.meaning)+'</h3><div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div><p class="feature-note">'+esc(w.note)+'</p><p class="lexicon-caveat">A forma original, o aspecto e o contexto devem ser examinados juntos. Strong não é tradução automática.</p><div class="strong-actions"><button class="btn" data-act="strong-copy">▣ Copiar</button><button class="btn" data-act="strong-study">α Estudar</button><button class="btn primary" data-act="strong-sermon">▤ Inserir no sermão</button></div><p class="strong-reference"><a href="'+esc(w.source)+'" target="_blank" rel="noopener">Consultar referência lexical ↗</a></p></section>';
+ frame.addEventListener("click",function(e){if(e.target===frame)frame.remove();});
+ document.body.appendChild(frame);
+ frame.querySelector("[data-act='close-strong']").focus();
 }
 var words=[
  {id:"G3306a",label:"μείνατε",reading:"meínate",lemma:"μένω",code:"G3306",book:"João 15:4",type:"Verbo",tense:"Aoristo",voice:"Ativa",mood:"Imperativo",person:"2ª pessoa do plural",meaning:"Permaneçam / permanecei",note:"O imperativo chama os discípulos à permanência em Cristo. A forma aorista apresenta a ação como um todo; não prova, sozinha, que a permanência seja pontual. A ideia continuada se estabelece no contexto.",source:"https://biblehub.com/text/john/15-4.htm"},
@@ -155,7 +203,7 @@ function renderRoadmap(){
 function render(){
  document.querySelectorAll(".nav-item").forEach(function(el){el.classList.toggle("active",el.dataset.page===state.page);});
  document.getElementById("page-location").textContent=TITLES[state.page]||"Púlpito Bible";
- document.documentElement.classList.toggle("dark",state.theme==="dark");document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");
+ document.documentElement.classList.toggle("dark",state.theme==="dark");document.body.classList.toggle("reader-active",state.page==="leitura");document.body.classList.toggle("focus-reading",!!state.focusMode&&state.page==="leitura");document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");
  if(state.page==="leitura")renderReader();
  if(state.page==="original")renderOriginal();
  if(state.page==="tutor")renderTutor();
@@ -175,10 +223,13 @@ function openRef(r){var p=parseRef(r);if(!p){notify("Referência não reconhecid
 async function lookupReference(s){
  if(!s.trim()){notify("Digite uma referência");return;}
  var q=s.trim(),m=q.match(/^(.+?)\s+(\d+)(?::(\d+))?/);if(m){var b=books.find(function(b){return b.name.toLowerCase()===m[1].toLowerCase()||b.slug===m[1].toLowerCase();})||booksFallback.find(function(b){return b.name.toLowerCase()===m[1].toLowerCase();});if(b){setRef(b.slug,+m[2],m[3]?+m[3]:0);return;}}
- try{var r=await fetch(API+"/parse?q="+encodeURIComponent(q)+"&version="+state.version);if(!r.ok)throw Error("Não encontrado");var d=(await r.json()).data||{};var bk=typeof d.book==="string"?d.book:(d.book&&d.book.slug)||d.bookSlug;var b2=books.find(function(b){return b.slug===bk||b.name.toLowerCase()===String(bk).toLowerCase();});if(b2&&d.chapter){setRef(b2.slug,d.chapter,Number(d.verse||d.verseStart)||0);return;}throw Error("Referência");}catch(e){notify("Não localizei a referência. Experimente: João 3:16 ou Gênesis 1.");}
+ try{var r=await fetch(API+"/parse?q="+encodeURIComponent(q)+"&version="+state.version);if(!r.ok)throw Error("Não encontrado");var d=(await r.json()).data||{};var bk=typeof d.book==="string"?d.book:(d.book&&d.book.slug)||d.book_slug||d.bookSlug;var b2=books.find(function(b){return b.slug===bk||b.name.toLowerCase()===String(bk).toLowerCase();});if(b2&&d.chapter){setRef(b2.slug,d.chapter,Number(d.verse_start||d.verseStart||d.verse)||0);return;}throw Error("Referência");}catch(e){notify("Não localizei a referência. Experimente: João 3:16 ou Gênesis 1.");}
 }
 function sermonText(){var s=state.sermon;return [s.title,s.reference,"","Contexto histórico e literário",s.context,"","Introdução",s.introduction,"","1. Exposição",s.point1,"","2. Exposição",s.point2,"","Aplicação",s.application,"","Conclusão",s.conclusion].join("\n");}
 document.addEventListener("click",function(ev){
+
+ var sw=ev.target.closest("[data-strong]");
+ if(sw){ev.preventDefault();ev.stopPropagation();openStrongPopup(sw.dataset.strong);return;}
  var v=ev.target.closest("[data-verse]");if(v){state.selectedVerse=Number(v.dataset.verse);persist();document.querySelectorAll(".verse").forEach(function(e){e.classList.toggle("selected",e===v);});var selected=document.getElementById("selected-reference");if(selected)selected.textContent=ref();var btn=document.getElementById("bookmark-btn");if(btn)btn.textContent=currentMarked()?"★ Marcado":"☆ Favorito";return;}
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
  var w=ev.target.closest("[data-word]");if(w){currentWord=words.find(function(t){return t.id===w.dataset.word;})||currentWord;renderOriginal();return;}
@@ -189,6 +240,18 @@ document.addEventListener("click",function(ev){
  var ub=ev.target.closest("[data-unbookmark]");if(ub){state.bookmarks=state.bookmarks.filter(function(r){return r!==ub.dataset.unbookmark;});persist();renderNotebook();return;}
  var el=ev.target.closest("[data-act]");if(!el)return;
  var a=el.dataset.act;
+
+ if(a==="toggle-strong"){state.showStrong=!state.showStrong;persist();renderReaderContent();var button=document.querySelector('[data-act="toggle-strong"]');if(button)button.classList.toggle("on",state.showStrong);return;}
+ if(a==="toggle-comments"){state.showComments=!state.showComments;persist();renderReader();return;}
+ if(a==="toggle-crossrefs"){state.showCrossRefs=!state.showCrossRefs;persist();renderReader();return;}
+ if(a==="toggle-parallel"){state.showParallel=!state.showParallel;persist();renderReader();return;}
+ if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);persist();renderReader();return;}
+ if(a==="reader-font-up"){state.fontSize=Math.min(28,state.fontSize+2);persist();renderReader();return;}
+ if(a==="focus-mode"){state.focusMode=!state.focusMode;persist();renderReader();document.body.classList.toggle("focus-reading",state.focusMode);return;}
+ if(a==="close-strong"){document.getElementById("strong-window")?.remove();return;}
+ if(a==="strong-copy"){var w=currentWord;var value=w.code+" · "+w.label+" ("+w.reading+") — "+w.meaning+". "+w.note;navigator.clipboard.writeText(value).then(function(){notify("Estudo Strong copiado");}).catch(function(){notify("Não foi possível copiar");});return;}
+ if(a==="strong-study"){document.getElementById("strong-window")?.remove();page("original");return;}
+ if(a==="strong-sermon"){var w=currentWord;var note=w.code+" · "+w.label+" — "+w.meaning+" ("+w.book+"). "+w.note;state.sermon.context=(state.sermon.context?state.sermon.context+"\n\n":"")+note;persist();document.getElementById("strong-window")?.remove();notify("Estudo inserido no contexto do sermão");return;}
  if(a==="prev-chapter"){if(state.chapter>1)setRef(state.book,state.chapter-1);return;}
  if(a==="next-chapter"){if(state.chapter<activeBook.chapters)setRef(state.book,state.chapter+1);return;}
  if(a==="retry"){loadChapter();return;}
@@ -208,6 +271,8 @@ document.addEventListener("click",function(ev){
 });
 document.addEventListener("change",function(ev){
  var t=ev.target;
+ if(t.id==="reader-mode"){state.readerMode=t.value;persist();renderReaderContent();return;}
+ if(t.id==="reader-paper"){state.readerTheme=t.value;persist();renderReader();return;}
  if(t.id==="book-select"){var found=books.find(function(b){return b.slug===t.value;});if(found){activeBook=found;state.selectedVerse=0;setRef(found.slug,1);}return;}
  if(t.id==="chapter-select"){setRef(state.book,+t.value);return;}
  if(t.id==="version-select"){state.version=t.value;persist();renderReader();return;}
@@ -218,7 +283,7 @@ document.addEventListener("input",function(ev){
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
  if(t.id==="note-filter"){state.noteFilter=t.value;persist();var p=t.selectionStart;renderNotebook();var n=document.getElementById("note-filter");n.focus();n.setSelectionRange(p,p);}
 });
-document.addEventListener("keydown",function(ev){if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.strong){ev.preventDefault();openStrongPopup(ev.target.dataset.strong);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
 document.getElementById("menu-toggle").addEventListener("click",function(){document.getElementById("sidebar").classList.toggle("open");document.getElementById("mobile-overlay").classList.toggle("active");});
 document.getElementById("mobile-overlay").addEventListener("click",function(){document.getElementById("sidebar").classList.remove("open");document.getElementById("mobile-overlay").classList.remove("active");});
 document.getElementById("brand-link").addEventListener("click",function(e){e.preventDefault();page("leitura");});
