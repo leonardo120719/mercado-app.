@@ -248,7 +248,12 @@ function attachDictionaryStudy(){
   onModuleChange:function(id){state.dictionaryModuleId=id;persist();},
   onTermChange:function(term){state.dictionaryTerm=term;persist();},
   onClose:function(){state.dictionaryOpen=false;persist();window.PBDictionaryStudy.destroy();},
-  onReference:function(reference){lookupReference(reference);},
+  onReference:function(reference){
+   var aliases={Jo:"João",Gn:"Gênesis",Lc:"Lucas",Mt:"Mateus",Mc:"Marcos",Sl:"Salmos",At:"Atos",Rm:"Romanos",Is:"Isaías"};
+   var parts=/^([A-Za-zÀ-ÿ]+)\s+(\d+(?::\d+(?:[-–]\d+)?)?)/.exec(String(reference||"").trim());
+   var resolved=parts&&aliases[parts[1]]?aliases[parts[1]]+" "+parts[2]:reference;
+   lookupReference(resolved);
+  },
   onAnalyze:function(code){openStrongPopup(code);},
   notify:notify
  });
