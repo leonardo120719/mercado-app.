@@ -943,8 +943,8 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
 /* Commentary availability beside each verse + long-press commentary chooser.
    Small enough for continuous reading; no indicator when the verse has no data. */
 .reader-scripture .reader-scripture .pb-verse-comment-labels{
- display:inline-flex;align-items:center;flex-wrap:wrap;gap:3px;
- margin:0 6px 0 0;vertical-align:middle;
+ display:flex;align-items:center;flex-wrap:wrap;gap:4px;
+ width:100%;margin:8px 0 3px;clear:both;
 }
 .reader-scripture .pb-verse-comment-indicator{
  display:inline-flex;align-items:center;vertical-align:baseline;
