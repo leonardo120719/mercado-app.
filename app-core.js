@@ -179,7 +179,7 @@ function toolbarAction(action){
  case "next":if(state.chapter<activeBook.chapters)setRef(state.book,state.chapter+1);return;
  case "comments":state.splitStudy=!state.splitStudy;persist();renderReader();return;
  case "split-study":state.splitStudy=!state.splitStudy;persist();renderReader();return;
- case "strong":openDictionaryTerm(state.dictionaryTerm||"G3306",state.selectedVerse);return;
+ case "strong":if(!state.dictionaryOpen){state.dictionaryOpen=true;persist();attachDictionaryStudy();}else if(state.dictionaryTerm)window.PBDictionaryStudy.lookup(state.dictionaryTerm,{noHistory:true});return;
  case "dictionary-pane":state.dictionaryOpen=!state.dictionaryOpen;persist();renderReader();return;
  case "notes":case "bookmarks":page("caderno");return;
  case "modules":page("modulos");return;
