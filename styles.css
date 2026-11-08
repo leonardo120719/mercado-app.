@@ -61,6 +61,11 @@
 .reader-scripture .verse-list.segmented .verse-line{display:block;padding:4px 5px;margin:0 0 8px;line-height:1.92}
 .reader-scripture .verse-num{font:700 11px "DM Sans",sans-serif;color:#bb852b;vertical-align:super;margin-right:5px}
 .reader-scripture .strong-word{cursor:pointer;border-bottom:1px dotted #537ca9;text-decoration:none;white-space:normal}
+.reader-scripture .pb-linked-word{cursor:pointer;text-decoration:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.reader-scripture .pb-linked-word:hover{background:rgba(43,119,153,.10);border-radius:2px}
+.reader-scripture .pb-strong-word{border-bottom:1px dotted #537ca9}
+.pb-dict-inline-link[data-pb-study-link]{touch-action:manipulation;white-space:normal}
+
 .reader-scripture .strong-word:hover{color:#0d62c3}
 .reader-scripture .strong-badge{display:inline;font:700 10px "DM Sans",sans-serif;line-height:1.15;border:1px solid #0a58b9;border-radius:5px;background:#0e63c6;color:white;padding:2px 4px;margin:0 3px 0 2px;white-space:nowrap;vertical-align:middle;box-shadow:0 1px 2px #092d5d23;cursor:pointer}
 .reader-scripture .strong-badge:hover{background:#083e92}
