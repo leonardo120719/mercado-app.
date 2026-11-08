@@ -940,30 +940,29 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
 }
 
 
-/* Commentary availability beside each verse + long-press commentary chooser.
-   Small enough for continuous reading; no indicator when the verse has no data. */
-.reader-scripture .reader-scripture .pb-verse-comment-labels{
- display:flex;align-items:center;flex-wrap:wrap;gap:4px;
- width:100%;margin:8px 0 3px;clear:both;
+/* Short commentary labels: compact blue text without green boxes or borders. */
+.reader-scripture .pb-verse-comment-labels{
+ display:flex;align-items:center;flex-wrap:wrap;gap:1px 7px;
+ width:100%;margin:1px 0 2px;padding:0;clear:both;line-height:1.1;
 }
 .reader-scripture .pb-verse-comment-indicator{
  display:inline-flex;align-items:center;vertical-align:baseline;
- white-space:normal;overflow-wrap:anywhere;text-align:left;line-height:1.35;
- margin:0;padding:2px 6px;
- border:1px solid #b7cabf;border-radius:4px;
- background:#eaf3e8;color:#25666d;
- font:700 9px/1.35 "DM Sans",Arial,sans-serif;
+ white-space:nowrap;overflow:visible;text-align:left;line-height:1.1;
+ margin:0;padding:0 1px;border:0!important;border-radius:0;
+ background:transparent!important;color:#245da8;
+ font:650 10px/1.1 "DM Sans",Arial,sans-serif;
  cursor:pointer;touch-action:manipulation;user-select:none;
- box-shadow:none;max-width:min(180px,42vw);
+ box-shadow:none;max-width:none;text-decoration:none;
 }
 .reader-scripture .pb-verse-comment-indicator:hover,
 .reader-scripture .pb-verse-comment-indicator:focus-visible{
- border-color:#2d8d9b;background:#d5eef1;color:#174e67;
- outline:2px solid #9dd5df;outline-offset:1px;
+ border:0!important;background:transparent!important;color:#16447f;
+ outline:none;text-decoration:underline;text-underline-offset:2px;
 }
 body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
- background:#304a50;border-color:#57868e;color:#d9f2ed;
+ background:transparent!important;border:0!important;color:#9fc6ff;
 }
+
 .pb-vc-picker{
  position:fixed;z-index:1850;
  width:min(350px,calc(100vw - 16px));max-height:min(68dvh,540px);
