@@ -111,3 +111,52 @@ A experiência de leitura foi reorganizada com cabeçalho azul compacto, seletor
 - **Inspiração funcional:** os recursos do MyBible foram estudados a partir de sua documentação oficial em https://mybible.zone/android/tips/main/. A interface mantém marca, arte e código próprios do Púlpito Bible.
 
 As preferências de leitura e estudo permanecem no armazenamento local; ainda não há sincronização ou importação automática da biblioteca do Púlpito Expositivo.
+
+
+## Biblioteca de módulos externos — ZIP / SQLite3 / JSON
+
+Implementação independente (branch \`pulpito-bible\`, novembro de 2026):
+
+**Formatos aceitos**
+
+- ZIP contendo um ou vários arquivos MyBible \`.SQLite3\` não criptografados. Detecta as tabelas \`verses\` (Bíblias) e \`commentaries\` (comentários). Em MyBible, números de livros usam uma tabela numérica própria (por exemplo, Gênesis=10; Salmos=230; Mateus=470; João=500), mapeada aos 66 livros protestantes. Módulos de livros deuterocanônicos e outros formatos ainda não são interpretados.
+- Arquivo \`.SQLite3\` avulso com o mesmo esquema.
+- ZIP do Púlpito Bible com \`module.json\` (tipo, nome, sigla, idioma, licença) e \`verses.json\` ou \`comments.json\` contendo um array de registros; também aceita objeto JSON único contendo \`verses\`, \`commentaries\` ou \`comments\`.
+
+**Persistência e comportamento**
+
+- Os dados do módulo (versículos e comentários) são processados no navegador e gravados em IndexedDB, sem upload ao servidor; o usuário conserva os direitos de uso do arquivo de origem.
+- Versículos ficam indexados por módulo/livro/capítulo; comentários, por módulo/livro, com regras de abrangência para capítulo, versículo e intervalos.
+- O seletor do leitor exibe Bíblias instaladas; um painel de comentários acompanha a passagem atual. Há suporte a tradução paralela instalada e inserção de trechos do comentário no sermão.
+- Marcadores Strong \`<S>3306</S>\` incluídos por um módulo original são renderizados como número clicável ao lado do termo. **O Strong sozinho não fornece forma, voz, modo ou tempo verbal; sem alinhamento morfológico verificado, a janela sinaliza essa limitação, sem inventar dados.**
+- Preferência de não usar serviços de terceiros para armazenar conteúdo privado: nenhum conteúdo importado segue para o servidor Render no fluxo implementado.
+- Limite de arquivo 70 MB e limite aproximado de descompactação ZIP 110 MB. O navegador pode impor outras restrições de memória/armazenamento. Arquivos protegidos por senha, criptografados ou formatos MySword/e-Sword não estão contemplados.
+
+**Traduções requisitadas (catálogo / instalação pelo usuário):**
+
+- NVI: Nova Versão Internacional (Biblica) — não incluída; autorização necessária.
+- NTLH: Nova Tradução na Linguagem de Hoje (SBB) — não incluída; autorização necessária.
+- NAA: Nova Almeida Atualizada (SBB) — não incluída; autorização necessária.
+- ACF: Almeida Corrigida Fiel (Sociedade Bíblica Trinitariana) — não incluída; autorização necessária.
+- King James 1611: não incluída; observar requisitos territoriais e edição específica (por exemplo, regras do Reino Unido).
+
+A aplicação fornece um catálogo identificando status, **não** hospeda downloads não autorizados, nem converte ou desbloqueia módulos criptografados. Usuários podem instalar arquivos que tenham direito de utilizar. Informações de licença fornecidas pelo arquivo não substituem verificação jurídica.
+
+**Dependências de cliente**
+
+- JSZip v3.10.1 (CDN) para arquivos ZIP.
+- sql.js v1.13.0 (CDN/WASM) para interpretar SQLite3 sem backend.
+- IndexedDB nativo para armazenamento local persistente.
+
+Se a rede bloquear os scripts na primeira utilização, a importação ZIP/SQLite não será possível; os arquivos já instalados continuarão legíveis, quando o site e seu código estiverem disponíveis.
+
+**Referências**
+
+- Formato oficial: https://mybible.zone/doers/ (link para especificação)
+- Importação de arquivos: https://mybible.zone/android/tips/main/import/
+- Comentários: https://mybible.zone/android/tips/modules/commentary-modules/
+- King James no Reino Unido: https://www.gov.uk/government/publications/copyright-notice-duration-of-copyright-term/copyright-notice-duration-of-copyright-term
+
+**Verificação da versão**
+
+Os scripts foram verificados quanto à sintaxe e à interface em um ambiente de teste com dados substitutos. A compatibilidade com ZIPs SQLite3 variados dependerá de testar arquivos reais, por variações de metadados, tags e versificação.
