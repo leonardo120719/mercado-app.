@@ -58,7 +58,7 @@ window.PBVerseComments.init({
 
 window.PBConnections.init({
  onWord:function(word,verse){openDictionaryTerm(word,verse);return true;},
- shouldOpenVersePanel:function(){return !state.splitStudy;},
+ shouldOpenVersePanel:function(){return false;},
  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse,name:activeBook.name};},
  setVerse:function(n){if(Number(n)>0){state.selectedVerse=Number(n);persist();window.PBSplitStudy.refresh();}},
  onNote:function(ctx){if(ctx&&ctx.reference&&ctx.reference.verse)state.selectedVerse=ctx.reference.verse;persist();noteModal();},
