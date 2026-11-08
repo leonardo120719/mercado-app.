@@ -24,8 +24,8 @@ function bibleOptions(selected){return modules.filter(function(m){return m.type=
 function getModuleByVersion(version){return modules.find(function(m){return "local:"+m.id===version&&m.type==="bible";});}
 async function getChapter(version,book,chapter){await dbOpen();var m=getModuleByVersion(version);if(!m)throw Error("Módulo de Bíblia não instalado neste dispositivo");var key=m.id+"/"+book+"/"+chapter;var db=await dbOpen();var row=await request(db.transaction("chapters","readonly").objectStore("chapters").get(key));if(!row||!row.verses||!row.verses.length)throw Error("Este módulo não contém "+book+" "+chapter);return {verses:row.verses,copyright:"Módulo instalado localmente · "+m.name+" · "+(m.license||"Licença não informada no arquivo")+". Verifique as condições de uso da edição.",version:m.abbreviation||m.name};}
 
-async function getCommentaries(book,chapter,verse){
- var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary";});
+async function getCommentaries(book,chapter,verse,moduleId){
+ var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary"&&(!moduleId||m.id===moduleId);});
  var entries=await Promise.all(active.map(async function(m){
   var records=[];
   if(m.storage==="entries-v1"){
