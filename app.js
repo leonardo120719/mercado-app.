@@ -230,7 +230,7 @@ document.addEventListener("click",function(ev){
 
  var sw=ev.target.closest("[data-strong]");
  if(sw){ev.preventDefault();ev.stopPropagation();openStrongPopup(sw.dataset.strong);return;}
- var v=ev.target.closest("[data-verse]");if(v){state.selectedVerse=Number(v.dataset.verse);persist();document.querySelectorAll(".verse").forEach(function(e){e.classList.toggle("selected",e===v);});var selected=document.getElementById("selected-reference");if(selected)selected.textContent=ref();var btn=document.getElementById("bookmark-btn");if(btn)btn.textContent=currentMarked()?"★ Marcado":"☆ Favorito";return;}
+ var v=ev.target.closest("[data-verse]");if(v){state.selectedVerse=Number(v.dataset.verse);persist();document.querySelectorAll(".verse-line").forEach(function(e){e.classList.toggle("selected",e===v);});var selected=document.getElementById("selected-reference");if(selected)selected.textContent=ref();var btn=document.getElementById("bookmark-btn");if(btn)btn.textContent=currentMarked()?"★ Marcado":"☆ Favorito";return;}
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
  var w=ev.target.closest("[data-word]");if(w){currentWord=words.find(function(t){return t.id===w.dataset.word;})||currentWord;renderOriginal();return;}
  var st=ev.target.closest("[data-step]");if(st){state.tutorStep=+st.dataset.step;persist();renderTutor();return;}
