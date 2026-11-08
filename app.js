@@ -412,7 +412,7 @@ async function searchDictionaryUi(){
  box.textContent="Consultando dicionários instalados…";
  try{
   var res=await getDictionaryEntry(q);
-  box.innerHTML=res.length?res.map(function(row){return '<article class="module-comment"><strong>'+clean(row.moduleName)+'</strong><small>'+clean(row.topic)+'</small><p>'+clean(row.definition)+'</p></article>';}).join(""):'<p class="feature-note">Nenhuma entrada encontrada nos dicionários instalados.</p>';
+  box.innerHTML=res.length?res.map(function(row){return '<article class="module-comment"><strong>'+clean(row.moduleName)+'</strong><small>'+clean(row.topic)+'</small><p>'+window.PBConnections.linkifyText(row.definition)+'</p></article>';}).join(""):'<p class="feature-note">Nenhuma entrada encontrada nos dicionários instalados.</p>';
  }catch(err){box.textContent=err.message||"Erro na pesquisa";}
 }
 
@@ -962,7 +962,7 @@ function renderRows(rows,ctx,selected){
  return rows.map(function(r,i){
   var ref=(ctx.name||ctx.book)+" "+(r.fromChapter||ctx.chapter)+(r.fromVerse?":"+r.fromVerse:"");
   return '<article class="pb-split-entry"><div class="pb-split-entry-heading"><strong>'+esc(ref)+'</strong><small>'+esc(r.marker||"")+'</small></div>'+
-   '<div class="pb-split-entry-text">'+esc(r.text)+'</div><div class="pb-split-entry-actions">'+
+   '<div class="pb-split-entry-text">'+(global.PBConnections?global.PBConnections.linkifyText(r.text):esc(r.text))+'</div><div class="pb-split-entry-actions">'+
    '<button data-pbsplit="sermon" data-index="'+i+'" type="button">▤ Inserir no sermão</button>'+
    '<button data-pbsplit="copy" data-index="'+i+'" type="button">▣ Copiar</button></div></article>';
  }).join("");
@@ -986,7 +986,7 @@ function refresh(force){
   if(!current||seq!==version||!current.root.isConnected)return;
   current.rows=rows;
   target.innerHTML=renderRows(rows,context,module);
-  var pane=current.root.querySelector("#pb-split-scroll");if(pane)pane.scrollTop=0;
+  var pane=current.root.querySelector("#pb-split-scroll");if(pane){var restore=current.config.readRestoreScroll?Number(current.config.readRestoreScroll())||0:0;pane.scrollTop=restore;if(current.config.onRestoreScroll)current.config.onRestoreScroll();}
  }).catch(function(err){
   if(seq!==version||!current)return;
   target.innerHTML='<div class="pb-split-message">Falha ao carregar comentários: '+esc(err.message||String(err))+'</div>';
@@ -1119,22 +1119,7 @@ function selectedModule(){
 }
 function refLabel(){if(!session)return "";var c=session.config.readReference();return (c.name||c.book)+" "+c.chapter+(c.verse?":"+c.verse:"");}
 function normalizeTerm(text){return String(text||"").trim().replace(/^[.,:;!?]+|[.,:;!?]+$/g,"").slice(0,120);}
-function linkText(value){
- var raw=String(value||""),out="",cursor=0,match;
- var re=/\b([GH])0*(\d{1,5})\b|\b(João|Jo|Gênesis|Gn|Lucas|Lc|Mateus|Mt|Marcos|Mc|Salmos|Sl|Atos|At|Romanos|Rm|Isaías|Is)\s+(\d{1,3}):(\d{1,3})(?:[-–](\d{1,3}))?/gi;
- while((match=re.exec(raw))!==null){
-  out+=esc(raw.slice(cursor,match.index));
-  if(match[1]){
-   var code=match[1].toUpperCase()+Number(match[2]);
-   out+='<button type="button" class="pb-dict-inline-link" data-pbdict="term" data-term="'+esc(code)+'" title="Consultar Strong '+esc(code)+'">'+esc(code)+'</button>';
-  }else{
-   var label=match[0];
-   out+='<button type="button" class="pb-dict-inline-link" data-pbdict="reference" data-reference="'+esc(label)+'" title="Abrir '+esc(label)+' na Bíblia">'+esc(label)+'</button>';
-  }
-  cursor=match.index+match[0].length;
- }
- return out+esc(raw.slice(cursor));
-}
+function linkText(value){return global.PBConnections&&global.PBConnections.linkifyText?global.PBConnections.linkifyText(value):esc(value);}
 function choices(filter){
  var modules=dictionaryModules(),q=String(filter||"").toLocaleLowerCase("pt-BR").trim();
  var valid=modules.filter(function(m){return (m.name+" "+m.abbreviation).toLocaleLowerCase("pt-BR").includes(q);});
@@ -1201,7 +1186,7 @@ function lookup(term,opts){
    return '<article class="pb-dict-entry"><div class="pb-dict-entry-title"><strong>'+esc(e.topic)+'</strong><small>'+esc(e.moduleName)+'</small></div>'+
     '<div class="pb-dict-definition">'+linkText(e.definition)+'</div></article>';
   }).join("");
-  var scroll=session.root.querySelector("#pb-dictionary-scroll");if(scroll)scroll.scrollTop=0;
+  var scroll=session.root.querySelector("#pb-dictionary-scroll");if(scroll){var restore=session.config.readRestoreScroll?Number(session.config.readRestoreScroll())||0:0;scroll.scrollTop=restore;if(session.config.onRestoreScroll)session.config.onRestoreScroll();}
  }).catch(function(err){if(session&&serial===requestSerial)target.innerHTML='<p class="pb-dict-error">Falha ao consultar o dicionário: '+esc(err.message||String(err))+'</p>';});
 }
 function changeModule(id){
@@ -1503,9 +1488,14 @@ state.showParallel=toolbarState.showParallel;
 state.focusMode=false;
 var books=booksFallback.slice(),activeBook=books.find(function(b){return b.slug===state.book;})||books[42];
 var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v2")||"{}");}catch(e){}
-var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
+var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null,pendingCommentScroll=0,pendingDictionaryScroll=0,preserveConnectionsOnNextRef=false;
 
 var focusCommentVerse=0;
+var BOOK_LINK_ALIASES={};
+booksFallback.forEach(function(b){BOOK_LINK_ALIASES[b.name.toLocaleLowerCase("pt-BR")]=b.slug;BOOK_LINK_ALIASES[b.slug.replace(/-/g," ")]=b.slug;});
+Object.assign(BOOK_LINK_ALIASES,{"gn":"genesis","gen":"genesis","ex":"exodus","êx":"exodus","lv":"leviticus","lev":"leviticus","nm":"numbers","num":"numbers","dt":"deuteronomy","deut":"deuteronomy","js":"joshua","jz":"judges","rt":"ruth","1sm":"1-samuel","2sm":"2-samuel","1rs":"1-kings","2rs":"2-kings","1cr":"1-chronicles","2cr":"2-chronicles","ed":"ezra","ne":"nehemiah","et":"esther","jó":"job","sl":"psalms","ps":"psalms","pv":"proverbs","ec":"ecclesiastes","ct":"song-of-solomon","is":"isaiah","jr":"jeremiah","lm":"lamentations","ez":"ezekiel","dn":"daniel","os":"hosea","jl":"joel","am":"amos","ob":"obadiah","jn":"jonah","mq":"micah","na":"nahum","hc":"habakkuk","sf":"zephaniah","ag":"haggai","zc":"zechariah","ml":"malachi","mt":"matthew","matt":"matthew","mc":"mark","mk":"mark","lc":"luke","lk":"luke","jo":"john","at":"acts","rm":"romans","rom":"romans","1co":"1-corinthians","2co":"2-corinthians","gl":"galatians","ef":"ephesians","fp":"philippians","cl":"colossians","1ts":"1-thessalonians","2ts":"2-thessalonians","1tm":"1-timothy","2tm":"2-timothy","tt":"titus","fm":"philemon","hb":"hebrews","tg":"james","1pe":"1-peter","2pe":"2-peter","1jo":"1-john","2jo":"2-john","3jo":"3-john","jd":"jude","ap":"revelation","rev":"revelation","genesis":"genesis","exodus":"exodus","john":"john","psalms":"psalms","1 cor":"1-corinthians","2 cor":"2-corinthians","1 joão":"1-john","2 joão":"2-john","3 joão":"3-john","1 pedro":"1-peter","2 pedro":"2-peter"});
+var BOOK_ENGLISH_NAMES="Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|Psalms|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation".split("|");
+BOOK_ENGLISH_NAMES.forEach(function(name,i){BOOK_LINK_ALIASES[name.toLowerCase()]=booksFallback[i].slug;});
 window.PBVerseComments.init({
  readBookName:function(){return activeBook.name;},
  readPreferredModule:function(){return state.commentModuleId||"";},
@@ -1544,7 +1534,19 @@ window.PBVerseComments.init({
 
 
 window.PBConnections.init({
- onWord:function(word,verse){openDictionaryTerm(word,verse);return true;},
+ getBookAliases:function(){return Object.keys(BOOK_LINK_ALIASES);},
+ onWord:function(word,verse,anchor){
+  if(Number(verse)>0){state.selectedVerse=Number(verse);persist();}
+  window.PBConnections.open("word",verse,word,anchor);
+  return true;
+ },
+ onStrong:function(strongId,word,verse,anchor){
+  if(Number(verse)>0){state.selectedVerse=Number(verse);persist();}
+  openStrongPopup(strongId,anchor);
+  return true;
+ },
+ onStudyStrong:function(code,anchor){openStrongPopup(code,anchor);return true;},
+ onStudyReference:function(reference){openLinkedReference(reference);return true;},
  shouldOpenVersePanel:function(){return false;},
  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse,name:activeBook.name};},
  setVerse:function(n){if(Number(n)>0){state.selectedVerse=Number(n);persist();window.PBSplitStudy.refresh();}},
@@ -1579,7 +1581,7 @@ function page(s){if(s!=="leitura")window.PBVerseComments.invalidate();window.PBC
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
-function setRef(book,ch,verse){window.PBVerseComments.invalidate();window.PBConnections.close();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
+function setRef(book,ch,verse){window.PBVerseComments.invalidate();if(preserveConnectionsOnNextRef)preserveConnectionsOnNextRef=false;else window.PBConnections.close();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
 function chapterOptions(){var opts="";for(var i=1;i<=activeBook.chapters;i++) opts+='<option value="'+i+'"'+(i===state.chapter?" selected":"")+'>'+i+'</option>';return opts;}
 function readBooks(){
  fetch(API+"/books").then(function(r){if(!r.ok)throw Error("API");return r.json();}).then(function(j){var list=Array.isArray(j.data)?j.data:(j.data&&j.data.books)||[];if(!Array.isArray(list)||list.length<60)return;books=list.map(function(b){var name=typeof b.name==="string"?b.name:(b.name&&b.name["pt-br"])||b.name.en||"";var slug=typeof b.slug==="string"?b.slug:(b.slug&&b.slug.en)||"";return {name:name,slug:slug,chapters:Number(b.chapters)||1,testament:b.testament};}).filter(function(b){return b.name&&b.slug;});activeBook=books.find(function(b){return b.slug===state.book;})||activeBook;if(state.page==="leitura")render();}).catch(function(){});
@@ -1776,13 +1778,10 @@ function attachDictionaryStudy(){
   onTermChange:function(term){state.dictionaryTerm=term;persist();},
   onClose:function(){state.dictionaryOpen=false;persist();window.PBDictionaryStudy.destroy();},
   onComments:function(){state.dictionaryOpen=false;persist();window.PBDictionaryStudy.destroy();},
-  onReference:function(reference){
-   var aliases={Jo:"João",Gn:"Gênesis",Lc:"Lucas",Mt:"Mateus",Mc:"Marcos",Sl:"Salmos",At:"Atos",Rm:"Romanos",Is:"Isaías"};
-   var parts=/^([A-Za-zÀ-ÿ]+)\s+(\d+(?::\d+(?:[-–]\d+)?)?)/.exec(String(reference||"").trim());
-   var resolved=parts&&aliases[parts[1]]?aliases[parts[1]]+" "+parts[2]:reference;
-   lookupReference(resolved);
-  },
+  onReference:function(reference){openLinkedReference(reference);},
   onAnalyze:function(code){openStrongPopup(code);},
+  readRestoreScroll:function(){return pendingDictionaryScroll;},
+  onRestoreScroll:function(){pendingDictionaryScroll=0;},
   notify:notify
  });
 }
@@ -1822,10 +1821,11 @@ function attachSplitStudy(){
   onDictionary:showDictionaryPanel,
   onClose:function(){state.splitStudy=false;persist();renderReader();},
   onSermon:function(row){state.sermon.context+=(state.sermon.context?"\n\n":"")+row.moduleName+" — "+ref()+"\n"+row.text;persist();notify("Comentário inserido no sermão");},
+  readRestoreScroll:function(){return pendingCommentScroll;},
+  onRestoreScroll:function(){pendingCommentScroll=0;},
   notify:notify
  });
 }
-
 function renderReader(){
  window.PBVerseComments.invalidate();
  if(state.dictionaryOpen)state.splitStudy=true;
@@ -1839,7 +1839,7 @@ function renderReader(){
  '<div class="reader-searchline"><input class="field" id="reference-search" placeholder="Ir para referência — João 15:4" aria-label="Ir para referência"><button class="btn slim" data-act="search-ref">Ir</button><span class="reader-hint">Toque no código azul para abrir o léxico.</span></div>'+
  '<div class="reader-columns"><article class="reader-paper '+esc(state.readerTheme)+'"><div class="reader-paper-head"><span class="reader-module">'+esc(state.version.toUpperCase())+'</span><div><div class="reader-overline">LIVRO E CAPÍTULO</div><h1>'+esc(activeBook.name)+' '+state.chapter+'</h1></div><button class="reader-favorite" id="bookmark-btn" data-act="bookmark">'+(currentMarked()?"★ Favorito":"☆ Favorito")+'</button></div><div id="chapter-body" class="reader-scripture"><div class="loader">Carregando Escrituras…</div></div><div class="reader-note"><strong>Strong no texto:</strong> os vínculos exibidos nesta versão são amostras conferidas para João 15:4–5 e Gênesis 1:1. A numeração de todo o texto dependerá de uma base morfológica alinhada à tradução portuguesa.</div></article>'+
  (state.showParallel?'<article class="reader-paper second '+esc(state.readerTheme)+'"><div class="reader-paper-head"><select id="parallel-version-select" class="reader-select"><option value="alm1911"'+(other==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(other==="bpm"?" selected":"")+'>BPM</option><option value="onbv"'+(other==="onbv"?" selected":"")+'>ONBV</option><option value="nva"'+(other==="nva"?" selected":"")+'>NVA</option>'+window.PBModules.bibleOptions(other)+'</select><h2>Tradução paralela</h2></div><div id="parallel-body" class="reader-scripture"><div class="loader">Carregando versão paralela…</div></div></article>':"")+'</div>'+
- (state.showComments||state.showCrossRefs?'<div class="reader-bottom-panels">'+(state.showComments?'<section class="card card-pad reader-extras"><div class="caps">COMENTÁRIOS</div><h2 class="section-heading">Observações do estudo</h2><p class="feature-note">'+(state.book==="john"&&state.chapter===15?"A figura da videira relaciona permanência em Cristo e frutificação. Leia João 15:1–8 como uma unidade literária antes de tirar conclusões a partir de um único verbo.":state.book==="psalms"&&state.chapter===73?"O salmista percebe a prosperidade dos ímpios e enfrenta uma crise de entendimento. A virada interpretativa ocorre no versículo 17. Palavra no original: ímpios <button class=\"comment-strong-badge\" data-strong=\"H7563\">H7563</button>.":"Ainda não há comentários teológicos importados para este capítulo. Você pode criar suas próprias notas.")+' </p><div id="installed-comments" class="module-comment-list"><p class="tiny muted">Buscando comentários instalados…</p></div><button class="btn slim" data-act="note">✎ Escrever anotação</button><button class="btn slim" data-page="modulos">⇩ Instalar comentários</button></section>':"")+
+ (state.showComments||state.showCrossRefs?'<div class="reader-bottom-panels">'+(state.showComments?'<section class="card card-pad reader-extras"><div class="caps">COMENTÁRIOS</div><h2 class="section-heading">Observações do estudo</h2><p class="feature-note">'+(state.book==="john"&&state.chapter===15?"A figura da videira relaciona permanência em Cristo e frutificação. Leia João 15:1–8 como uma unidade literária antes de tirar conclusões a partir de um único verbo.":state.book==="psalms"&&state.chapter===73?"O salmista percebe a prosperidade dos ímpios e enfrenta uma crise de entendimento. A virada interpretativa ocorre no versículo 17. Palavra no original: ímpios <button class=\"comment-strong-badge\" data-pb-study-link=\"strong\" data-strong-code=\"H7563\">H7563</button>.":"Ainda não há comentários teológicos importados para este capítulo. Você pode criar suas próprias notas.")+' </p><div id="installed-comments" class="module-comment-list"><p class="tiny muted">Buscando comentários instalados…</p></div><button class="btn slim" data-act="note">✎ Escrever anotação</button><button class="btn slim" data-page="modulos">⇩ Instalar comentários</button></section>':"")+
  (state.showCrossRefs?'<section class="card card-pad reader-extras"><div class="caps">REFERÊNCIAS CRUZADAS</div><h2 class="section-heading">Passagens relacionadas</h2><p class="feature-note">Sugestões temáticas iniciais, não geradas automaticamente por um comentário externo.</p><div class="row">'+(state.book==="john"&&state.chapter===15?'<button class="btn slim" data-ref-open="João 6:56">João 6:56</button><button class="btn slim" data-ref-open="Gálatas 5:22">Gálatas 5:22</button>':'<button class="btn slim" data-ref-open="João 1:1">João 1:1</button>')+'</div></section>':"")+'</div>':"")+
  '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-page="tutor">✧ Interpretar</button></div></div></section>';
  if(state.splitStudy)attachSplitStudy();
@@ -1867,11 +1867,12 @@ function loadInstalledComments(){
   var target=document.getElementById("installed-comments");if(!target||state.book!==book||state.chapter!==ch||!state.showComments)return;
   if(!data.length){target.innerHTML='<p class="tiny muted">Não há comentários instalados para esta passagem.</p>';return;}
   target.innerHTML='<div class="module-comment-header">'+data.length+' comentário(s) vinculado(s)</div>'+data.map(function(item){
-   return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><small>'+esc(item.marker||"")+" · "+esc(activeBook.name)+" "+(item.fromChapter||ch)+(item.fromVerse?":"+item.fromVerse:"")+'</small><p>'+esc(item.text)+'</p><button class="btn slim" data-comment-sermon="'+esc(item.moduleId)+'" data-comment-text="'+esc(item.text.slice(0,1000))+'">Inserir trecho no sermão</button></article>';
+   return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><small>'+esc(item.marker||"")+" · "+esc(activeBook.name)+" "+(item.fromChapter||ch)+(item.fromVerse?":"+item.fromVerse:"")+'</small><p>'+window.PBConnections.linkifyText(item.text)+'</p><button class="btn slim" data-comment-sermon="'+esc(item.moduleId)+'" data-comment-text="'+esc(item.text.slice(0,1000))+'">Inserir trecho no sermão</button></article>';
   }).join("");
  }).catch(function(e){var node=document.getElementById("installed-comments");if(node)node.innerHTML='<p class="tiny muted">Comentários indisponíveis: '+esc(e.message)+'</p>';});
 }
 function openStrongPopup(wordId,anchor){
+ if(window.PBConnections)window.PBConnections.close();
  var w=words.find(function(x){return x.id===wordId;});
  if(!w){
   var code=String(wordId).toUpperCase(),value=Number(code.slice(1));
@@ -1904,7 +1905,7 @@ function openStrongPopup(wordId,anchor){
  window.PBModules.getDictionaryEntry(w.code).then(function(entries){
   var holder=frame.querySelector("#installed-strong-entry");if(!holder)return;
   holder.innerHTML=entries.length?entries.map(function(entry){
-   return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+esc(entry.definition)+'</p></article>';
+   return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+window.PBConnections.linkifyText(entry.definition)+'</p></article>';
   }).join(""):'<p class="feature-note">Não há verbetes deste Strong nos dicionários instalados. Importe um léxico na seção Módulos.</p>';
  }).catch(function(err){
   var holder=frame.querySelector("#installed-strong-entry");
@@ -1913,7 +1914,7 @@ function openStrongPopup(wordId,anchor){
  window.PBModules.getCommentaries(book,ch,verse).then(function(items){
   var holder=frame.querySelector("#connected-strong-comments");if(!holder)return;
   holder.innerHTML=items.length?items.slice(0,25).map(function(item){
-   return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><small>'+esc(refLabel)+'</small><p>'+esc(item.text)+'</p></article>';
+   return '<article class="module-comment"><strong>'+esc(item.moduleName)+'</strong><small>'+esc(refLabel)+'</small><p>'+window.PBConnections.linkifyText(item.text)+'</p></article>';
   }).join(""):'<p class="feature-note">Nenhum comentário instalado para esta referência.</p>';
  }).catch(function(err){
   var holder=frame.querySelector("#connected-strong-comments");
@@ -2045,11 +2046,31 @@ async function lookupReference(s){
  var q=s.trim(),m=q.match(/^(.+?)\s+(\d+)(?::(\d+))?/);if(m){var b=books.find(function(b){return b.name.toLowerCase()===m[1].toLowerCase()||b.slug===m[1].toLowerCase();})||booksFallback.find(function(b){return b.name.toLowerCase()===m[1].toLowerCase();});if(b){setRef(b.slug,+m[2],m[3]?+m[3]:0);return;}}
  try{var r=await fetch(API+"/parse?q="+encodeURIComponent(q)+"&version="+state.version);if(!r.ok)throw Error("Não encontrado");var d=(await r.json()).data||{};var bk=typeof d.book==="string"?d.book:(d.book&&d.book.slug)||d.book_slug||d.bookSlug;var b2=books.find(function(b){return b.slug===bk||b.name.toLowerCase()===String(bk).toLowerCase();});if(b2&&d.chapter){setRef(b2.slug,d.chapter,Number(d.verse_start||d.verseStart||d.verse)||0);return;}throw Error("Referência");}catch(e){notify("Não localizei a referência. Experimente: João 3:16 ou Gênesis 1.");}
 }
+function parseLinkedReference(raw){
+ var q=String(raw||"").trim().replace(/\s+/g," "),m=/^(.+?)\s+(\d{1,3})(?:(?::|\.)\s*(\d{1,3})(?:\s*[-–—]\s*\d{1,3})?)?$/.exec(q);
+ if(!m)return null;
+ var alias=m[1].toLocaleLowerCase("pt-BR").replace(/\./g,"").trim();
+ var slug=BOOK_LINK_ALIASES[alias]||alias.replace(/\s+/g,"-");
+ var book=books.find(function(b){return b.slug===slug||b.name.toLocaleLowerCase("pt-BR")===alias;})||booksFallback.find(function(b){return b.slug===slug||b.name.toLocaleLowerCase("pt-BR")===alias;});
+ if(!book)return null;
+ var chapter=Number(m[2]),verse=Number(m[3]||0);
+ if(chapter<1||chapter>book.chapters)return null;
+ return {book:book.slug,chapter:chapter,verse:verse};
+}
+function openLinkedReference(reference){
+ var parsed=parseLinkedReference(reference);
+ if(!parsed){lookupReference(String(reference||""));return;}
+ var commentPane=document.getElementById("pb-split-scroll"),dictionaryPane=document.getElementById("pb-dictionary-scroll");
+ if(commentPane)pendingCommentScroll=commentPane.scrollTop;
+ if(dictionaryPane)pendingDictionaryScroll=dictionaryPane.scrollTop;
+ preserveConnectionsOnNextRef=!!document.getElementById("pb-connected-panel");
+ setRef(parsed.book,parsed.chapter,parsed.verse);
+}
 function sermonText(){var s=state.sermon;return [s.title,s.reference,"","Contexto histórico e literário",s.context,"","Introdução",s.introduction,"","1. Exposição",s.point1,"","2. Exposição",s.point2,"","Aplicação",s.application,"","Conclusão",s.conclusion].join("\n");}
 document.addEventListener("click",function(ev){
 
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
- var sw=ev.target.closest("[data-strong]");
+ var sw=ev.target.closest("#chapter-body [data-strong]");
  if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}var matching=words.find(function(w){return w.id===sw.dataset.strong;});var strongCode=matching?matching.code:sw.dataset.strong;openDictionaryTerm(strongCode,state.selectedVerse);return;}
  var v=ev.target.closest("[data-verse]");if(v){
  state.selectedVerse=Number(v.dataset.verse);persist();
@@ -2114,7 +2135,7 @@ document.addEventListener("input",function(ev){
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
  if(t.id==="note-filter"){state.noteFilter=t.value;persist();var p=t.selectionStart;renderNotebook();var n=document.getElementById("note-filter");n.focus();n.setSelectionRange(p,p);}
 });
-document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.dataset&&ev.target.dataset.strong){ev.preventDefault();openStrongPopup(ev.target.dataset.strong,ev.target);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
+document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();document.getElementById("strong-window")?.remove();}if((ev.key==="Enter"||ev.key===" ")&&ev.target.closest&&ev.target.closest("#chapter-body [data-strong]")){ev.preventDefault();openStrongPopup(ev.target.dataset.strong,ev.target);return;}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
 document.getElementById("menu-toggle").addEventListener("click",function(event){
  event.preventDefault();
  var menu=document.getElementById("top-menu"),button=document.getElementById("menu-toggle");
