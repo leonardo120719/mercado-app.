@@ -1,25 +1,46 @@
 <!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css"></head>
-<body><div class="app-shell"><aside class="sidebar" id="sidebar">
- <a class="identity" href="#" id="brand-link"><span class="brand-symbol">✦</span><span class="brand-copy"><strong>PÚLPITO<span>BIBLE</span></strong><small>Estudo bíblico inteligente</small></span></a>
- <div class="sidebar-section-label">BIBLIOTECA</div>
- <nav class="main-nav" aria-label="Menu principal">
-  <button class="nav-item active" data-page="leitura"><span class="nav-icon">◫</span> Leitura bíblica</button>
-  <button class="nav-item" data-page="original"><span class="nav-icon">α</span> Texto original & Strong</button>
-  <button class="nav-item" data-page="tutor"><span class="nav-icon">✧</span> Assistente de interpretação</button>
-  <button class="nav-item" data-page="exercicios"><span class="nav-icon">◎</span> Exercícios de exegese</button>
-  <button class="nav-item" data-page="sermao"><span class="nav-icon">▤</span> Criador de sermões</button>
-  <button class="nav-item" data-page="caderno"><span class="nav-icon">▱</span> Meu caderno</button>
-  <button class="nav-item" data-page="modulos"><span class="nav-icon">⇩</span> Módulos e traduções</button>
- </nav>
- <div class="sidebar-section-label">EXPANSÃO & PESQUISA</div>
- <nav class="main-nav" aria-label="Planejamento"><button class="nav-item" data-page="mercado"><span class="nav-icon">◇</span> Análise das Bíblias</button><button class="nav-item" data-page="projeto"><span class="nav-icon">⌘</span> Recursos e evolução</button></nav>
- <div class="sidebar-bottom"><span class="status-dot"></span><span>Versão inicial · dados locais</span><small>Textos bíblicos: API Midvash</small></div>
-</aside>
-<div class="workarea"><header class="topbar"><button id="menu-toggle" class="mobile-toggle" aria-label="Abrir menu">☰</button><div class="breadcrumb"><span>ESCRITURAS</span><span class="crumb-sep">/</span><strong id="page-location">Leitura bíblica</strong></div><div class="header-tools"><button id="theme-toggle" class="header-action" title="Alternar tema" aria-label="Alternar tema">◐</button><button id="font-down" class="header-action font-action" title="Diminuir fonte">A−</button><button id="font-up" class="header-action font-action" title="Aumentar fonte">A+</button><span class="head-avatar">PB</span></div></header>
+<body><div class="app-shell pb-top-shell"><div class="workarea">
+<header class="topbar" id="topbar">
+  <div class="topbar-main">
+    <a href="#" class="top-brand" id="brand-link" aria-label="Púlpito Bible — início"><span class="top-brand-icon">✦</span><span class="top-brand-word">PÚLPITO <strong>BIBLE</strong></span></a>
+    <div class="header-context" id="page-location">Leitura bíblica</div>
+    <div class="header-tools">
+      <button id="theme-toggle" class="header-action" title="Alternar tema" aria-label="Alternar tema">◐</button>
+      <button id="font-down" class="header-action font-action" title="Diminuir fonte" aria-label="Diminuir fonte">A−</button>
+      <button id="font-up" class="header-action font-action" title="Aumentar fonte" aria-label="Aumentar fonte">A+</button>
+      <button id="menu-toggle" class="top-menu-toggle" type="button" aria-label="Abrir todas as seções" aria-controls="top-menu" aria-expanded="false">☰ <span>Seções</span></button>
+    </div>
+  </div>
+  <nav class="topnav" id="topnav" aria-label="Barra superior de navegação">
+<button class="nav-item active" type="button" data-page="leitura" aria-current="page"><span class="nav-icon" aria-hidden="true">◫</span><span>Leitura</span></button>
+<button class="nav-item" type="button" data-page="original" aria-current="false"><span class="nav-icon" aria-hidden="true">α</span><span>Strong</span></button>
+<button class="nav-item" type="button" data-page="tutor" aria-current="false"><span class="nav-icon" aria-hidden="true">✧</span><span>Interpretação</span></button>
+<button class="nav-item" type="button" data-page="exercicios" aria-current="false"><span class="nav-icon" aria-hidden="true">◎</span><span>Exercícios</span></button>
+<button class="nav-item" type="button" data-page="sermao" aria-current="false"><span class="nav-icon" aria-hidden="true">▤</span><span>Sermões</span></button>
+<button class="nav-item" type="button" data-page="caderno" aria-current="false"><span class="nav-icon" aria-hidden="true">▱</span><span>Meu caderno</span></button>
+<button class="nav-item" type="button" data-page="modulos" aria-current="false"><span class="nav-icon" aria-hidden="true">⇩</span><span>Módulos</span></button>
+<button class="nav-item" type="button" data-page="mercado" aria-current="false"><span class="nav-icon" aria-hidden="true">◇</span><span>Análise das Bíblias</span></button>
+<button class="nav-item" type="button" data-page="projeto" aria-current="false"><span class="nav-icon" aria-hidden="true">⌘</span><span>Recursos e evolução</span></button>
+  </nav>
+  <div class="top-menu" id="top-menu" role="navigation" aria-label="Todas as seções" hidden>
+    <div class="top-menu-caption">ACESSO RÁPIDO ÀS FERRAMENTAS</div>
+    <div class="top-menu-grid">
+<button class="nav-item active" type="button" data-page="leitura"><span class="nav-icon" aria-hidden="true">◫</span><span>Leitura</span></button>
+<button class="nav-item" type="button" data-page="original"><span class="nav-icon" aria-hidden="true">α</span><span>Strong</span></button>
+<button class="nav-item" type="button" data-page="tutor"><span class="nav-icon" aria-hidden="true">✧</span><span>Interpretação</span></button>
+<button class="nav-item" type="button" data-page="exercicios"><span class="nav-icon" aria-hidden="true">◎</span><span>Exercícios</span></button>
+<button class="nav-item" type="button" data-page="sermao"><span class="nav-icon" aria-hidden="true">▤</span><span>Sermões</span></button>
+<button class="nav-item" type="button" data-page="caderno"><span class="nav-icon" aria-hidden="true">▱</span><span>Meu caderno</span></button>
+<button class="nav-item" type="button" data-page="modulos"><span class="nav-icon" aria-hidden="true">⇩</span><span>Módulos</span></button>
+<button class="nav-item" type="button" data-page="mercado"><span class="nav-icon" aria-hidden="true">◇</span><span>Análise das Bíblias</span></button>
+<button class="nav-item" type="button" data-page="projeto"><span class="nav-icon" aria-hidden="true">⌘</span><span>Recursos e evolução</span></button>
+    </div>
+  </div>
+</header>
 <main id="app-main" tabindex="-1"></main>
 <footer class="app-footer"><span>Púlpito Bible · Primeira versão de estudo</span><span>Conteúdo aberto com atribuição · <a href="https://api.midvash.com/pt-br" target="_blank" rel="noopener">Midvash</a> · <a href="https://github.com/STEPBible/STEPBible-Data" target="_blank" rel="noopener">STEPBible</a></span></footer></div></div>
-<div id="mobile-overlay" class="mobile-overlay"></div><div id="toast" role="status" aria-live="polite"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js" defer></script>
 <script src="./app.js" defer></script></body></html>
