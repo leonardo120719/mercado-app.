@@ -17,6 +17,7 @@ state.showStrong=toolbarState.showStrong;
 state.showComments=toolbarState.showComments;
 state.showCrossRefs=toolbarState.showCrossRefs;
 state.showParallel=toolbarState.showParallel;
+state.focusMode=false;
 var books=booksFallback.slice(),activeBook=books.find(function(b){return b.slug===state.book;})||books[42];
 var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v2")||"{}");}catch(e){}
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
@@ -378,7 +379,7 @@ document.addEventListener("click",function(ev){
  if(a==="toggle-comments"){state.showComments=!state.showComments;persist();renderReader();return;}
  if(a==="toggle-crossrefs"){state.showCrossRefs=!state.showCrossRefs;persist();renderReader();return;}
  if(a==="toggle-parallel"){state.showParallel=!state.showParallel;persist();renderReader();return;}
- if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);persist();renderReader();return;}
+ if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);TS.actions.setFontSize(state.fontSize);persist();renderReader();return;}
  if(a==="reader-font-up"){state.fontSize=Math.min(28,state.fontSize+2);persist();renderReader();return;}
  if(a==="focus-mode"){state.focusMode=!state.focusMode;persist();renderReader();document.body.classList.toggle("focus-reading",state.focusMode);return;}
  if(a==="close-strong"){document.getElementById("strong-window")?.remove();return;}
@@ -421,8 +422,8 @@ document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.action
 document.getElementById("menu-toggle").addEventListener("click",function(){document.getElementById("sidebar").classList.toggle("open");document.getElementById("mobile-overlay").classList.toggle("active");});
 document.getElementById("mobile-overlay").addEventListener("click",function(){document.getElementById("sidebar").classList.remove("open");document.getElementById("mobile-overlay").classList.remove("active");});
 document.getElementById("brand-link").addEventListener("click",function(e){e.preventDefault();page("leitura");});
-document.getElementById("theme-toggle").addEventListener("click",function(){state.theme=state.theme==="dark"?"light":"dark";persist();render();});
-document.getElementById("font-up").addEventListener("click",function(){state.fontSize=Math.min(26,state.fontSize+2);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
+document.getElementById("theme-toggle").addEventListener("click",function(){var next=TS.getState().theme==="dark"?"sepia":"dark";TS.actions.setTheme(next);state.theme=next==="dark"?"dark":"light";state.readerTheme=next==="dark"?"night":next;persist();render();});
+document.getElementById("font-up").addEventListener("click",function(){state.fontSize=Math.min(30,state.fontSize+2);TS.actions.setFontSize(state.fontSize);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 document.getElementById("font-down").addEventListener("click",function(){state.fontSize=Math.max(14,state.fontSize-2);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 render();readBooks();
 })();
