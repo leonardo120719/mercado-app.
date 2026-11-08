@@ -1,7 +1,7 @@
-/* Púlpito Bible: modules + toolbar + floating windows + connections + reader. */
+/* Púlpito Bible v3: modules + toolbar + windows + connections + reader. Original user modules are local only. */
 (function(){
 "use strict";
-var DB_NAME="PulpitoBibleModules",DB_VERSION=2;
+var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
 var canonical="genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|1-samuel|2-samuel|1-kings|2-kings|1-chronicles|2-chronicles|ezra|nehemiah|esther|job|psalms|proverbs|ecclesiastes|song-of-solomon|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|1-corinthians|2-corinthians|galatians|ephesians|philippians|colossians|1-thessalonians|2-thessalonians|1-timothy|2-timothy|titus|philemon|hebrews|james|1-peter|2-peter|1-john|2-john|3-john|jude|revelation".split("|");
 var myBibleIds=[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,190,220,230,240,250,260,290,300,310,330,340,350,360,370,380,390,400,410,420,430,440,450,460,470,480,490,500,510,520,530,540,550,560,570,580,590,600,610,620,630,640,650,660,670,680,690,700,710,720,730];
 var idToBook={};myBibleIds.forEach(function(id,i){idToBook[id]=canonical[i];});
@@ -15,7 +15,7 @@ var requested=[
 ];
 function clean(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function simplifyText(s){return String(s==null?"":s).replace(/<br\s*\/?>/gi,"\n").replace(/<\/(?:p|div|h[1-6]|li)>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"').replace(/\n{3,}/g,"\n\n").trim();}
-function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
+function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaryEntries")){var es=d.createObjectStore("commentaryEntries",{keyPath:"key"});es.createIndex("moduleId","moduleId",{unique:false});es.createIndex("passage",["moduleId","book","chapter"],{unique:false});}};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
 function request(req){return new Promise(function(resolve,reject){req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};});}
 async function loadCatalog(){var db=await dbOpen();modules=await request(db.transaction("modules","readonly").objectStore("modules").getAll());modules.sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});return modules;}
 function ready(){return loadCatalog();}
@@ -24,7 +24,28 @@ function moduleName(version){var id=String(version||"").slice(6);var m=modules.f
 function bibleOptions(selected){return modules.filter(function(m){return m.type==="bible";}).map(function(m){var value="local:"+m.id;return '<option value="'+clean(value)+'"'+(selected===value?" selected":"")+'>'+clean(m.abbreviation||m.name)+" — "+clean(m.name)+"</option>";}).join("");}
 function getModuleByVersion(version){return modules.find(function(m){return "local:"+m.id===version&&m.type==="bible";});}
 async function getChapter(version,book,chapter){await dbOpen();var m=getModuleByVersion(version);if(!m)throw Error("Módulo de Bíblia não instalado neste dispositivo");var key=m.id+"/"+book+"/"+chapter;var db=await dbOpen();var row=await request(db.transaction("chapters","readonly").objectStore("chapters").get(key));if(!row||!row.verses||!row.verses.length)throw Error("Este módulo não contém "+book+" "+chapter);return {verses:row.verses,copyright:"Módulo instalado localmente · "+m.name+" · "+(m.license||"Licença não informada no arquivo")+". Verifique as condições de uso da edição.",version:m.abbreviation||m.name};}
-async function getCommentaries(book,chapter,verse){await dbOpen();var active=modules.filter(function(m){return m.type==="commentary";});var db=await dbOpen();var entries=await Promise.all(active.map(async function(m){var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));if(!row)return [];return row.entries.filter(function(e){if(e.fromChapter&&chapter<e.fromChapter)return false;if(e.toChapter&&chapter>e.toChapter)return false;if(verse&&e.fromChapter===chapter&&e.fromVerse&&verse<e.fromVerse)return false;if(verse&&e.toChapter===chapter&&e.toVerse&&verse>e.toVerse)return false;return true;}).slice(0,45).map(function(e){return {moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse};});}));return entries.flat().slice(0,100);}
+
+async function getCommentaries(book,chapter,verse){
+ var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary";});
+ var entries=await Promise.all(active.map(async function(m){
+  var records=[];
+  if(m.storage==="entries-v1"){
+   var idx=db.transaction("commentaryEntries","readonly").objectStore("commentaryEntries").index("passage");
+   records=await request(idx.getAll(IDBKeyRange.only([m.id,book,chap]),180));
+  }else{
+   var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));
+   records=row&&row.entries||[];
+  }
+  return records.filter(function(e){
+   if(e.fromChapter&&chap<e.fromChapter)return false;
+   if(e.toChapter&&chap>e.toChapter)return false;
+   if(verse&&e.fromChapter===chap&&e.fromVerse&&verse<e.fromVerse)return false;
+   if(verse&&e.toChapter===chap&&e.toVerse&&verse>e.toVerse)return false;
+   return true;
+  }).slice(0,45).map(function(e){return {moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse};});
+ }));
+ return entries.flat().slice(0,100);
+}
 function renderVerse(raw,book,showStrong){var source=String(raw||"");var pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
  function chunk(str){return clean(str.replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&"));}
  while((match=pattern.exec(source))!==null){output+=chunk(source.slice(position,match.index));var prefix=canonical.indexOf(book)<39?"H":"G";var code=prefix+Number(match[1]);if(showStrong){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'">'+code+'</button>';}position=match.index+match[0].length;}
@@ -59,6 +80,121 @@ async function getDictionaryEntry(term){
  return entries.filter(Boolean);
 }
 
+
+/* Large MyBible commentary importer: rows are written in small transactions
+   to an IndexedDB passage index. The whole 30k-row result is never materialized
+   into a JS array. Older modules continue using the legacy store. */
+function importStatus(text){
+ lastStatus=text;
+ var area=document.getElementById("module-status");
+ if(area)area.textContent=text;
+}
+function makeLargeModuleMeta(info,filename){
+ var now=Date.now(),name=String(info.name||info.description||filename).slice(0,130);
+ return {id:"ext-"+filenameSlug(filename).slice(0,35)+"-c-"+now.toString(36)+"-"+Math.floor(Math.random()*1679616).toString(36),
+  type:"commentary",name:name,abbreviation:String(info.abbreviation||filename.split(".")[0]).slice(0,30),
+  language:String(info.language||"pt").slice(0,60),license:String(info.license||info.copyright||"não informada").slice(0,400),
+  description:String(info.detailed_info||"").slice(0,400),format:"MyBible SQLite3 (por capítulo)",
+  storage:"entries-v1",count:0,file:filename,installedAt:now};
+}
+function streamedCommentaryRows(row){
+ var book=ensureBook(row.book??row.book_slug??row.book_number??row.book_id);
+ if(!book)return [];
+ var first=Number(row.chapter_number_from??row.chapter??row.chapter_from??0);
+ var last=Number(row.chapter_number_to??row.chapter_to??first)||first;
+ if(!Number.isInteger(first)||first<1||first>200||!Number.isInteger(last)||last<first||last>200)return [];
+ var fv=Number(row.verse_number_from??row.verse??row.verse_from??0)||0;
+ var lv=Number(row.verse_number_to??row.verse_to??0)||0;
+ var content=simplifyText(row.text??row.commentary??row.content);
+ if(!content)return [];
+ var list=[];
+ for(var ch=first;ch<=last;ch++)list.push({
+  book:book,chapter:ch,fromChapter:first,toChapter:last,fromVerse:fv,toVerse:lv,
+  marker:String(row.marker||"").slice(0,200),text:content
+ });
+ return list;
+}
+async function writeCommentaryBatch(batch){
+ if(!batch.length)return;
+ var db=await dbOpen(),tx=db.transaction("commentaryEntries","readwrite"),store=tx.objectStore("commentaryEntries");
+ var done=new Promise(function(resolve,reject){
+  tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error||Error("Armazenamento interrompido"));};
+  tx.onerror=function(){reject(tx.error||Error("Não foi possível salvar comentários no aparelho"));};
+ });
+ batch.forEach(function(entry){store.put(entry);});
+ await done;
+}
+async function publishImportedCommentary(meta){
+ var db=await dbOpen(),tx=db.transaction("modules","readwrite");
+ var completed=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error);};tx.onerror=function(){reject(tx.error);};});
+ tx.objectStore("modules").put(meta);
+ await completed;
+ await loadCatalog();onUpdated();
+ return Object.assign({alreadySaved:true},meta);
+}
+async function cleanFailedCommentary(id){
+ try{
+  var db=await dbOpen();
+  var tx=db.transaction("commentaryEntries","readwrite");
+  await new Promise(function(resolve,reject){
+   var source=tx.objectStore("commentaryEntries").index("moduleId"),req=source.openCursor(IDBKeyRange.only(id));
+   req.onsuccess=function(){var cursor=req.result;if(cursor){cursor.delete();cursor.continue();}};
+   req.onerror=function(){reject(req.error);};
+   tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error||Error("Falha na limpeza"));};
+  });
+ }catch(error){console.warn("Não foi possível limpar comentários parciais",error);}
+}
+async function streamCommentaryIterator(iterate,filename,info){
+ var meta=makeLargeModuleMeta(info,filename),batch=[],count=0,number=0;
+ try{
+  for await(var row of iterate){
+   number++;
+   var converted=streamedCommentaryRows(row);
+   for(var entry of converted){
+    entry.moduleId=meta.id;
+    entry.key=meta.id+"/"+entry.book+"/"+entry.chapter+"/"+number;
+    batch.push(entry);
+   }
+   if(batch.length>=100){
+    await writeCommentaryBatch(batch);batch=[];
+    if(number%500<100){
+     importStatus("Importando "+meta.name+": "+number.toLocaleString("pt-BR")+" comentários processados…");
+     await new Promise(function(resolve){setTimeout(resolve,0);});
+    }
+   }
+   if(converted.length)count++;
+   if(number>250000)throw Error("Quantidade de comentários maior que o limite de segurança (250 mil).");
+  }
+  if(batch.length)await writeCommentaryBatch(batch);
+  if(!count)throw Error("Não encontrei comentários compatíveis neste módulo.");
+  meta.count=count;
+  return await publishImportedCommentary(meta);
+ }catch(e){
+  await cleanFailedCommentary(meta.id);
+  throw e;
+ }
+}
+async function streamSqliteCommentaries(sqlite,filename,info){
+ var statement=sqlite.prepare("SELECT * FROM commentaries");
+ async function* read(){
+  try{while(statement.step())yield statement.getAsObject();}
+  finally{statement.free();}
+ }
+ return streamCommentaryIterator(read(),filename,info);
+}
+async function streamPackedComments(entries,meta,filename){
+ async function* read(){
+  for(var i=0;i<entries.length;i++){
+   if(!/^chapters\/[a-z0-9-]+\/[0-9]{1,3}\.json$/i.test(entries[i].name))throw Error("Pacote de capítulos contém nome inválido");
+   var raw=await entries[i].async("string"),rows=JSON.parse(raw);
+   if(!Array.isArray(rows))throw Error("Capítulo não contém lista JSON");
+   for(var row of rows)yield row;
+   if(i%10===0)await new Promise(function(resolve){setTimeout(resolve,0);});
+  }
+ }
+ return streamCommentaryIterator(read(),filename,meta);
+}
+
 async function parseSQLite(buffer,filename){
  if(!window.initSqlJs)throw Error("O leitor SQLite não carregou. Verifique a conexão com a internet e tente novamente.");
  var SQL=await window.initSqlJs({locateFile:function(f){return "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/"+f;}});
@@ -69,8 +205,9 @@ async function parseSQLite(buffer,filename){
   var type=tables.includes("verses")?"bible":tables.includes("commentaries")?"commentary":tables.includes("dictionary")?"dictionary":null;
   if(!type)throw Error(tables.includes("words")?"Arquivo com apenas formas de palavras (words), sem verbetes de dicionário. Instale o léxico principal.":"SQLite sem verses, commentaries ou dictionary. Tabelas: "+(tables.join(", ")||"nenhuma")+".");
   var info=getInfo(db);
-  var rows=recordSet(db.exec("SELECT * FROM "+(type==="bible"?"verses":type==="commentary"?"commentaries":"dictionary")));
-  var normalized=type==="bible"?normalizeBible(rows):type==="commentary"?normalizeCommentaries(rows):normalizeDictionary(rows);
+  if(type==="commentary")return await streamSqliteCommentaries(db,filename,info);
+  var rows=recordSet(db.exec("SELECT * FROM "+(type==="bible"?"verses":"dictionary")));
+  var normalized=type==="bible"?normalizeBible(rows):normalizeDictionary(rows);
   return {type:type,name:info.description||info.name||filename.replace(/\.((?:commentaries\.)?sqlite3|sqlite|db)$/i,""),abbreviation:filename.split(".")[0].slice(0,30),language:info.language||"não informada",license:info.license||info.copyright||"não informada",description:info.detailed_info||"",format:"MyBible SQLite3",groups:normalized.groups,count:normalized.count};
  }finally{if(db)db.close();}
 }
@@ -90,30 +227,60 @@ function pickJson(json,filename){
 }
 async function parseZip(file){
  if(!window.JSZip)throw Error("O leitor ZIP não carregou. Verifique a conexão e tente novamente.");
- var zip=await JSZip.loadAsync(file,{checkCRC32:true}),entries=Object.values(zip.files).filter(function(e){return !e.dir&&!/(^|\/)(__MACOSX|\.DS_Store)/i.test(e.name);});
- if(entries.length>30)throw Error("O ZIP contém arquivos demais. Limite: 30.");
- var total=entries.reduce(function(sum,e){return sum+(e._data&&e._data.uncompressedSize||0);},0);
- if(total>110*1024*1024)throw Error("O ZIP ultrapassa o limite de 110 MB descompactados.");
- var sqlite=entries.filter(function(e){return /\.(sqlite3?|db)$/i.test(e.name);});
- if(sqlite.length){var all=[];for(var e of sqlite){var bin=await e.async("uint8array");if(bin.byteLength>60*1024*1024)throw Error("Um módulo SQLite excede 60 MB.");all.push(await parseSQLite(bin,e.name.split("/").pop()));}return all;}
+ var zip=await JSZip.loadAsync(file,{checkCRC32:false}),entries=Object.values(zip.files).filter(function(e){return !e.dir&&!/(^|\/)(__MACOSX|\.DS_Store)/i.test(e.name);});
+
  var manifest=entries.find(function(e){return /(?:^|\/)(?:module|manifest)\.json$/i.test(e.name);});
+ var metadata=null;
  if(manifest){
-  var meta=JSON.parse(await manifest.async("string"));var kind=meta.type||meta.module&&meta.module.type;var body=entries.find(function(e){return kind==="commentary"?/(?:commentaries|comments)\.json$/i.test(e.name):kind==="dictionary"?/(?:dictionary|entries)\.json$/i.test(e.name):/verses\.json$/i.test(e.name);});
+  if((manifest._data&&manifest._data.uncompressedSize||0)>1024*1024)throw Error("Manifesto do ZIP muito grande.");
+  try{metadata=JSON.parse(await manifest.async("string"));}catch(e){throw Error("O arquivo module.json/manifest.json está inválido.");}
+ }
+ var isPacked=metadata&&metadata.type==="commentary"&&metadata.format==="pulpito-commentary-chapters-v1";
+ if(entries.length>(isPacked?2500:30))throw Error("O ZIP contém arquivos demais para este formato.");
+ var total=entries.reduce(function(sum,e){return sum+(e._data&&e._data.uncompressedSize||0);},0);
+ if(total>210*1024*1024)throw Error("O ZIP ultrapassa o limite de 210 MB descompactados.");
+ if(isPacked){
+  var chunks=entries.filter(function(e){return /^chapters\/[a-z0-9-]+\/[0-9]{1,3}\.json$/i.test(e.name);});
+  if(!chunks.length)throw Error("Pacote de comentários sem capítulos JSON.");
+  return [await streamPackedComments(chunks,metadata,file.name)];
+ }
+ var sqlite=entries.filter(function(e){return /\.(sqlite3?|db)$/i.test(e.name);});
+ if(sqlite.length){
+  var all=[];
+  for(var e of sqlite){
+   var size=e._data&&e._data.uncompressedSize||0;
+   if(size>160*1024*1024)throw Error("Este SQLite ultrapassa 160 MB. Divida o módulo para importação.");
+   importStatus("Preparando "+e.name.split("/").pop()+" ("+Math.ceil(size/1024/1024)+" MB descompactados)…");
+   var bin=await e.async("uint8array");
+   try{all.push(await parseSQLite(bin,e.name.split("/").pop()));}finally{bin=null;}
+  }
+  return all;
+ }
+ if(manifest){
+  var meta=metadata;var kind=meta.type||meta.module&&meta.module.type;var body=entries.find(function(e){return kind==="commentary"?/(?:commentaries|comments)\.json$/i.test(e.name):kind==="dictionary"?/(?:dictionary|entries)\.json$/i.test(e.name):/verses\.json$/i.test(e.name);});
   if(!body)throw Error("O ZIP tem módulo de descrição, mas não os dados .json.");
   var records=JSON.parse(await body.async("string"));
   if(!Array.isArray(records))throw Error("O arquivo de dados deve conter uma lista JSON.");
   return [pickJson(Object.assign({},meta,kind==="commentary"?{commentaries:records}:kind==="dictionary"?{dictionary:records}:{verses:records}),file.name)];
  }
  var first=entries.find(function(e){return /\.json$/i.test(e.name);});
- if(!first)throw Error("ZIP incompatível. Inclua arquivos .SQLite3 do MyBible ou module.json + versos/comentários JSON.");
+ if(!first)throw Error("ZIP incompatível. Use SQLite3 do MyBible ou pacote ZIP/JSON válido do Púlpito Bible.");
  return [pickJson(JSON.parse(await first.async("string")),file.name)];
 }
 async function parseFile(file){
- if(file.size>70*1024*1024)throw Error("O arquivo ultrapassa 70 MB.");
  var name=file.name.toLowerCase();
- if(name.endsWith(".zip"))return parseZip(file);
- if(/\.(sqlite3?|db)$/.test(name))return [await parseSQLite(await file.arrayBuffer(),file.name)];
- if(name.endsWith(".json"))return [pickJson(JSON.parse(await file.text()),file.name)];
+ if(name.endsWith(".zip")){
+  if(file.size>70*1024*1024)throw Error("O ZIP excede 70 MB compactados.");
+  return parseZip(file);
+ }
+ if(/\.(sqlite3?|db)$/.test(name)){
+  if(file.size>160*1024*1024)throw Error("O SQLite excede 160 MB.");
+  return [await parseSQLite(await file.arrayBuffer(),file.name)];
+ }
+ if(name.endsWith(".json")){
+  if(file.size>70*1024*1024)throw Error("O arquivo JSON excede 70 MB.");
+  return [pickJson(JSON.parse(await file.text()),file.name)];
+ }
  throw Error("Formato incompatível. Escolha um ZIP, SQLite3 ou JSON.");
 }
 async function deleteRelated(store,id){
@@ -121,6 +288,7 @@ async function deleteRelated(store,id){
 }
 async function relatedKeys(store,id){var db=await dbOpen();return request(db.transaction(store,"readonly").objectStore(store).index("moduleId").getAllKeys(IDBKeyRange.only(id)));}
 async function saveModule(parsed,filename){
+ if(parsed.alreadySaved)return parsed;
  var id="ext-"+filenameSlug(filename)+"-"+(parsed.type==="bible"?"b":parsed.type==="dictionary"?"d":"c");var db=await dbOpen();
  var meta={id:id,type:parsed.type,name:String(parsed.name||filename).slice(0,130),abbreviation:String(parsed.abbreviation||"EXT").slice(0,30),language:String(parsed.language||"").slice(0,60),license:String(parsed.license||"não informada").slice(0,400),description:String(parsed.description||"").slice(0,400),format:parsed.format,count:parsed.count,file:filename,installedAt:Date.now()};
  var collection=parsed.type==="bible"?"chapters":parsed.type==="dictionary"?"lexicon":"commentaries";
@@ -160,7 +328,7 @@ function getUiMarkup(){
  '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
  '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher arquivos ZIP, SQLite3 ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.json"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
- '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Módulos criptografados e formatos diferentes podem não ser compatíveis. Limite: 70 MB por arquivo.</p>'+
+ '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
  '<button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
  (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
