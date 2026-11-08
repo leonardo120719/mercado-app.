@@ -1915,7 +1915,7 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
  if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();},anchor:anchor});
- var codes=Array.from(new Set([w.code].concat(extraStrongIds||[]).map(function(x){return String(x||"").toUpperCase();}).filter(function(x){return /^[GH][0-9]{1,5}$/.test(x);})));
+ var codes=Array.from(new Set([w.code].concat(extraStrongIds||[]).map(function(x){var id=String(x||"").toUpperCase(),found=words.find(function(item){return String(item.id).toUpperCase()===id;});return found?found.code:id.replace(/^([GH][0-9]{1,5})[A-Z]+$/,"$1");}).filter(function(x){return /^[GH][0-9]{1,5}$/.test(x);})));
  var translated=String(wordTerm||"").trim();
  if(/^[GH][0-9]{1,5}[A-Z]?$/.test(translated.toUpperCase()))translated="";
  var lookups=codes.map(function(code){return {term:code,label:"Léxico Strong "+code};});
