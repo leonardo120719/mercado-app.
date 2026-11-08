@@ -670,3 +670,163 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
  .pb-split-selector{max-width:37%}
  .pb-split-heading span{display:none}
 }
+
+
+/* Dictionary study window: side-by-side in landscape/desktop like MyBible.
+   Portrait phones display dictionary below scripture, never a tiny side column. */
+.pb-study-split .pb-split-bible.pb-dictionary-open,
+.pb-split-bible.pb-dictionary-open{
+ display:grid!important;grid-template-columns:minmax(0,1fr) minmax(255px,39%);
+ align-items:stretch;gap:0;overflow:hidden!important;min-width:0;
+}
+.pb-split-bible.pb-dictionary-open > .reader-columns{
+ min-width:0;min-height:0;height:100%;width:100%;max-width:none;
+ overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+ grid-template-columns:minmax(0,1fr)!important;
+}
+.reader-columns.pb-dictionary-open{
+ grid-template-columns:minmax(0,1fr) minmax(265px,39%)!important;
+ align-items:stretch;min-height:440px;
+}
+.reader-columns.pb-dictionary-open > .reader-paper{
+ min-width:0;width:100%;max-width:none;overflow-y:auto;
+}
+.pb-dictionary-pane{
+ position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;
+ height:100%;max-height:100%;overflow:hidden;
+ color:#26343c;background:#f7f2e4;border-left:1px solid #64717a;
+ font-family:"DM Sans",Arial,sans-serif;
+}
+.pb-dictionary-bar{
+ display:flex;align-items:center;justify-content:space-between;gap:2px;
+ background:#353c44;color:#e5edf0;min-height:39px;height:39px;flex-shrink:0;
+ border-bottom:1px solid #64717a;padding:0 4px;
+}
+.pb-dictionary-select{
+ display:flex;align-items:center;gap:5px;max-width:53%;min-width:70px;height:31px;
+ border:1px solid #65747c;border-radius:2px;background:#455059;color:#f7d87b;
+ padding:3px 8px;font-size:11px;font-weight:750;text-align:left;cursor:pointer;
+}
+.pb-dictionary-select strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-dictionary-select b{margin-left:auto;color:#eaf1f3}
+.pb-dictionary-nav{display:flex;gap:1px;align-items:center;flex-shrink:0}
+.pb-dictionary-nav button{
+ border:1px solid #5f6c77;border-radius:2px;min-width:25px;height:30px;padding:0 4px;
+ background:#454f57;color:#e8f0f4;font-size:18px;cursor:pointer;
+}
+.pb-dictionary-nav button:hover,.pb-dictionary-select:hover{background:#1f6d8f;color:#fff}
+.pb-dictionary-search-row{
+ display:flex;align-items:stretch;gap:4px;flex-shrink:0;
+ padding:7px 8px;background:#e4e4dd;border-bottom:1px solid #c6c8c2;
+}
+.pb-dictionary-search-row input{
+ flex:1;min-width:0;width:0;min-height:32px;border:1px solid #b1bdc0;
+ border-radius:4px;padding:6px 9px;background:#fffdfa;color:#2b404c;font-size:11px;
+ outline-color:#1e7599;
+}
+.pb-dictionary-search-row button{
+ width:36px;border:1px solid #446e82;border-radius:4px;
+ background:#245c77;color:white;font-size:20px;cursor:pointer;
+}
+.pb-dictionary-scroll{
+ flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+ background:#fbf8f0;padding:0 12px 18px;
+ scrollbar-width:thin;scrollbar-color:#aaa498 transparent;
+}
+.pb-dictionary-heading{
+ position:sticky;top:0;display:flex;align-items:center;justify-content:space-between;gap:7px;
+ padding:10px 0 8px;background:#fbf8f0;border-bottom:1px solid #ded7c8;z-index:3;
+}
+.pb-dictionary-heading strong{font-size:13px;color:#0d6375;overflow-wrap:anywhere}
+.pb-dictionary-heading small{font-size:10px;color:#6e7a7f;text-align:right;white-space:nowrap}
+.pb-dict-entry{padding:12px 0;border-bottom:1px solid #e1ddcf}
+.pb-dict-entry-title{display:flex;align-items:baseline;gap:7px;flex-wrap:wrap}
+.pb-dict-entry-title strong{font:700 14px/1.4 Georgia,serif;color:#185b71}
+.pb-dict-entry-title small{font-size:10px;color:#66777f}
+.pb-dict-definition{
+ font:400 12px/1.83 "Libre Baskerville",Georgia,serif;
+ color:#30393c;white-space:pre-wrap;overflow-wrap:anywhere;
+ margin-top:8px;user-select:text;
+}
+.pb-dict-inline-link{
+ display:inline;border:0;border-bottom:1px dotted #2786a9;
+ background:transparent;padding:0 1px;color:#08618e;
+ font:inherit;font-weight:700;cursor:pointer;
+}
+.pb-dict-inline-link:hover{background:#e0eff7}
+.pb-dict-empty,.pb-dict-loading,.pb-dict-error{padding:16px 2px;color:#60747d;font-size:12px;line-height:1.7}
+.pb-dict-empty strong{display:block;color:#3a5665;margin-bottom:4px}
+.pb-dict-empty p{margin:6px 0 13px}
+.pb-dict-error{color:#8b3937}
+.pb-dictionary-footer{
+ flex-shrink:0;display:flex;gap:6px;justify-content:flex-end;
+ background:#ece6da;border-top:1px solid #d7d0c2;padding:7px 9px;
+}
+.pb-dictionary-footer button{
+ border:1px solid #a4b4bd;color:#1b5774;background:#fff;
+ border-radius:4px;font-size:10px;font-weight:750;padding:7px 10px;cursor:pointer;
+}
+.pb-dictionary-footer button:hover{background:#dfeefa}
+.pb-dictionary-footer [hidden]{display:none!important}
+.pb-dictionary-picker{
+ position:absolute;top:39px;left:0;right:0;z-index:30;
+ background:#323a40;color:#e7f0f4;border:1px solid #63747e;border-top:0;
+ display:flex;flex-direction:column;max-height:calc(100% - 40px);
+ min-height:0;box-shadow:0 10px 25px #071c2c74;
+}
+.pb-dictionary-picker[hidden]{display:none!important}
+.pb-dict-picker-heading{
+ display:flex;justify-content:space-between;gap:10px;align-items:center;
+ padding:10px;border-bottom:1px solid #4e5b61;font-size:11px;
+}
+.pb-dict-picker-heading span{color:#bbcad3;font-size:10px}
+.pb-dictionary-picker > input{
+ width:calc(100% - 16px);margin:8px;padding:8px;border-radius:4px;
+ border:1px solid #60737e;background:#252e35;color:white;font-size:11px;
+}
+.pb-dictionary-choices{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
+.pb-dict-choice{
+ display:grid;grid-template-columns:53px minmax(0,1fr) 16px;align-items:center;
+ gap:5px;width:100%;padding:10px 9px;border:0;border-bottom:1px solid #4e575d;
+ background:#394249;color:#e2eaf0;text-align:left;cursor:pointer;
+}
+.pb-dict-choice:hover{background:#53636d}
+.pb-dict-choice.active{background:#505354;color:#f5dc62}
+.pb-dict-short{font-size:10px;font-weight:750;overflow:hidden;text-overflow:ellipsis}
+.pb-dict-full{font-size:11px;overflow-wrap:anywhere}
+.pb-dict-choice b{color:#f0d065}
+.pb-dict-install{
+ border:0;border-top:1px solid #687782;
+ background:#254b61;color:#d8effb;cursor:pointer;
+ font-size:11px;font-weight:700;padding:10px;
+}
+.pb-dict-install:hover{background:#236984}
+@media(max-width:620px) and (orientation:portrait){
+ .pb-study-split.pb-dictionary-focused{
+  grid-template-rows:minmax(0,1fr) 0px 0px!important;
+ }
+ .pb-study-split.pb-dictionary-focused > .pb-split-resizer,
+ .pb-study-split.pb-dictionary-focused > .pb-split-comments{display:none!important}
+ .pb-study-split .pb-split-bible.pb-dictionary-open{
+  display:grid!important;grid-template-columns:minmax(0,1fr)!important;
+  grid-template-rows:minmax(120px,1fr) minmax(175px,46%);
+ }
+ .pb-split-bible.pb-dictionary-open > .reader-columns{height:100%;max-height:none;overflow-y:auto}
+ .pb-split-bible.pb-dictionary-open > .pb-dictionary-pane{
+  border-left:0;border-top:3px solid #677883;width:100%;height:100%;
+ }
+ .reader-columns.pb-dictionary-open{
+  display:flex!important;flex-direction:column;max-height:calc(100dvh - 185px);
+ }
+ .reader-columns.pb-dictionary-open > .reader-paper{flex:1;min-height:0}
+ .reader-columns.pb-dictionary-open > .pb-dictionary-pane{height:44%;flex-shrink:0;border-left:0;border-top:3px solid #65747d}
+ .pb-dictionary-bar{min-height:35px;height:35px}
+ .pb-dictionary-picker{top:35px;max-height:calc(100% - 36px)}
+ .pb-dictionary-nav button{min-width:24px}
+ .pb-dictionary-scroll{padding:0 11px 10px}
+ .pb-dict-definition{font-size:12px;line-height:1.7}
+}
+@media(min-width:621px) and (max-width:850px){
+ .pb-split-bible.pb-dictionary-open{grid-template-columns:minmax(0,1fr) 43%}
+ .pb-dictionary-nav button{min-width:23px}
+}
