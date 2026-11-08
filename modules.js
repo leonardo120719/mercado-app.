@@ -79,6 +79,121 @@ async function getDictionaryEntry(term){
  return entries.filter(Boolean);
 }
 
+
+/* Large MyBible commentary importer: rows are written in small transactions
+   to an IndexedDB passage index. The whole 30k-row result is never materialized
+   into a JS array. Older modules continue using the legacy store. */
+function importStatus(text){
+ lastStatus=text;
+ var area=document.getElementById("module-status");
+ if(area)area.textContent=text;
+}
+function makeLargeModuleMeta(info,filename){
+ var now=Date.now(),name=String(info.description||info.name||filename).slice(0,130);
+ return {id:"ext-"+filenameSlug(filename).slice(0,35)+"-c-"+now.toString(36)+"-"+Math.floor(Math.random()*1679616).toString(36),
+  type:"commentary",name:name,abbreviation:String(info.abbreviation||filename.split(".")[0]).slice(0,30),
+  language:String(info.language||"pt").slice(0,60),license:String(info.license||info.copyright||"não informada").slice(0,400),
+  description:String(info.detailed_info||"").slice(0,400),format:"MyBible SQLite3 (por capítulo)",
+  storage:"entries-v1",count:0,file:filename,installedAt:now};
+}
+function streamedCommentaryRows(row){
+ var book=ensureBook(row.book??row.book_slug??row.book_number??row.book_id);
+ if(!book)return [];
+ var first=Number(row.chapter_number_from??row.chapter??row.chapter_from??0);
+ var last=Number(row.chapter_number_to??row.chapter_to??first)||first;
+ if(!Number.isInteger(first)||first<1||first>200||!Number.isInteger(last)||last<first||last>200)return [];
+ var fv=Number(row.verse_number_from??row.verse??row.verse_from??0)||0;
+ var lv=Number(row.verse_number_to??row.verse_to??0)||0;
+ var content=simplifyText(row.text??row.commentary??row.content);
+ if(!content)return [];
+ var list=[];
+ for(var ch=first;ch<=last;ch++)list.push({
+  book:book,chapter:ch,fromChapter:first,toChapter:last,fromVerse:fv,toVerse:lv,
+  marker:String(row.marker||"").slice(0,200),text:content
+ });
+ return list;
+}
+async function writeCommentaryBatch(batch){
+ if(!batch.length)return;
+ var db=await dbOpen(),tx=db.transaction("commentaryEntries","readwrite"),store=tx.objectStore("commentaryEntries");
+ var done=new Promise(function(resolve,reject){
+  tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error||Error("Armazenamento interrompido"));};
+  tx.onerror=function(){reject(tx.error||Error("Não foi possível salvar comentários no aparelho"));};
+ });
+ batch.forEach(function(entry){store.put(entry);});
+ await done;
+}
+async function publishImportedCommentary(meta){
+ var db=await dbOpen(),tx=db.transaction("modules","readwrite");
+ var completed=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error);};tx.onerror=function(){reject(tx.error);};});
+ tx.objectStore("modules").put(meta);
+ await completed;
+ await loadCatalog();onUpdated();
+ return Object.assign({alreadySaved:true},meta);
+}
+async function cleanFailedCommentary(id){
+ try{
+  var db=await dbOpen();
+  var tx=db.transaction("commentaryEntries","readwrite");
+  await new Promise(function(resolve,reject){
+   var source=tx.objectStore("commentaryEntries").index("moduleId"),req=source.openCursor(IDBKeyRange.only(id));
+   req.onsuccess=function(){var cursor=req.result;if(cursor){cursor.delete();cursor.continue();}};
+   req.onerror=function(){reject(req.error);};
+   tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error||Error("Falha na limpeza"));};
+  });
+ }catch(error){console.warn("Não foi possível limpar comentários parciais",error);}
+}
+async function streamCommentaryIterator(iterate,filename,info){
+ var meta=makeLargeModuleMeta(info,filename),batch=[],count=0,number=0;
+ try{
+  for await(var row of iterate){
+   number++;
+   var converted=streamedCommentaryRows(row);
+   for(var entry of converted){
+    entry.moduleId=meta.id;
+    entry.key=meta.id+"/"+entry.book+"/"+entry.chapter+"/"+number;
+    batch.push(entry);
+   }
+   if(batch.length>=100){
+    await writeCommentaryBatch(batch);batch=[];
+    if(number%500<100){
+     importStatus("Importando "+meta.name+": "+number.toLocaleString("pt-BR")+" comentários processados…");
+     await new Promise(function(resolve){setTimeout(resolve,0);});
+    }
+   }
+   if(converted.length)count++;
+   if(number>250000)throw Error("Quantidade de comentários maior que o limite de segurança (250 mil).");
+  }
+  if(batch.length)await writeCommentaryBatch(batch);
+  if(!count)throw Error("Não encontrei comentários compatíveis neste módulo.");
+  meta.count=count;
+  return await publishImportedCommentary(meta);
+ }catch(e){
+  await cleanFailedCommentary(meta.id);
+  throw e;
+ }
+}
+async function streamSqliteCommentaries(sqlite,filename,info){
+ var statement=sqlite.prepare("SELECT * FROM commentaries");
+ async function* read(){
+  try{while(statement.step())yield statement.getAsObject();}
+  finally{statement.free();}
+ }
+ return streamCommentaryIterator(read(),filename,info);
+}
+async function streamPackedComments(entries,meta,filename){
+ async function* read(){
+  for(var i=0;i<entries.length;i++){
+   if(!/^chapters\/[a-z0-9-]+\/[0-9]{1,3}\.json$/i.test(entries[i].name))throw Error("Pacote de capítulos contém nome inválido");
+   var raw=await entries[i].async("string"),rows=JSON.parse(raw);
+   if(!Array.isArray(rows))throw Error("Capítulo não contém lista JSON");
+   for(var row of rows)yield row;
+   if(i%10===0)await new Promise(function(resolve){setTimeout(resolve,0);});
+  }
+ }
+ return streamCommentaryIterator(read(),filename,meta);
+}
+
 async function parseSQLite(buffer,filename){
  if(!window.initSqlJs)throw Error("O leitor SQLite não carregou. Verifique a conexão com a internet e tente novamente.");
  var SQL=await window.initSqlJs({locateFile:function(f){return "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/"+f;}});
@@ -89,8 +204,9 @@ async function parseSQLite(buffer,filename){
   var type=tables.includes("verses")?"bible":tables.includes("commentaries")?"commentary":tables.includes("dictionary")?"dictionary":null;
   if(!type)throw Error(tables.includes("words")?"Arquivo com apenas formas de palavras (words), sem verbetes de dicionário. Instale o léxico principal.":"SQLite sem verses, commentaries ou dictionary. Tabelas: "+(tables.join(", ")||"nenhuma")+".");
   var info=getInfo(db);
-  var rows=recordSet(db.exec("SELECT * FROM "+(type==="bible"?"verses":type==="commentary"?"commentaries":"dictionary")));
-  var normalized=type==="bible"?normalizeBible(rows):type==="commentary"?normalizeCommentaries(rows):normalizeDictionary(rows);
+  if(type==="commentary")return await streamSqliteCommentaries(db,filename,info);
+  var rows=recordSet(db.exec("SELECT * FROM "+(type==="bible"?"verses":"dictionary")));
+  var normalized=type==="bible"?normalizeBible(rows):normalizeDictionary(rows);
   return {type:type,name:info.description||info.name||filename.replace(/\.((?:commentaries\.)?sqlite3|sqlite|db)$/i,""),abbreviation:filename.split(".")[0].slice(0,30),language:info.language||"não informada",license:info.license||info.copyright||"não informada",description:info.detailed_info||"",format:"MyBible SQLite3",groups:normalized.groups,count:normalized.count};
  }finally{if(db)db.close();}
 }
@@ -141,6 +257,7 @@ async function deleteRelated(store,id){
 }
 async function relatedKeys(store,id){var db=await dbOpen();return request(db.transaction(store,"readonly").objectStore(store).index("moduleId").getAllKeys(IDBKeyRange.only(id)));}
 async function saveModule(parsed,filename){
+ if(parsed.alreadySaved)return parsed;
  var id="ext-"+filenameSlug(filename)+"-"+(parsed.type==="bible"?"b":parsed.type==="dictionary"?"d":"c");var db=await dbOpen();
  var meta={id:id,type:parsed.type,name:String(parsed.name||filename).slice(0,130),abbreviation:String(parsed.abbreviation||"EXT").slice(0,30),language:String(parsed.language||"").slice(0,60),license:String(parsed.license||"não informada").slice(0,400),description:String(parsed.description||"").slice(0,400),format:parsed.format,count:parsed.count,file:filename,installedAt:Date.now()};
  var collection=parsed.type==="bible"?"chapters":parsed.type==="dictionary"?"lexicon":"commentaries";
