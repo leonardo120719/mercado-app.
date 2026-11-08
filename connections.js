@@ -55,11 +55,11 @@ function drawResults(targetId,markup,seq){
  var element=document.getElementById(targetId);
  if(element)element.innerHTML=markup;
 }
-function open(kind,verse,word,anchor){
+function open(kind,verse,word,anchor,moduleId){
  close();
  var seq=requestId,context=getReference(verse);
  var query=String(word||"").trim().slice(0,110);
- selectedContext={kind:kind,query:query,reference:context,comments:[]};
+ selectedContext={kind:kind,query:query,reference:context,comments:[],moduleId:String(moduleId||"")};
  if(config&&config.setVerse)config.setVerse(context.verse);
  var modal=document.createElement("div");modal.id="pb-connected-panel";modal.className="pb-connected-backdrop myb-window-backdrop";
  modal.innerHTML='<section class="pb-connected-sheet myb-window" role="dialog" aria-label="Estudo conectado" aria-modal="false">'+
@@ -87,7 +87,7 @@ function open(kind,verse,word,anchor){
    }).join(""),seq);
   }).catch(function(e){drawResults("pb-connected-dictionary",'<p class="feature-note">Não foi possível pesquisar o dicionário: '+escapeHtml(e.message||String(e))+'</p>',seq);});
  }
- global.PBModules.getCommentaries(context.book,context.chapter,context.verse).then(function(rows){
+ global.PBModules.getCommentaries(context.book,context.chapter,context.verse,moduleId).then(function(rows){
   if(seq!==requestId)return;
   selectedContext.comments=rows;
   if(!rows.length){drawResults("pb-connected-commentaries",'<p class="feature-note">Nenhum comentário instalado cobre esta referência. Você pode importar módulos na seção Módulos.</p>',seq);return;}
@@ -100,6 +100,7 @@ function open(kind,verse,word,anchor){
   }).join(""),seq);
  }).catch(function(e){drawResults("pb-connected-commentaries",'<p class="feature-note">Falha ao consultar comentários: '+escapeHtml(e.message||String(e))+'</p>',seq);});
 }
+function openCommentary(verse,moduleId,anchor){return open("commentary",verse,"",anchor,moduleId);}
 function init(opts){
  config=opts||{};
  if(initialized)return;
@@ -136,5 +137,5 @@ function init(opts){
   }
  },true);
 }
-global.PBConnections={init:init,wrapHtml:wrapHtml,open:open,close:close};
+global.PBConnections={init:init,wrapHtml:wrapHtml,open:open,openCommentary:openCommentary,close:close};
 })(window);
