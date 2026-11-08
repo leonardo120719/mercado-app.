@@ -8,6 +8,7 @@ on:
       - "app.js"
       - "pulpito.html"
       - "styles.css"
+      - "pulpito-sw.js"
 
 permissions:
   contents: write
@@ -37,6 +38,7 @@ jobs:
           cp source/app.js target/app.js
           cp source/pulpito.html target/pulpito.html
           cp source/styles.css target/styles.css
+          cp source/pulpito-sw.js target/pulpito-sw.js
           cd target
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
