@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261108-compact-commentary-strong-one-tap-5";
+window.PB_BUILD_ID = "pb-20261108-compact-commentary-strong-one-tap-6";
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
