@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261108-strong-doubleclick-autoupdate-3";
+window.PB_BUILD_ID = "pb-20261108-word-dictionary-doubletap-4";
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
@@ -884,10 +884,24 @@ function open(kind,verse,word,anchor){
   }).catch(function(e){drawResults("pb-connected-dictionary",'<p class="feature-note">Não foi possível pesquisar os dicionários: '+escapeHtml(e.message||String(e))+'</p>',seq);});
  }
 }
+function selectWordText(node){
+ try{
+  var selection=global.getSelection();
+  if(!selection||!global.document.createRange)return;
+  var range=global.document.createRange();
+  range.selectNodeContents(node);
+  selection.removeAllRanges();
+  selection.addRange(range);
+ }catch(_){}
+}
+function clearWordTextSelection(){
+ try{var selection=global.getSelection();if(selection)selection.removeAllRanges();}catch(_){}
+}
 function activateBibleLink(node){
  var verseNode=node&&node.closest?node.closest("#chapter-body [data-verse]"):null,verse=verseNode?Number(verseNode.dataset.verse):null;
  var strongId=node.dataset.pbStrong||node.dataset.strong||"",strongList=String(node.dataset.pbStrongList||strongId).split(",").map(function(x){return x.trim();}).filter(Boolean),word=String(node.dataset.pbWord||node.textContent||"").trim();
- if(strongId){if(config&&config.onStrong&&config.onStrong(strongId,word,verse,node,strongList)===true)return;open("strong",verse,strongId,node);return;}
+ clearWordTextSelection();
+ if(strongId){if(config&&config.onStrong&&config.onStrong(strongId,word,verse,node,strongList)===true)return;open("word",verse,strongId,node);return;}
  if(config&&config.onWord&&config.onWord(word,verse,node,"")===true)return;open("word",verse,word,node);
 }
 function activateStudyLink(node){var kind=node.dataset.pbStudyLink;if(kind==="reference"){if(config&&config.onStudyReference){config.onStudyReference(node.dataset.reference||"",node);return;}open("verse",0,"",node);return;}if(kind==="strong"){var code=node.dataset.strongCode||"";if(config&&config.onStudyStrong){config.onStudyStrong(code,node);return;}open("strong",0,code,node);}}
@@ -907,11 +921,13 @@ function init(opts){
     e.preventDefault();lastBibleTap=null;
     if(lastBibleActivation.node!==bibleLink||now-lastBibleActivation.at>700){lastBibleActivation={node:bibleLink,at:now};activateBibleLink(bibleLink);}
    }else{
+    e.preventDefault();
     lastBibleActivation={node:null,at:0};
     lastBibleTap={node:bibleLink,at:now};
     var verseNode=bibleLink.closest("#chapter-body [data-verse]"),verse=verseNode?Number(verseNode.dataset.verse):null;
     var word=String(bibleLink.dataset.pbWord||bibleLink.textContent||"").trim();
     if(config&&config.onSelectWord)config.onSelectWord(word,verse,bibleLink);
+    selectWordText(bibleLink);
    }
    return;
   }
@@ -1555,8 +1571,6 @@ window.PBConnections.init({
   if(!n)return false;
   state.selectedVerse=n;
   persist();
-  TS.actions.selectVerse(verseGlobalId(n));
-  refreshVerseDecorations();
   var label=document.getElementById("selected-reference");if(label)label.textContent=ref();
   return true;
  },
@@ -1567,7 +1581,7 @@ window.PBConnections.init({
  },
  onStrong:function(strongId,word,verse,anchor){
   if(Number(verse)>0){state.selectedVerse=Number(verse);persist();}
-  openStrongPopup(strongId,anchor,word,arguments.length>4?arguments[4]:[]);
+  window.PBConnections.open("word",verse,strongId,anchor);
   return true;
  },
  onStudyStrong:function(code,anchor){openStrongPopup(code,anchor);return true;},
