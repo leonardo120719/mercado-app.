@@ -103,8 +103,8 @@ function loadInstalledComments(){
  }).catch(function(e){var node=document.getElementById("installed-comments");if(node)node.innerHTML='<p class="tiny muted">Comentários indisponíveis: '+esc(e.message)+'</p>';});
 }
 function openStrongPopup(wordId){
- var w=words.find(function(x){return x.id===wordId||x.code===wordId;});
- if(!w){var code=String(wordId).toUpperCase();if(!/^[GH][0-9]{1,5}$/.test(code))return;var val=Number(code.slice(1));w={id:code,code:code,label:"—",reading:"Não disponível",lemma:"Não disponível",book:ref(),type:"Morfologia não instalada",tense:"A consultar",voice:"A consultar",mood:"A consultar",person:"A consultar",meaning:"Entrada Strong sem dicionário conectado",note:"O módulo da Bíblia contém este código Strong, mas sua definição e morfologia não foram fornecidas. Consulte um léxico autorizado para examinar o sentido real da ocorrência.",source:"https://biblehub.com/"+(code[0]==="H"?"hebrew":"greek")+"/"+val+".htm"};}
+ var w=words.find(function(x){return x.id===wordId;});
+ if(!w){var code=String(wordId).toUpperCase();if(!/^[GH][0-9]{1,5}$/.test(code))return;var val=Number(code.slice(1));w={id:code,code:code,label:"—",reading:"Não disponível",lemma:"Não disponível",book:ref(),type:"Morfologia não instalada",tense:"A consultar",voice:"A consultar",mood:"A consultar",person:"A consultar",meaning:"Entrada Strong sem dicionário conectado",note:"O número Strong identifica uma entrada lexical, não a forma gramatical específica desta ocorrência. A definição, o tempo verbal, o modo e a voz exigem um léxico e uma base morfológica alinhada a este versículo; não serão deduzidos pelo código.",source:"https://biblehub.com/"+(code[0]==="H"?"hebrew":"greek")+"/"+val+".htm"};}
  currentWord=w;
  document.getElementById("strong-window")?.remove();
  var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay";frame.setAttribute("role","presentation");
