@@ -55,7 +55,7 @@ function drawResults(targetId,markup,seq){
  var element=document.getElementById(targetId);
  if(element)element.innerHTML=markup;
 }
-function open(kind,verse,word){
+function open(kind,verse,word,anchor){
  close();
  var seq=requestId,context=getReference(verse);
  var query=String(word||"").trim().slice(0,110);
@@ -72,7 +72,7 @@ function open(kind,verse,word){
  '<footer class="myb-window-footer"><button class="btn slim" type="button" data-pb-note>✎ Nota</button><button class="btn slim" type="button" data-pb-sermon>▤ Sermão</button><button class="btn primary slim" type="button" data-page="modulos">⇩ Módulos</button></footer>'+
  '</section>';
  document.body.appendChild(modal);
- if(global.PBWindowUI)global.PBWindowUI.mount(modal,{defaultTab:kind==="word"?"dictionary":"commentaries",onClose:close});
+ if(global.PBWindowUI)global.PBWindowUI.mount(modal,{defaultTab:kind==="word"?"dictionary":"commentaries",onClose:close,anchor:anchor});
  var list=kind==="word"?[query]:verseCodes(context.verse);
  if(!list.length){
   drawResults("pb-connected-dictionary",'<p class="feature-note">Nenhum Strong confirmado para esse versículo. Toque diretamente numa palavra para pesquisar verbetes em português.</p>',seq);
@@ -117,18 +117,18 @@ function init(opts){
   if(word){
    e.preventDefault();e.stopImmediatePropagation();
    var parent=word.closest("[data-verse]");
-   open("word",parent?parent.dataset.verse:null,word.dataset.pbWord);
+   open("word",parent?parent.dataset.verse:null,word.dataset.pbWord,word);
    return;
   }
   if(e.target.closest("[data-strong]"))return;
   var verse=e.target.closest("#chapter-body [data-verse]");
-  if(verse)open("verse",verse.dataset.verse,"");
+  if(verse)open("verse",verse.dataset.verse,"",verse);
  },true);
  document.addEventListener("keydown",function(e){
   if(e.key==="Escape"){close();return;}
   if((e.key==="Enter"||e.key===" ")&&e.target&&e.target.dataset&&e.target.dataset.pbWord){
    e.preventDefault();e.stopImmediatePropagation();
-   var parent=e.target.closest("[data-verse]");open("word",parent?parent.dataset.verse:null,e.target.dataset.pbWord);
+   var parent=e.target.closest("[data-verse]");open("word",parent?parent.dataset.verse:null,e.target.dataset.pbWord,e.target);
   }
  },true);
 }
