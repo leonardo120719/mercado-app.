@@ -933,3 +933,77 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
  .pb-study-split .pb-dictionary-pane .pb-dictionary-nav button{min-width:22px}
  .pb-study-split .pb-dictionary-pane .pb-dictionary-search-row{padding:5px}
 }
+
+
+/* Commentary availability beside each verse + long-press commentary chooser.
+   Small enough for continuous reading; no indicator when the verse has no data. */
+.reader-scripture .pb-verse-comment-indicator{
+ display:inline-flex;align-items:center;vertical-align:baseline;
+ white-space:nowrap;line-height:1.4;gap:3px;
+ margin:0 3px 0 6px;padding:1px 5px;
+ border:1px solid #b7cabf;border-radius:4px;
+ background:#eaf3e8;color:#25666d;
+ font:700 9px/1.4 "DM Sans",Arial,sans-serif;
+ cursor:pointer;touch-action:manipulation;user-select:none;
+ box-shadow:none;max-width:100%;
+}
+.reader-scripture .pb-verse-comment-indicator:hover,
+.reader-scripture .pb-verse-comment-indicator:focus-visible{
+ border-color:#2d8d9b;background:#d5eef1;color:#174e67;
+ outline:2px solid #9dd5df;outline-offset:1px;
+}
+body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
+ background:#304a50;border-color:#57868e;color:#d9f2ed;
+}
+.pb-vc-picker{
+ position:fixed;z-index:1850;
+ width:min(350px,calc(100vw - 16px));max-height:min(68dvh,540px);
+ display:flex;flex-direction:column;overflow:hidden;
+ color:#f3f6f8;background:#303940;
+ border:1px solid #6e7d84;border-radius:9px;
+ box-shadow:0 18px 55px #071c32a8;
+ font:400 12px "DM Sans",Arial,sans-serif;
+}
+.pb-vc-head{
+ flex-shrink:0;display:flex;justify-content:space-between;gap:10px;
+ align-items:center;background:#243e50;border-bottom:1px solid #61747f;
+ padding:11px 12px;
+}
+.pb-vc-head > div{display:flex;flex-direction:column;min-width:0;gap:4px}
+.pb-vc-head strong{font-size:13px;font-weight:750;color:#f6df96}
+.pb-vc-head small{font-size:10px;color:#c6d8e0}
+.pb-vc-close{
+ width:29px;height:29px;flex-shrink:0;display:grid;place-items:center;
+ background:#44535c;color:#fff;border:1px solid #72828c;
+ border-radius:5px;font-size:20px;cursor:pointer;
+}
+.pb-vc-hint{padding:11px 12px;margin:0;color:#d4e0e5;font-size:11px;line-height:1.5}
+.pb-vc-list{min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#88959c transparent}
+.pb-vc-choice{
+ display:grid;align-items:center;grid-template-columns:minmax(0,1fr) auto auto;
+ gap:8px;width:100%;padding:12px 13px;
+ border:0;border-bottom:1px solid #52606a;background:#37454f;
+ color:#ecf3f4;cursor:pointer;text-align:left;
+}
+.pb-vc-choice:hover,.pb-vc-choice:focus-visible{background:#1c6486;outline:none}
+.pb-vc-choice.active{color:#ffe29b;background:#46545a}
+.pb-vc-label{font-size:11px;font-weight:700;min-width:0;overflow-wrap:anywhere}
+.pb-vc-choice small{font-size:10px;color:#c0d5d9;white-space:nowrap}
+.pb-vc-check{color:#f2d47f;font-size:15px}
+.pb-vc-empty{margin:0;padding:16px 13px;color:#dfebeb;font-size:11px;line-height:1.7}
+.pb-vc-manage{
+ flex-shrink:0;width:100%;border:0;border-top:1px solid #6a7c88;
+ background:#225571;color:#eef8ff;font-size:11px;font-weight:750;
+ padding:12px;cursor:pointer;text-align:center;
+}
+.pb-vc-manage:hover{background:#146e94}
+@media(max-width:720px){
+ .pb-vc-picker{
+  width:100%;left:0!important;right:0;top:auto!important;
+  bottom:0;border-radius:14px 14px 0 0;
+  max-height:65dvh;padding-bottom:env(safe-area-inset-bottom,0px);
+ }
+ .pb-vc-head{padding:14px}
+ .pb-vc-choice{min-height:49px}
+ .reader-scripture .pb-verse-comment-indicator{padding:2px 5px;font-size:9px}
+}
