@@ -906,6 +906,7 @@ function init(opts){
     e.preventDefault();lastBibleTap=null;
     if(lastBibleActivation.node!==bibleLink||now-lastBibleActivation.at>700){lastBibleActivation={node:bibleLink,at:now};activateBibleLink(bibleLink);}
    }else{
+    lastBibleActivation={node:null,at:0};
     lastBibleTap={node:bibleLink,at:now};
     var verseNode=bibleLink.closest("#chapter-body [data-verse]"),verse=verseNode?Number(verseNode.dataset.verse):null;
     var word=String(bibleLink.dataset.pbWord||bibleLink.textContent||"").trim();
@@ -1940,7 +1941,7 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
     return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+window.PBConnections.linkifyText(entry.definition)+'</p></article>';
    }).join("");
   }).join("");
-  holder.innerHTML=html||'<p class="feature-note">Nenhuma entrada Strong ou dicionário correspondente foi encontrada. Verifique se os módulos lexicais estão instalados.</p>';
+  holder.innerHTML=html||(w.meaning&&w.meaning!=="Entrada Strong sem dicionário conectado"?'<article class="module-comment"><strong>Strong '+esc(w.code)+'</strong><small>'+esc(w.lemma)+' · '+esc(w.reading)+'</small><p>'+esc(w.meaning)+'</p><p>'+esc(w.note)+'</p></article>':'<p class="feature-note">Nenhuma entrada Strong ou dicionário correspondente foi encontrada. Verifique se os módulos lexicais estão instalados.</p>');
  }).catch(function(err){
   var holder=frame.querySelector("#installed-strong-entry");
   if(holder)holder.textContent="Não foi possível consultar os léxicos: "+(err.message||String(err));
