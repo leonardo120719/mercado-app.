@@ -117,7 +117,9 @@ function init(opts){
   if(word){
    e.preventDefault();e.stopImmediatePropagation();
    var parent=word.closest("[data-verse]");
-   open("word",parent?parent.dataset.verse:null,word.dataset.pbWord,word);
+   var wordVerse=parent?parent.dataset.verse:null;
+   if(config.onWord&&config.onWord(word.dataset.pbWord,wordVerse,word)===true)return;
+   open("word",wordVerse,word.dataset.pbWord,word);
    return;
   }
   if(e.target.closest("[data-strong]"))return;
@@ -128,7 +130,9 @@ function init(opts){
   if(e.key==="Escape"){close();return;}
   if((e.key==="Enter"||e.key===" ")&&e.target&&e.target.dataset&&e.target.dataset.pbWord){
    e.preventDefault();e.stopImmediatePropagation();
-   var parent=e.target.closest("[data-verse]");open("word",parent?parent.dataset.verse:null,e.target.dataset.pbWord,e.target);
+   var parent=e.target.closest("[data-verse]"),verse=parent?parent.dataset.verse:null;
+   if(config.onWord&&config.onWord(e.target.dataset.pbWord,verse,e.target)===true)return;
+   open("word",verse,e.target.dataset.pbWord,e.target);
   }
  },true);
 }
