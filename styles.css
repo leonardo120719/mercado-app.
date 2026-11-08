@@ -500,3 +500,173 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
   height:auto!important}
 }
 @media(prefers-reduced-motion:reduce){.myb-window *{scroll-behavior:auto}}
+
+
+/* MyBible-inspired stacked reader: independent Bible and commentary windows.
+   Installed modules open in a dark chooser overlay within the lower pane. */
+.reader-active .reader-screen:has(.pb-study-split){min-width:0;padding-bottom:4px}
+.reader-active .reader-screen:has(.pb-study-split) .reader-actiondock,
+.reader-active .reader-screen:has(.pb-study-split) .reader-bottom-panels{display:none!important}
+.pb-study-split{
+ --pb-comment-height:44%;
+ display:grid;grid-template-rows:minmax(100px,1fr) 10px var(--pb-comment-height);
+ width:100%;height:calc(100dvh - 189px);min-height:410px;
+ max-width:1370px;margin:0 auto;
+ overflow:hidden;background:#2e363b;color:#f7fafb;
+ border:1px solid #67737b;border-radius:4px;
+ box-shadow:0 5px 20px #12253318;
+}
+.pb-study-split .pb-split-bible{
+ min-height:0;min-width:0;width:100%;height:100%;
+ overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;
+ background:#e8d2ae;
+ scrollbar-color:#a39a87 transparent;scrollbar-width:thin;
+}
+.pb-study-split .pb-split-bible .reader-columns{
+ display:grid;grid-template-columns:minmax(0,1fr);
+ width:100%;margin:0;max-width:none;min-height:100%;
+}
+.pb-study-split .pb-split-bible .reader-paper{
+ border-radius:0;min-height:100%;max-width:none;width:100%;
+ box-shadow:none;border:0;overflow:visible;
+}
+.pb-study-split .pb-split-bible .reader-scripture{
+ min-height:260px;padding:20px clamp(17px,3vw,45px) 30px;
+}
+.pb-study-split .pb-split-bible .reader-paper-head{
+ position:sticky;top:0;z-index:5;
+ background:var(--reader-bg);border-bottom:1px solid var(--reader-rule);
+}
+.pb-split-resizer{
+ display:flex;align-items:center;justify-content:center;
+ background:#31383e;border-top:1px solid #6f7a80;border-bottom:1px solid #59666d;
+ min-height:10px;cursor:row-resize;touch-action:none;user-select:none;
+}
+.pb-split-resizer span{display:block;width:50px;height:3px;border-radius:6px;background:#a6b1b8;}
+.pb-split-resizer:hover span,.pb-split-resizer:focus-visible span{background:#f3d78f}
+.pb-split-comments{
+ position:relative;display:flex;flex-direction:column;
+ background:#f8f5ee;color:#2b3740;
+ min-height:0;overflow:hidden;width:100%;
+}
+.pb-split-bar{
+ display:flex;flex-shrink:0;align-items:center;justify-content:space-between;
+ min-height:39px;gap:3px;background:#353c43;color:#eaf1f6;
+ border-bottom:1px solid #555f67;padding:0 5px;
+ font-family:"DM Sans",Arial,sans-serif;
+}
+.pb-split-selector{
+ display:flex;align-items:center;justify-content:flex-start;gap:5px;
+ border:1px solid #5c6872;border-radius:3px;background:#424b54;color:#f2d37e;
+ padding:5px 8px;min-width:90px;max-width:43%;height:32px;
+ font-size:11px;font-weight:750;cursor:pointer;
+}
+.pb-split-selector span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pb-split-selector b{margin-left:auto;color:#dbe4e9;font-size:16px}
+.pb-split-selector:hover,.pb-split-selector[aria-expanded="true"]{background:#54636f}
+.pb-split-ref{
+ font-size:11px;font-weight:700;color:#e4eaf0;white-space:nowrap;
+ overflow:hidden;text-overflow:ellipsis;text-align:center;flex:1;min-width:0;
+}
+.pb-split-toolbar-actions{display:flex;align-items:center;gap:1px;flex-shrink:0}
+.pb-split-toolbar-actions button{
+ min-width:30px;height:31px;border:1px solid #5b646b;border-radius:2px;
+ background:#434c54;color:#eaf1f4;
+ font-size:18px;font-weight:750;cursor:pointer;
+}
+.pb-split-toolbar-actions button:hover{color:#fff;background:#1a6c94}
+.pb-split-scroll{
+ flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
+ overscroll-behavior:contain;padding:0 17px 24px;
+ background:#fbf8f2;color:#2b343c;
+ scrollbar-color:#a4a39d transparent;scrollbar-width:thin;
+}
+.pb-split-heading{
+ padding:12px 0 8px;display:flex;align-items:center;justify-content:space-between;
+ gap:14px;border-bottom:1px solid #ddd6c7;
+}
+.pb-split-heading strong{
+ color:#236c78;font-size:12px;font-weight:750;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.pb-split-heading span{color:#77858d;font-size:10px;white-space:nowrap}
+.pb-split-entry{padding:14px 0 18px;border-bottom:1px solid #e1dccf}
+.pb-split-entry-heading{
+ display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+ font:700 11px/1.3 "DM Sans",sans-serif;color:#168b8e;margin-bottom:6px
+}
+.pb-split-entry-heading small{color:#829199;font-size:10px;font-weight:500}
+.pb-split-entry-text{
+ color:#2c363a;font:400 13px/1.75 "Libre Baskerville",Georgia,serif;
+ white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;
+}
+.pb-split-entry-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;margin-top:12px}
+.pb-split-entry-actions button{
+ border:1px solid #bbc9cf;background:#fff;color:#1e566c;font-size:10px;font-weight:700;
+ padding:6px 10px;border-radius:5px;cursor:pointer;
+}
+.pb-split-entry-actions button:hover{background:#e2f2f8}
+.pb-split-loading,.pb-split-message,.pb-comment-error{padding:18px 2px;color:#556773;font-size:12px;line-height:1.65}
+.pb-split-message strong{display:block;color:#315063;margin-bottom:5px}
+.pb-split-message p{margin:6px 0 13px}
+.pb-split-picker{
+ position:absolute;top:39px;left:0;right:0;
+ display:flex;flex-direction:column;min-height:0;
+ max-height:calc(100% - 39px);z-index:20;
+ background:#30363b;color:#e8eef2;box-shadow:0 7px 25px #122b3a80;
+ border:1px solid #535c64;border-top:0;
+}
+.pb-split-picker[hidden]{display:none!important}
+.pb-split-picker-heading{
+ display:flex;align-items:center;justify-content:space-between;gap:10px;
+ padding:11px 13px;border-bottom:1px solid #48545d;font-size:11px;
+}
+.pb-split-picker-heading strong{font-weight:750}
+.pb-split-picker-heading span{color:#b9cad4;font-size:10px}
+.pb-split-picker input{
+ width:calc(100% - 20px);margin:8px 10px;padding:9px 12px;
+ border:1px solid #617680;border-radius:5px;outline:none;background:#242d34;color:#fff;
+ font-size:12px;
+}
+.pb-split-picker input::placeholder{color:#a6b7c1}
+.pb-split-choices{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 0}
+.pb-split-choice{
+ display:grid;grid-template-columns:minmax(45px,78px) minmax(0,1fr) 18px;gap:8px;
+ align-items:center;width:100%;min-height:40px;
+ border:0;border-bottom:1px solid #4b535a;
+ padding:9px 12px;text-align:left;background:#363c43;color:#e0e6ea;
+ font-family:"DM Sans",Arial,sans-serif;cursor:pointer;
+}
+.pb-split-choice:hover{background:#485560}
+.pb-split-choice.active{color:#f6de62;background:#414347}
+.pb-split-code{font-size:10px;font-weight:750;color:#bbcad4;overflow:hidden;text-overflow:ellipsis}
+.pb-split-longname{font-size:11px;font-weight:550;overflow-wrap:anywhere;line-height:1.4}
+.pb-split-choice.active .pb-split-code,.pb-split-choice.active .pb-split-longname{color:#f2df59;font-weight:750}
+.pb-split-check{font-size:14px;color:#f2d45d;text-align:right}
+.pb-split-install{
+ border:0;border-top:1px solid #67747d;background:#253c4e;color:#e1f1ff;
+ padding:10px;font-size:11px;font-weight:750;cursor:pointer;
+}
+.pb-split-install:hover{background:#205e7f}
+@media(max-width:720px){
+ .reader-active .reader-screen:has(.pb-study-split){padding:0}
+ .pb-study-split{height:calc(100dvh - 177px);min-height:360px;width:100%;
+  border-radius:0;border-left:0;border-right:0}
+ .pb-split-bar{padding:0 3px}
+ .pb-split-selector{max-width:41%;min-width:66px;padding:4px 5px;font-size:10px}
+ .pb-split-ref{font-size:10px}
+ .pb-split-toolbar-actions button{min-width:24px;height:29px;font-size:17px}
+ .pb-split-toolbar-actions button:nth-child(3),.pb-split-toolbar-actions button:nth-child(4){display:none}
+ .pb-split-scroll{padding:0 12px 16px}
+ .pb-split-heading{padding:9px 0}
+ .pb-split-heading strong{font-size:11px}
+ .pb-split-heading span{font-size:9px}
+ .pb-split-entry-text{font-size:12px;line-height:1.8}
+ .pb-split-choice{grid-template-columns:62px minmax(0,1fr) 17px}
+ .pb-split-longname{font-size:11px}
+ .pb-split-picker{max-height:calc(100% - 39px)}
+}
+@media(max-width:370px){
+ .pb-split-toolbar-actions button:nth-child(1),.pb-split-toolbar-actions button:nth-child(2){min-width:21px}
+ .pb-split-selector{max-width:37%}
+ .pb-split-heading span{display:none}
+}
