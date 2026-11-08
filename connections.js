@@ -122,7 +122,7 @@ function init(opts){
   }
   if(e.target.closest("[data-strong]"))return;
   var verse=e.target.closest("#chapter-body [data-verse]");
-  if(verse)open("verse",verse.dataset.verse,"",verse);
+  if(verse&&(!config.shouldOpenVersePanel||config.shouldOpenVersePanel()))open("verse",verse.dataset.verse,"",verse);
  },true);
  document.addEventListener("keydown",function(e){
   if(e.key==="Escape"){close();return;}
