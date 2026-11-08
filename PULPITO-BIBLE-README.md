@@ -340,3 +340,17 @@ A pedido do usuário, o comportamento de dicionários que antes ocupava uma colu
 - Testes automatizados simulados verificaram início com dicionário ativo, início com comentários ativos, troca de módulo com preservação do termo, retorno aos comentários sem remover a estrutura pré-existente, e parsing do JavaScript.
 
 A implantação é automática se o Render receber o evento de push; o estado da publicação deve ser confirmado separadamente.
+
+
+## Indicadores de comentários por versículo e gesto de pressão longa
+
+- **Pressionar um versículo por aproximadamente 0,56 s** abre **Escolher comentário**, uma lista contextual com apenas os módulos instalados que realmente possuem comentários relacionados àquele versículo. Em computadores, o menu também pode abrir com o botão direito do mouse. O movimento de rolagem cancela o gesto para não abrir o menu inadvertidamente.
+- **Etiqueta pequena “▤ Coment.”** é exibida ao lado do texto somente para versículos com comentários encontrados. Quando há mais de um comentário, aparece a quantidade. Versículos sem comentários ficam sem a etiqueta.
+- **Dois toques na etiqueta** abrem diretamente o comentário da passagem na janela inferior já existente. Primeiro é preferido o módulo de comentário selecionado anteriormente, caso tenha conteúdo nessa referência; caso contrário, escolhe-se o primeiro módulo com resultado.
+- **Pressão longa e escolha de um módulo** atualiza o comentário inferior, a referência e o módulo ativo, sem recriar a Bíblia quando o leitor já está em modo dividido. A lista inclui acesso a Módulos para instalar outras obras.
+- **Acessibilidade:** foco por teclado e Enter/Espaço ativam a etiqueta; rótulos identificam a referência e o número de comentários. O gesto de toque normal numa palavra continua abrindo o dicionário.
+- **Performance:** \`PBModules.getCommentaryCoverage(book, chapter, verseNumbers)\` percorre o índice por capítulo uma vez para cada módulo instalado, em vez de consultar IndexedDB individualmente para todos os versículos. O cursor não fica limitado aos 180 primeiros registros de capítulos grandes (como Champlin). O filtro por intervalo de versículos é compartilhado com \`getCommentaries\`.
+- **Compatibilidade:** o IndexedDB existente, os módulos, anotações e marcações não são substituídos. A decoração é assíncrona e descarta resultados de capítulos antigos quando o usuário navega rapidamente. O script \`verse-comments.js\` roda antes de \`app-core.js\` para tratar a pressão longa sem disparar a consulta normal da palavra.
+- **Validação:** testes simulados das faixas dos comentários e de capítulos com mais de 180 linhas; teste dos marcadores nos versículos que efetivamente possuem comentários; toque duplo com abertura direta e pressão longa com abertura de menu; carregamento do aplicativo com a toolbar e leitor.
+
+O comportamento final de toque/pressão longa deve ser conferido no aparelho do usuário, pois Safari e Android podem diferir na exibição do menu de seleção nativo. Nenhum comentário é incluído no código; somente módulos legalmente instalados localmente alimentam as etiquetas.
