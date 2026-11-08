@@ -73,7 +73,8 @@
   window.addEventListener("appinstalled",function(){button.hidden=true;});
   if("serviceWorker" in navigator){
     window.addEventListener("load",function(){
-      navigator.serviceWorker.register("/pulpito-sw.js",{scope:"/"})
+      navigator.serviceWorker.register("/pulpito-sw.js",{scope:"/",updateViaCache:"none"})
+        .then(function(registration){registration.update().catch(function(){});})
         .catch(function(error){console.warn("Não foi possível registrar o modo instalável:",error);});
     });
   }
