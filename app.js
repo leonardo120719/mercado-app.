@@ -105,10 +105,17 @@ async function getCommentaryCoverage(book,chapter,verseNumbers){
  }));
  return coverage;
 }
-function renderVerse(raw,book,showStrong){var source=String(raw||"");var pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
- function chunk(str){return clean(str.replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&"));}
- while((match=pattern.exec(source))!==null){output+=chunk(source.slice(position,match.index));var prefix=canonical.indexOf(book)<39?"H":"G";var code=prefix+Number(match[1]);if(showStrong){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'">'+code+'</button>';}position=match.index+match[0].length;}
- output+=chunk(source.slice(position));return output;}
+function renderVerse(raw,book,showStrong){
+ var source=String(raw||""),pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
+ function rawChunk(str){return String(str||"").replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"');}
+ function chunk(str,strongCode){
+  var plain=rawChunk(str),tokens=Array.from(plain.matchAll(/[\p{L}\p{M}]+(?:[’'-][\p{L}\p{M}]+)*/gu));
+  if(strongCode&&tokens.length){var token=tokens[tokens.length-1],word=token[0],start=token.index;return clean(plain.slice(0,start))+'<span class="pb-linked-word pb-strong-word" data-pb-word="'+clean(word)+'" data-pb-strong="'+clean(strongCode)+'" role="button" tabindex="0" title="Consultar '+clean(word)+' no Strong '+clean(strongCode)+'">'+clean(word)+'</span>'+clean(plain.slice(start+word.length));}
+  return clean(plain);
+ }
+ while((match=pattern.exec(source))!==null){var prefix=canonical.indexOf(book)<39?"H":"G",code=prefix+Number(match[1]);output+=chunk(source.slice(position,match.index),code);if(showStrong)output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'" title="Toque duas vezes para consultar '+code+'">'+code+'</button>';position=match.index+match[0].length;}
+ output+=chunk(source.slice(position),"");return output;
+}
 function filenameSlug(s){return String(s||"modulo").replace(/\.[^.]+$/,"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,58)||"modulo";}
 function recordSet(result){return (result||[]).flatMap(function(r){return r.values.map(function(values){var o={};r.columns.forEach(function(c,i){o[c.toLowerCase()]=values[i];});return o;});});}
 function getInfo(db){if(!recordSet(db.exec("SELECT name FROM sqlite_master WHERE type='table' AND lower(name)='info'")).length)return {};try{var rows=recordSet(db.exec("SELECT * FROM info")),obj={};rows.forEach(function(r){obj[String(r.name||r.key||"").toLowerCase()]=String(r.value||"");});return obj;}catch(e){return {};}}
@@ -801,40 +808,17 @@ global.PBWindowUI={mount:mount,activate:applyTab};
 ;
 (function(global){
 "use strict";
-var config=null,requestId=0,selectedContext=null,initialized=false;
+var config=null,requestId=0,selectedContext=null,initialized=false,lastBibleTap=null,lastBibleActivation={node:null,at:0};
 function escapeHtml(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function wrapHtml(html){
  var tags=String(html||"").split(/(<[^>]*>)/g),stack=[];
- function wrapChunk(text){
-  return text.split(/(&(?:#\d+|#x[0-9a-f]+|[a-z]+);)/gi).map(function(fragment){
-   if(/^&(?:#\d+|#x[0-9a-f]+|[a-z]+);$/i.test(fragment))return fragment;
-   return fragment.replace(/[\p{L}\p{M}]+(?:[’'-][\p{L}\p{M}]+)*/gu,function(word){
-    return '<span class="pb-linked-word" data-pb-word="'+escapeHtml(word)+'" role="button" tabindex="0" title="Consultar palavra nos dicionários e comentários">'+word+'</span>';
-   });
-  }).join("");
- }
- return tags.map(function(part){
-  if(part.charAt(0)==="<"){
-   if(/^<\s*\//.test(part)){if(stack.length)stack.pop();return part;}
-   var m=/^<\s*([a-z][\w-]*)/i.exec(part);
-   if(m&&!/\/\s*>$/.test(part)&&!["br","hr","img","input","meta"].includes(m[1].toLowerCase())){
-    stack.push(m[1].toLowerCase()==="button"||m[1].toLowerCase()==="a"||/strong-word/.test(part));
-   }
-   return part;
-  }
-  return stack.some(Boolean)?part:wrapChunk(part);
- }).join("");
+ function wrapChunk(text){return text.split(/(&(?:#\d+|#x[0-9a-f]+|[a-z]+);)/gi).map(function(fragment){if(/^&(?:#\d+|#x[0-9a-f]+|[a-z]+);$/i.test(fragment))return fragment;return fragment.replace(/[\p{L}\p{M}]+(?:[’'-][\p{L}\p{M}]+)*/gu,function(word){return '<span class="pb-linked-word" data-pb-word="'+escapeHtml(word)+'" role="button" tabindex="0" title="Toque duas vezes para consultar nos dicionários">'+word+'</span>';});}).join("");}
+ return tags.map(function(part){if(part.charAt(0)==="<"){if(/^<\s*\//.test(part)){if(stack.length)stack.pop();return part;}var m=/^<\s*([a-z][\w-]*)/i.exec(part);if(m&&!/\/\s*>$/.test(part)&&!["br","hr","img","input","meta"].includes(m[1].toLowerCase()))stack.push(m[1].toLowerCase()==="button"||m[1].toLowerCase()==="a"||/strong-word|data-pb-word|data-strong/.test(part));return part;}return stack.some(Boolean)?part:wrapChunk(part);}).join("");
 }
-function explicitStrongLinks(raw){
- var s=String(raw||""),out="",last=0,m,re=/\b([GH])0*(\d{1,5})\b/gi;
- while((m=re.exec(s))!==null){
-  out+=escapeHtml(s.slice(last,m.index));
-  var code=m[1].toUpperCase()+Number(m[2]);
-  out+='<button type="button" class="pb-context-strong" data-strong="'+code+'">'+code+'</button>';
-  last=m.index+m[0].length;
- }
- return out+escapeHtml(s.slice(last));
-}
+var FALLBACK_LINK_BOOKS=["Gênesis","Genesis","Gn","Gen","Êxodo","Exodo","Êx","Ex","Levítico","Levitico","Lv","Lev","Números","Numeros","Nm","Num","Deuteronômio","Deuteronomio","Dt","Deut","Josué","Josue","Js","Josh","Juízes","Juizes","Jz","Judges","Rute","Rt","Ruth","1 Samuel","1Sam","1Sm","2 Samuel","2Sam","2Sm","1 Reis","1Rs","2 Reis","2Rs","1 Crônicas","1 Cronicas","1Cr","2 Crônicas","2 Cronicas","2Cr","Esdras","Ed","Ezra","Neemias","Ne","Neh","Ester","Est","Et","Esther","Jó","Job","Salmos","Salmo","Sl","Ps","Provérbios","Proverbios","Pv","Prov","Eclesiastes","Ec","Eccl","Cânticos","Canticos","Cantares","Ct","Song of Solomon","Isaías","Isaias","Is","Isa","Jeremias","Jr","Jer","Lamentações","Lamentacoes","Lm","Lam","Ezequiel","Ez","Ezek","Daniel","Dn","Dan","Oseias","Oséias","Os","Hos","Joel","Jl","Amós","Amos","Am","Obadias","Ob","Jonas","Jn","Jon","Miqueias","Miquéias","Mq","Mic","Naum","Na","Nah","Habacuque","Hc","Hab","Sofonias","Sf","Zep","Ageu","Ag","Hag","Zacarias","Zc","Zech","Malaquias","Ml","Mal","Mateus","Mt","Matt","Marcos","Mc","Mk","Lucas","Lc","Lk","João","Jo","John","Atos","At","Acts","Romanos","Rm","Rom","1 Coríntios","1 Corintios","1Co","2 Coríntios","2 Corintios","2Co","Gálatas","Galatas","Gl","Gal","Efésios","Efesios","Ef","Eph","Filipenses","Fp","Phil","Colossenses","Cl","Col","1 Tessalonicenses","1 Tess","1Ts","2 Tessalonicenses","2 Tess","2Ts","1 Timóteo","1 Timoteo","1Tm","2 Timóteo","2 Timoteo","2Tm","Tito","Tt","Tit","Filemom","Fm","Phm","Hebreus","Hb","Heb","Tiago","Tg","Jas","1 Pedro","1Pe","2 Pedro","2Pe","1 João","1Jo","2 João","2Jo","3 João","3Jo","Judas","Jd","Jude","Apocalipse","Ap","Rev"];
+function escapeRegex(value){return String(value).replace(/[.*+?^$()|[\]\\]/g,"\\$&").replace(/\s+/g,"\\s+");}
+function linkifyText(value){var raw=String(value==null?"":value),aliases=FALLBACK_LINK_BOOKS.slice();if(config&&typeof config.getBookAliases==="function")aliases=aliases.concat(config.getBookAliases()||[]);aliases=Array.from(new Set(aliases.filter(Boolean))).sort(function(a,b){return b.length-a.length;});var booksPattern=aliases.map(escapeRegex).join("|");var re=new RegExp("(^|[^A-Za-z0-9À-ÿ])((?:[GH]\\s*0*\\d{1,5})|(?:"+booksPattern+")\\s+\\d{1,3}(?:(?::|\\.)\\s*\\d{1,3}(?:\\s*[-–—]\\s*\\d{1,3})?)?)","gi");var out="",cursor=0,match;while((match=re.exec(raw))!==null){var start=match.index+match[1].length,token=match[2],strong=/^[GH]/i.test(token);out+=escapeHtml(raw.slice(cursor,start));if(strong){var code=token.replace(/\s+/g,"").toUpperCase().replace(/^([GH])0+/,"$1");out+='<button type="button" class="pb-dict-inline-link" data-pb-study-link="strong" data-strong-code="'+escapeHtml(code)+'" title="Abrir léxico Strong '+escapeHtml(code)+'">'+escapeHtml(code)+'</button>';}else{out+='<button type="button" class="pb-dict-inline-link" data-pb-study-link="reference" data-reference="'+escapeHtml(token)+'" title="Abrir '+escapeHtml(token)+' na Bíblia">'+escapeHtml(token)+'</button>';}cursor=match.index+match[0].length;}return out+escapeHtml(raw.slice(cursor));}
+function explicitStrongLinks(raw){return linkifyText(raw);}
 function close(){requestId++;selectedContext=null;var element=document.getElementById("pb-connected-panel");if(element)element.remove();}
 function verseCodes(verse){
  var found=new Set();
@@ -901,43 +885,31 @@ function open(kind,verse,word,anchor){
   }).join(""),seq);
  }).catch(function(e){drawResults("pb-connected-commentaries",'<p class="feature-note">Falha ao consultar comentários: '+escapeHtml(e.message||String(e))+'</p>',seq);});
 }
-function init(opts){
- config=opts||{};
- if(initialized)return;
- initialized=true;
- document.addEventListener("click",function(e){
-  var closeBtn=e.target.closest("[data-pb-close]");
-  if(closeBtn){e.preventDefault();close();return;}
-  var note=e.target.closest("[data-pb-note]");
-  if(note){e.preventDefault();if(config.onNote)config.onNote(selectedContext);return;}
-  var sermon=e.target.closest("[data-pb-sermon]");
-  if(sermon){e.preventDefault();if(config.onSermon)config.onSermon(selectedContext);return;}
-  var comment=e.target.closest("[data-pb-comment]");
-  if(comment){e.preventDefault();var row=selectedContext&&selectedContext.comments&&selectedContext.comments[Number(comment.dataset.pbComment)];if(row&&config.onComment)config.onComment(row,selectedContext);return;}
-  var word=e.target.closest("[data-pb-word]");
-  if(word){
-   e.preventDefault();e.stopImmediatePropagation();
-   var parent=word.closest("[data-verse]");
-   var wordVerse=parent?parent.dataset.verse:null;
-   if(config.onWord&&config.onWord(word.dataset.pbWord,wordVerse,word)===true)return;
-   open("word",wordVerse,word.dataset.pbWord,word);
-   return;
-  }
-  if(e.target.closest("[data-strong]"))return;
-  var verse=e.target.closest("#chapter-body [data-verse]");
-  if(verse&&(!config.shouldOpenVersePanel||config.shouldOpenVersePanel()))open("verse",verse.dataset.verse,"",verse);
- },true);
- document.addEventListener("keydown",function(e){
-  if(e.key==="Escape"){close();return;}
-  if((e.key==="Enter"||e.key===" ")&&e.target&&e.target.dataset&&e.target.dataset.pbWord){
-   e.preventDefault();e.stopImmediatePropagation();
-   var parent=e.target.closest("[data-verse]"),verse=parent?parent.dataset.verse:null;
-   if(config.onWord&&config.onWord(e.target.dataset.pbWord,verse,e.target)===true)return;
-   open("word",verse,e.target.dataset.pbWord,e.target);
-  }
- },true);
+function activateBibleLink(node){
+ var verseNode=node&&node.closest?node.closest("#chapter-body [data-verse]"):null,verse=verseNode?Number(verseNode.dataset.verse):null;
+ var strongId=node.dataset.pbStrong||node.dataset.strong||"",word=String(node.dataset.pbWord||node.textContent||"").trim();
+ if(strongId){if(config&&config.onStrong&&config.onStrong(strongId,word,verse,node)===true)return;open("strong",verse,strongId,node);return;}
+ if(config&&config.onWord&&config.onWord(word,verse,node,"")===true)return;open("word",verse,word,node);
 }
-global.PBConnections={init:init,wrapHtml:wrapHtml,open:open,close:close};
+function activateStudyLink(node){var kind=node.dataset.pbStudyLink;if(kind==="reference"){if(config&&config.onStudyReference){config.onStudyReference(node.dataset.reference||"",node);return;}open("verse",0,"",node);return;}if(kind==="strong"){var code=node.dataset.strongCode||"";if(config&&config.onStudyStrong){config.onStudyStrong(code,node);return;}open("strong",0,code,node);}}
+function init(opts){
+ config=opts||{};if(initialized)return;initialized=true;
+ document.addEventListener("click",function(e){
+  var closeBtn=e.target.closest("[data-pb-close]");if(closeBtn){e.preventDefault();close();return;}
+  var note=e.target.closest("[data-pb-note]");if(note){e.preventDefault();if(config.onNote)config.onNote(selectedContext);return;}
+  var sermon=e.target.closest("[data-pb-sermon]");if(sermon){e.preventDefault();if(config.onSermon)config.onSermon(selectedContext);return;}
+  var comment=e.target.closest("[data-pb-comment]");if(comment){e.preventDefault();var row=selectedContext&&selectedContext.comments&&selectedContext.comments[Number(comment.dataset.pbComment)];if(row&&config.onComment)config.onComment(row,selectedContext);return;}
+  var studyLink=e.target.closest("[data-pb-study-link]");if(studyLink){e.preventDefault();e.stopImmediatePropagation();activateStudyLink(studyLink);return;}
+  var bibleLink=e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");
+  if(bibleLink){e.stopImmediatePropagation();var now=Date.now();if(lastBibleTap&&lastBibleTap.node===bibleLink&&now-lastBibleTap.at<=540){e.preventDefault();lastBibleTap=null;if(lastBibleActivation.node!==bibleLink||now-lastBibleActivation.at>700){lastBibleActivation={node:bibleLink,at:now};activateBibleLink(bibleLink);}}else lastBibleTap={node:bibleLink,at:now};return;}
+  lastBibleTap=null;var word=e.target.closest("[data-pb-word]");if(word){e.stopImmediatePropagation();return;}
+  if(e.target.closest("[data-strong]"))return;
+  var verse=e.target.closest("#chapter-body [data-verse]");if(verse&&(!config.shouldOpenVersePanel||config.shouldOpenVersePanel()))open("verse",verse.dataset.verse,"",verse);
+ },true);
+ document.addEventListener("dblclick",function(e){var bibleLink=e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");if(!bibleLink)return;e.preventDefault();e.stopImmediatePropagation();if(lastBibleActivation.node===bibleLink&&Date.now()-lastBibleActivation.at<700)return;lastBibleTap=null;lastBibleActivation={node:bibleLink,at:Date.now()};activateBibleLink(bibleLink);},true);
+ document.addEventListener("keydown",function(e){if(e.key==="Escape"){close();return;}if(e.key!=="Enter"&&e.key!==" ")return;var studyLink=e.target.closest&&e.target.closest("[data-pb-study-link]");if(studyLink){e.preventDefault();e.stopImmediatePropagation();activateStudyLink(studyLink);return;}var bibleLink=e.target.closest&&e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");if(bibleLink){e.preventDefault();e.stopImmediatePropagation();lastBibleActivation={node:bibleLink,at:Date.now()};activateBibleLink(bibleLink);}},true);
+}
+global.PBConnections={init:init,wrapHtml:wrapHtml,linkifyText:linkifyText,open:open,close:close};
 })(window);
 
 ;
