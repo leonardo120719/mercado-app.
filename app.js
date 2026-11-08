@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261108-strong-doubleclick-autoupdate-1";
+window.PB_BUILD_ID = "pb-20261108-strong-doubleclick-autoupdate-2";
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
