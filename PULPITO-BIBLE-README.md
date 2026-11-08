@@ -239,3 +239,19 @@ A importação original só reconhecia \`verses\` e \`commentaries\`. Os léxico
 - Arquivos que contenham **somente** tabela \`words\` (mapeamento de variantes de palavras) são identificados com mensagem específica, mas ainda requerem o dicionário \`dictionary\` correspondente.
 
 O diagnóstico se baseia no erro exibido em uma captura de tela, não na análise do ZIP específico do usuário. Compatibilidade integral só pode ser confirmada após testar o arquivo real. Referências: https://mybible.zone/android/tips/modules/dictionary-modules/ e https://mybible.zone/doers/
+
+
+## Estudo conectado — palavras, léxicos Strong e comentários por versículo
+
+O fluxo de leitura tem integração cruzada (11/2026), preservando a navegação horizontal sem restaurar menu lateral:
+
+1. **Toque na palavra portuguesa:** o leitor consulta verbetes pela grafia exata, sem inventar um código Strong. Abre um painel inferior com os resultados dos dicionários instalados e os comentários de módulos vinculados ao versículo onde a palavra aparece.
+2. **Toque em um versículo:** a barra contextual segue funcionando para copiar, marcar, compartilhar e anotar. Além disso, surge um painel inferior com os comentários instalados para a referência e as definições de códigos Strong *efetivamente etiquetados* no versículo (módulo MyBible ou correspondências previamente verificadas).
+3. **Toque em Strong:** a janela Strong existente passa a incluir também os comentários dos módulos ligados ao versículo, além dos verbetes dos dicionários instalados.
+4. **Do painel ao sermão:** é possível inserir a referência, a palavra pesquisada e trechos integrais de comentários no contexto do Criador de Sermões; o usuário pode anotar a passagem diretamente.
+5. **Referências explícitas nos verbetes e comentários:** padrões G/H seguidos de número tornam-se botões para consultar o Strong correspondente, sem sugerir morfologia não verificada.
+6. **Sem coluna lateral:** o painel usa uma janela inferior responsiva, fechável, sem alterar a estrutura da barra superior ou excluir os recursos anteriores.
+
+**Arquitetura:** \`connections.js\` implementa o subsistema de estudo conectado, delegado por eventos e carregado no bundle na ordem \`modules.js\` → \`toolbar-store.js\` → \`connections.js\` → \`app-core.js\`. O código escapa o texto importado e não executa marcação HTML de comentários. A instalação de módulos continua armazenada em IndexedDB.
+
+**Limites:** verbetes portugueses usam pesquisa exata (não há lematizador, stemming nem ligação automática confiável entre todas as palavras em português e grego/hebraico). Os códigos Strong aparecem apenas quando fornecidos por um módulo ou vinculados por amostras verificadas. Comentários abrangentes/intervalos dependem do formato e dos metadados do módulo instalado. O funcionamento com os arquivos reais do usuário exige validação no navegador em que foram importados.
