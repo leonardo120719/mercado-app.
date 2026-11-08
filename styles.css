@@ -174,3 +174,109 @@
 .reader-paper.second .reader-paper-head{flex-wrap:wrap}
 @media(max-width:850px){.module-catalog{grid-template-columns:1fr}}
 @media(max-width:720px){.module-library{padding:19px 13px}.module-upload{min-height:145px}.module-catalog-item{flex-direction:column;gap:8px}.module-catalog-item .chip{align-self:flex-start}}
+
+
+/* Contextual toolbar. Designed as a self-contained, mobile-first MyBible-style
+   instrument panel. No scroll listeners and no layout shift on verse scrolling. */
+.reader-active .reader-commandbar{display:none!important}
+.reader-active .reader-searchline{display:none}
+.reader-active .reader-searchline.search-open{display:flex;animation:pbFadeIn .14s ease}
+@keyframes pbFadeIn{from{opacity:0}to{opacity:1}}
+.reader-active .reader-screen{padding-top:0}
+.pb-global-toolbar{position:sticky;top:57px;z-index:35;background:#2e3237;color:#f3f5f5;box-shadow:0 4px 18px #0b1e2b2b;border-bottom:2px solid #15577a;font-family:"DM Sans",sans-serif;max-width:1260px;margin:0 auto;width:100%;border-radius:0 0 6px 6px}
+.mtb-primary{display:flex;align-items:stretch;justify-content:space-between;gap:5px;min-height:43px;min-width:0}
+.mtb-navigate,.mtb-actions{display:flex;align-items:center;gap:1px;min-width:0}
+.mtb-navigate{flex:1}
+.mtb-actions{flex-shrink:0}
+.mtb-select{background:#41464b;color:#f4f7f9;border:1px solid #5a6166;border-radius:0;height:40px;padding:0 5px;font-size:11px;font-weight:650;min-width:0;box-sizing:border-box}
+.mtb-version{width:92px;flex-shrink:0;color:#f3d479}
+.mtb-book{width:min(155px,30vw);flex:1}
+.mtb-chapter{width:59px;flex-shrink:0}
+.mtb-button{border:1px solid #50575b;background:#41464b;color:#f7f8fa;border-radius:0;padding:4px 9px;min-width:44px;height:40px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;white-space:nowrap;font-family:inherit}
+.mtb-button:hover,.mtb-button:focus-visible{background:#155172;color:white}
+.mtb-glyph{font-family:Georgia,serif;font-size:18px;line-height:20px;font-weight:700}
+.mtb-label{font-size:9px;line-height:12px;font-weight:600;color:#d0d7dd}
+.mtb-compact{min-width:33px;padding:3px 7px}
+.mtb-compact .mtb-glyph{font-size:24px}
+.mtb-compact .mtb-label{display:none}
+.mtb-mode-strip{display:flex;gap:5px;align-items:center;padding:5px 10px 6px;border-top:1px solid #505961;min-height:34px}
+.mtb-mode-strip button,.mtb-menu-modes button{border:0;border-radius:4px;padding:6px 12px;background:#41464b;color:#dae2e8;font-size:10px;font-weight:750}
+.mtb-mode-strip button.active,.mtb-menu-modes button.active{color:#112c43;background:#f0ca81}
+.mtb-mode-strip .mtb-mode-hint{font-size:10px;color:#b3bdc2;margin-left:auto}
+.mtb-menu{position:absolute;right:4px;top:100%;background:#34373c;color:#f3f5f6;width:min(390px,calc(100vw - 18px));box-shadow:0 14px 45px #15253288;border-radius:0 0 12px 12px;max-height:min(68dvh,620px);overflow:auto;z-index:40;border:1px solid #5b6267;padding:12px}
+.mtb-menu-head{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;margin-bottom:10px}
+.mtb-menu-modes{display:flex;gap:5px;margin-bottom:12px}
+.mtb-menu-modes button{flex:1}
+.mtb-menu-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px}
+.mtb-menu-grid .mtb-button{height:56px;border-radius:3px}
+.mtb-menu-prefs{margin-top:10px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px}
+.mtb-menu-prefs label{display:flex;align-items:center;gap:5px;padding:8px 6px;font-size:11px;color:#e8eced;background:#41474b;cursor:pointer}
+.mtb-menu-prefs input{accent-color:#1ca6d4;min-width:16px;width:16px;height:16px}
+.mtb-font-row{margin-top:12px;display:flex;justify-content:center;align-items:center;gap:8px}
+.mtb-font-row span{font-size:11px;margin-right:auto}
+.mtb-font-row strong{font-size:12px}
+.mtb-selection{display:flex;align-items:center;gap:3px;min-height:48px;padding:3px 7px;overflow-x:auto}
+.mtb-count{font-size:11px;font-weight:800;color:#f8d88d;padding:0 10px;white-space:nowrap}
+.pb-mode-selection .mtb-button{flex:1;min-width:65px}
+.mtb-palette{display:flex;gap:10px;align-items:center;justify-content:center;padding:9px;border-top:1px solid #555d62}
+.mtb-palette [data-toolbar-color]:not(.mtb-remove-color){height:29px;width:29px;border-radius:50%;background:var(--swatch);border:2px solid white;box-shadow:0 0 0 1px #6d7a80}
+.mtb-palette .mtb-remove-color{background:#444b50;border:1px solid #666;color:#e9edf0;padding:7px;font-size:10px;border-radius:6px}
+.reader-scripture .verse-line.highlighted{background:linear-gradient(to top,var(--verse-mark,transparent) 58%,transparent 58%);box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.reader-scripture .verse-line.selected{background:#ffe8a186;box-shadow:inset 0 -2px #bb8624}
+.pb-hide-verse-numbers .reader-scripture .verse-num{display:none!important}
+.reader-scripture .strong-badge{font-size:10px!important;color:#247d59!important;background:transparent!important;border:0!important;box-shadow:none!important;vertical-align:super!important;margin:0 2px!important;padding:0!important;font-weight:750!important;line-height:1!important}
+.reader-scripture .strong-word{border-bottom:0}
+.reader-scripture .strong-word:hover{text-decoration:underline;color:#247d59}
+.mtb-fullscreen{position:fixed;right:14px;top:calc(env(safe-area-inset-top,0px) + 8px);z-index:130;max-width:220px}
+.mtb-float{border-radius:10px;background:#164d70;box-shadow:0 5px 18px #0828396e;width:48px;height:48px}
+.mtb-fullmenu{position:absolute;right:0;top:53px;background:#353b3f;box-shadow:0 10px 35px #10253466;border-radius:8px;padding:6px;min-width:160px;display:flex;flex-direction:column;gap:4px}
+.mtb-fullmenu .mtb-button{height:43px;flex-direction:row;justify-content:flex-start;gap:8px}
+.mtb-fullmenu .mtb-label{font-size:11px}
+body.pb-fullscreen .sidebar,body.pb-fullscreen .topbar,body.pb-fullscreen .app-footer{display:none!important}
+body.pb-fullscreen .workarea{width:100%;max-width:none}
+body.pb-fullscreen .reader-screen{width:100%;max-width:none;padding-top:0}
+body.pb-fullscreen .reader-searchline{display:none}
+body.pb-fullscreen .reader-paper{max-width:1200px;margin:0 auto}
+body.pb-fullscreen .reader-actiondock{position:fixed;bottom:0;left:0;right:0;max-width:none}
+body.pb-fullscreen .pb-global-toolbar{position:static;box-shadow:none}
+body.pb-fullscreen .pb-global-toolbar.pb-mode-fullscreen{height:0;border:0}
+body.pb-fullscreen .reader-columns{padding-bottom:70px}
+body.pb-fullscreen .reader-paper{border-radius:0}
+body.pb-fullscreen .reader-scripture{padding-top:35px}
+@media(max-width:1000px){
+ .pb-global-toolbar{top:57px}
+ .mtb-navigate{min-width:205px}
+ .mtb-version{width:70px}
+ .mtb-book{width:min(130px,21vw)}
+ .mtb-actions .mtb-label{display:none}
+ .mtb-actions .mtb-button{min-width:36px}
+}
+@media(max-width:720px){
+ .pb-global-toolbar{top:51px;border-radius:0}
+ .mtb-primary{gap:0;min-height:41px}
+ .mtb-select{height:38px;font-size:10px}
+ .mtb-version{width:55px}
+ .mtb-book{width:74px;max-width:31vw}
+ .mtb-chapter{width:46px}
+ .mtb-navigate{flex:1;min-width:0}
+ .mtb-navigate .mtb-compact{min-width:25px}
+ .mtb-actions .mtb-button{min-width:30px;padding:2px 5px;height:38px}
+ .mtb-glyph{font-size:17px}
+ .mtb-mode-strip{padding:4px 6px}
+ .mtb-mode-strip button{padding:5px 9px}
+ .mtb-mode-hint{display:none}
+ .mtb-count{padding:0 4px}
+ .pb-mode-selection .mtb-button{min-width:49px;padding:4px 6px}
+ .pb-mode-selection .mtb-label{font-size:8px}
+ .mtb-menu{max-height:76dvh;right:0}
+ .mtb-menu-grid .mtb-label{display:block}
+ .reader-active .reader-paper-head{padding:10px 13px}
+ .reader-active .reader-searchline.search-open{display:flex}
+}
+@media(max-width:360px){
+ .mtb-version{width:48px}
+ .mtb-book{max-width:28vw}
+ .mtb-navigate .mtb-compact:nth-last-child(-n+2){display:none}
+ .mtb-actions .mtb-button{min-width:27px}
+ .mtb-mode-strip button{padding:5px 7px;font-size:9px}
+}
