@@ -280,3 +280,73 @@ body.pb-fullscreen .reader-scripture{padding-top:35px}
  .mtb-actions .mtb-button{min-width:27px}
  .mtb-mode-strip button{padding:5px 7px;font-size:9px}
 }
+
+
+/* Layout V3: all navigation lives in the fixed-width-free top bar.
+   A compact top dropdown is used instead of the legacy left sidebar. */
+.pb-top-shell{--pb-header-size:98px;display:block;width:100%;min-height:100dvh}
+.pb-top-shell .workarea{min-height:100dvh;width:100%;max-width:none}
+.pb-top-shell .topbar,.reader-active .pb-top-shell .topbar{
+ position:sticky;top:0;z-index:60;
+ display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+ gap:0;width:100%;height:var(--pb-header-size);padding:0;
+ background:#0b3152;color:#f7fafc;border-bottom:1px solid #34556e;
+ box-shadow:0 2px 14px #071b2d18;
+}
+.pb-top-shell .topbar-main{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;height:52px;min-height:52px;padding:0 clamp(10px,2.3vw,28px);border-bottom:1px solid #ffffff25}
+.pb-top-shell .top-brand{display:flex;gap:9px;align-items:center;flex-shrink:0;text-decoration:none;color:#f8fafc;font-size:14px;font-weight:700;letter-spacing:.055em}
+.pb-top-shell .top-brand-icon{width:29px;height:29px;display:grid;place-items:center;border:1px solid #cdad71;border-radius:8px;color:#ebc985;font-size:22px}
+.pb-top-shell .top-brand-word strong{color:#ebc985}
+.pb-top-shell .header-context{font-size:11px;color:#bcd0de;font-weight:600;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis;margin-left:auto}
+.pb-top-shell .header-tools{display:flex;align-items:center;gap:3px;flex-shrink:0}
+.pb-top-shell .header-action,.reader-active .pb-top-shell .header-action{border:0;background:transparent;color:#f0f6fb;border-radius:7px;min-width:32px;min-height:34px}
+.pb-top-shell .header-action:hover{background:#ffffff20}
+.pb-top-shell .top-menu-toggle{height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 11px;border:1px solid #68849a;background:#285576;color:#fff;border-radius:8px;font-size:13px;font-weight:700}
+.pb-top-shell .top-menu-toggle[aria-expanded="true"],.pb-top-shell .top-menu-toggle:hover{background:#39698a}
+.pb-top-shell .topnav{display:flex;align-items:center;gap:4px;width:100%;height:46px;min-height:46px;padding:5px clamp(8px,2vw,24px);overflow-x:auto;overflow-y:hidden;white-space:nowrap;scrollbar-width:thin;scrollbar-color:#708da0 transparent}
+.pb-top-shell .topnav .nav-item{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:0 0 auto;min-height:35px;height:35px;border:1px solid transparent;border-radius:7px;background:transparent;color:#cbd9e4;padding:6px 10px;font-size:11px;line-height:1.1;font-weight:650;white-space:nowrap}
+.pb-top-shell .topnav .nav-item:hover{background:#ffffff16;color:#fff}
+.pb-top-shell .topnav .nav-item.active{border-color:#d8b67675;background:#f3dfb617;color:#f7d58b;box-shadow:inset 0 -2px #e5ba67}
+.pb-top-shell .topnav .nav-icon{font-size:17px;width:19px;height:20px;line-height:20px;color:#d9bc81}
+.pb-top-shell .top-menu{position:absolute;right:8px;top:52px;width:min(465px,calc(100vw - 16px));background:#183d59;border:1px solid #53738a;box-shadow:0 14px 35px #021b31a8;border-radius:0 0 12px 12px;z-index:85;padding:14px;max-height:calc(100dvh - 70px);overflow-y:auto}
+.pb-top-shell .top-menu[hidden]{display:none!important}
+.pb-top-shell .top-menu-caption{font-size:10px;letter-spacing:.12em;font-weight:700;color:#c7d3da;margin-bottom:11px}
+.pb-top-shell .top-menu-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.pb-top-shell .top-menu-grid .nav-item{display:flex;align-items:center;justify-content:flex-start;gap:8px;width:100%;height:auto;min-height:45px;border:1px solid #53728a;background:#1c4666;color:#e9f2f6;border-radius:8px;padding:9px 10px;font-size:11px;font-weight:700;text-align:left}
+.pb-top-shell .top-menu-grid .nav-item.active{background:#efd39b24;border-color:#c6a56b;color:#f2d9a6}
+.pb-top-shell .top-menu-grid .nav-item:hover{background:#35617e}
+.pb-top-shell .top-menu-grid .nav-icon{width:24px;font-size:20px;flex-shrink:0;color:#e5be79}
+.pb-top-shell .app-footer{margin-left:clamp(12px,3vw,45px);margin-right:clamp(12px,3vw,45px)}
+.reader-active .pb-top-shell .reader-screen{width:100%;max-width:none}
+.reader-active .pb-top-shell .pb-global-toolbar{top:var(--pb-header-size);max-width:none;border-radius:0}
+.reader-active .pb-top-shell .reader-columns{max-width:1320px;width:100%;grid-template-columns:minmax(0,1fr)!important}
+.reader-active .pb-top-shell .reader-columns:has(.reader-paper.second){grid-template-columns:minmax(0,1fr)!important}
+.reader-active .pb-top-shell .reader-paper{max-width:1320px}
+.reader-active .pb-top-shell .reader-actiondock{max-width:1320px}
+.reader-active .pb-top-shell .reader-bottom-panels{max-width:1320px}
+.pb-top-shell .content{max-width:1430px;margin:0 auto;width:100%}
+body.pb-fullscreen .pb-top-shell .topbar{display:none!important}
+body.focus-reading .pb-top-shell .topbar{display:none!important}
+body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
+@media(max-width:720px){
+ .pb-top-shell{--pb-header-size:95px}
+ .pb-top-shell .topbar,.reader-active .pb-top-shell .topbar{height:var(--pb-header-size)}
+ .pb-top-shell .topbar-main{height:51px;min-height:51px;padding:0 9px;gap:6px}
+ .pb-top-shell .top-brand{font-size:11px;gap:5px;letter-spacing:0}
+ .pb-top-shell .top-brand-icon{height:26px;width:26px;font-size:19px}
+ .pb-top-shell .header-context{display:none}
+ .pb-top-shell .header-tools{gap:1px}
+ .pb-top-shell .header-action{min-height:31px;min-width:29px}
+ .pb-top-shell .top-menu-toggle{height:33px;padding:0 9px;font-size:14px}
+ .pb-top-shell .top-menu-toggle span{display:none}
+ .pb-top-shell .topnav{height:44px;min-height:44px;padding:4px 5px;gap:2px}
+ .pb-top-shell .topnav .nav-item{height:35px;min-height:35px;padding:6px 9px;font-size:10.5px}
+ .pb-top-shell .topnav .nav-icon{font-size:16px}
+ .pb-top-shell .top-menu{top:51px}
+ .reader-active .pb-top-shell .pb-global-toolbar{top:var(--pb-header-size)}
+}
+@media(max-width:365px){
+ .pb-top-shell .top-brand-word{font-size:10px}
+ .pb-top-shell .top-menu-grid{grid-template-columns:1fr}
+ .pb-top-shell .header-action{min-width:26px}
+}
