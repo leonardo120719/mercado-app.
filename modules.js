@@ -69,9 +69,9 @@ function normalizeDictionary(rows){
  if(!entries.size)throw Error("A tabela dictionary não contém verbetes válidos.");
  return {groups:Array.from(entries.values()),count:entries.size};
 }
-async function getDictionaryEntry(term){
+async function getDictionaryEntry(term,moduleId){
  var topic=dictTopic(term);if(!topic)return [];
- var db=await dbOpen(),selected=modules.filter(function(m){return m.type==="dictionary";});
+ var db=await dbOpen(),selected=modules.filter(function(m){return m.type==="dictionary"&&(!moduleId||m.id===moduleId);});
  var entries=await Promise.all(selected.map(async function(m){
   var row=await request(db.transaction("lexicon","readonly").objectStore("lexicon").get(m.id+"/"+topic));
   return row?{topic:row.original||row.topic,definition:row.definition,moduleId:m.id,moduleName:m.name,license:m.license}:null;
