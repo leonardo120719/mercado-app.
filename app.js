@@ -1505,6 +1505,7 @@ var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null,pendingComment
 var focusCommentVerse=0;
 var BOOK_LINK_ALIASES={};
 booksFallback.forEach(function(b){BOOK_LINK_ALIASES[b.name.toLocaleLowerCase("pt-BR")]=b.slug;BOOK_LINK_ALIASES[b.slug.replace(/-/g," ")]=b.slug;});
+booksFallback.forEach(function(b){var normalized=b.name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();BOOK_LINK_ALIASES[normalized]=b.slug;});
 Object.assign(BOOK_LINK_ALIASES,{"gn":"genesis","gen":"genesis","ex":"exodus","êx":"exodus","lv":"leviticus","lev":"leviticus","nm":"numbers","num":"numbers","dt":"deuteronomy","deut":"deuteronomy","js":"joshua","jz":"judges","rt":"ruth","1sm":"1-samuel","2sm":"2-samuel","1rs":"1-kings","2rs":"2-kings","1cr":"1-chronicles","2cr":"2-chronicles","ed":"ezra","ne":"nehemiah","et":"esther","jó":"job","sl":"psalms","ps":"psalms","pv":"proverbs","ec":"ecclesiastes","ct":"song-of-solomon","is":"isaiah","jr":"jeremiah","lm":"lamentations","ez":"ezekiel","dn":"daniel","os":"hosea","jl":"joel","am":"amos","ob":"obadiah","jn":"jonah","mq":"micah","na":"nahum","hc":"habakkuk","sf":"zephaniah","ag":"haggai","zc":"zechariah","ml":"malachi","mt":"matthew","matt":"matthew","mc":"mark","mk":"mark","lc":"luke","lk":"luke","jo":"john","at":"acts","rm":"romans","rom":"romans","1co":"1-corinthians","2co":"2-corinthians","gl":"galatians","ef":"ephesians","fp":"philippians","cl":"colossians","1ts":"1-thessalonians","2ts":"2-thessalonians","1tm":"1-timothy","2tm":"2-timothy","tt":"titus","fm":"philemon","hb":"hebrews","tg":"james","1pe":"1-peter","2pe":"2-peter","1jo":"1-john","2jo":"2-john","3jo":"3-john","jd":"jude","ap":"revelation","rev":"revelation","genesis":"genesis","exodus":"exodus","john":"john","psalms":"psalms","1 cor":"1-corinthians","2 cor":"2-corinthians","1 joão":"1-john","2 joão":"2-john","3 joão":"3-john","1 pedro":"1-peter","2 pedro":"2-peter"});
 var BOOK_ENGLISH_NAMES="Genesis|Exodus|Leviticus|Numbers|Deuteronomy|Joshua|Judges|Ruth|1 Samuel|2 Samuel|1 Kings|2 Kings|1 Chronicles|2 Chronicles|Ezra|Nehemiah|Esther|Job|Psalms|Proverbs|Ecclesiastes|Song of Solomon|Isaiah|Jeremiah|Lamentations|Ezekiel|Daniel|Hosea|Joel|Amos|Obadiah|Jonah|Micah|Nahum|Habakkuk|Zephaniah|Haggai|Zechariah|Malachi|Matthew|Mark|Luke|John|Acts|Romans|1 Corinthians|2 Corinthians|Galatians|Ephesians|Philippians|Colossians|1 Thessalonians|2 Thessalonians|1 Timothy|2 Timothy|Titus|Philemon|Hebrews|James|1 Peter|2 Peter|1 John|2 John|3 John|Jude|Revelation".split("|");
 BOOK_ENGLISH_NAMES.forEach(function(name,i){BOOK_LINK_ALIASES[name.toLowerCase()]=booksFallback[i].slug;});
@@ -2071,7 +2072,8 @@ function parseLinkedReference(raw){
  var q=String(raw||"").trim().replace(/\s+/g," "),m=/^(.+?)\s+(\d{1,3})(?:(?::|\.)\s*(\d{1,3})(?:\s*[-–—]\s*\d{1,3})?)?$/.exec(q);
  if(!m)return null;
  var alias=m[1].toLocaleLowerCase("pt-BR").replace(/\./g,"").trim();
- var slug=BOOK_LINK_ALIASES[alias]||alias.replace(/\s+/g,"-");
+ var normalizedAlias=alias.normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ var slug=BOOK_LINK_ALIASES[alias]||BOOK_LINK_ALIASES[normalizedAlias]||normalizedAlias.replace(/\s+/g,"-");
  var book=books.find(function(b){return b.slug===slug||b.name.toLocaleLowerCase("pt-BR")===alias;})||booksFallback.find(function(b){return b.slug===slug||b.name.toLocaleLowerCase("pt-BR")===alias;});
  if(!book)return null;
  var chapter=Number(m[2]),verse=Number(m[3]||0);
