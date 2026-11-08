@@ -142,3 +142,35 @@
 
 .reader-extras .comment-strong-badge{display:inline-block;background:#0d63be;color:#fff;font:700 10px "DM Sans",sans-serif;border:1px solid #0a4d9b;border-radius:5px;padding:3px 5px;vertical-align:middle;cursor:pointer;margin:0 2px}
 .reader-extras .comment-strong-badge:hover{background:#073d82}
+
+
+/* Biblioteca de módulos externos do Púlpito Bible */
+.module-library{padding-top:28px}
+.module-upload{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:9px;border:2px dashed #b5c8ce;border-radius:13px;padding:25px 18px;background:var(--paper);text-align:center;cursor:pointer;min-height:168px;color:var(--ink)}
+.module-upload:hover{border-color:var(--brand);background:var(--brand-soft)}
+.module-upload-icon{font-size:32px;color:var(--brand);height:35px;line-height:1}
+.module-upload strong{font-size:13px}
+.module-upload span:not(.module-upload-icon){color:var(--sub);font-size:11px;line-height:1.6}
+.module-upload input{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.module-rights{display:flex;align-items:flex-start;gap:10px;font-size:12px;color:var(--ink);line-height:1.65;margin:17px 0 14px;cursor:pointer}
+.module-rights input{width:17px;height:17px;accent-color:var(--brand);margin-top:2px;flex:none}
+.module-status{color:var(--brand);font-size:12px;line-height:1.7;overflow-wrap:anywhere}
+.module-installed{border:1px solid var(--border);border-radius:11px;padding:14px;margin:0 0 12px;background:var(--paper)}
+.module-installed h3{font-size:14px;margin:9px 0 5px;color:var(--ink)}
+.module-installed p{margin:5px 0;line-height:1.4;overflow-wrap:anywhere}
+.module-installed .row{margin-top:10px}
+.module-catalog{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.module-catalog-item{border:1px solid var(--border);background:var(--paper);border-radius:10px;padding:15px;display:flex;justify-content:space-between;align-items:start;gap:10px}
+.module-catalog-item strong{font-size:12px;line-height:1.55}
+.module-catalog-item p{font-size:11px;color:var(--sub);line-height:1.55;margin:7px 0 0}
+.module-catalog-item .chip{white-space:nowrap;font-size:9px;padding:5px 7px}
+.module-comment-list{margin:15px 0}
+.module-comment-header{color:var(--sub);font-size:11px;margin-bottom:10px;font-weight:700}
+.module-comment{padding:14px 0;border-top:1px solid var(--border)}
+.module-comment strong{display:block;font-size:12px;color:var(--brand)}
+.module-comment small{font-size:10px;color:var(--sub)}
+.module-comment p{font:400 13px/1.8 "Libre Baskerville",Georgia,serif;white-space:pre-wrap;margin:12px 0;color:var(--ink);overflow-wrap:anywhere}
+.module-comment .btn{max-width:100%}
+.reader-paper.second .reader-paper-head{flex-wrap:wrap}
+@media(max-width:850px){.module-catalog{grid-template-columns:1fr}}
+@media(max-width:720px){.module-library{padding:19px 13px}.module-upload{min-height:145px}.module-catalog-item{flex-direction:column;gap:8px}.module-catalog-item .chip{align-self:flex-start}}
