@@ -289,3 +289,18 @@ O arquivo fornecido pelo usuário, \`Champlin-c.commentaries.zip\` (aproximadame
 - Testes com simulação de IndexedDB validaram a migração não destrutiva, a importação em lotes de comentários SQLite e a recuperação de comentários por capítulo/versículo. O formato ZIP otimizado foi validado com sua estrutura real e um pacote sintético importado.
 
 O ZIP pessoal e seus textos **não foram enviados ao GitHub**.
+
+
+## Leitor dividido inspirado na gravação MyBible — 08/11/2026
+
+O modo de estudo ganhou um layout vertical com **Bíblia acima e comentário do módulo selecionado abaixo**, com rolagens independentes, mantendo a navegação principal na barra superior. A gravação enviada nesta conversa serviu como referência funcional.
+
+- Arquivo \`split-study.js\`: controlador independente das janelas empilhadas, responsável por montar a área inferior, apresentar os comentários, oferecer seleção e busca de módulos, trocar entre anterior/próximo, sincronizar referência e permitir redimensionamento do divisor por arraste ou teclado (setas no separador).
+- \`app-core.js\`: disponibiliza o modo dividido por padrão (\`splitStudy: true\`) e registra preferências locais \`commentModuleId\` e \`splitPct\` sem apagar configurações anteriores. O botão **Comentários** na toolbar superior abre/fecha o modo dividido; o menu **Painel dividido** fornece outro acesso.
+- \`modules.js\`: \`getCommentaries(book, chapter, verse, moduleId?)\` agora admite filtrar por módulo; os consumidores existentes sem o quarto argumento permanecem compatíveis.
+- \`connections.js\`: quando o modo dividido está ativo, tocar num versículo atualiza o painel inferior em vez de abrir automaticamente outra janela flutuante. Toque em palavra ou número Strong continua habilitando consulta lexical independente.
+- \`styles.css\`: lista de comentários em fundo cinza-escuro que sobrepõe apenas a janela inferior, com módulo ativo destacado em amarelo e campo de busca. Cada área tem seu próprio scroll; o divisor é redimensionável; desktop e telas móveis recebem dimensões adaptativas.
+- Não se copiam módulos proprietários ou se hospedam comentários. Os itens da lista são derivados **somente dos módulos já instalados neste navegador**. Se não houver módulos instalados, a área inferior exibe o caminho de importação.
+- Existe integração direta com o Criador de Sermões pelo botão de cada comentário, e comando de copiar texto.
+
+**Validação:** sintaxe do bundle completo; teste do controlador com dois módulos de comentários simulados (Champlin e Matthew Henry), incluindo mudança do módulo sem mudar a referência, atualização de João 15:4 para João 15:5 e inicialização do app com a área dividida. O resultado visual final ainda exige conferência no navegador do usuário. 
