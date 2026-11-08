@@ -8,6 +8,21 @@ var press=null,holdTimer=null,holdHandledUntil=0,lastTap=null,lastOpened={verse:
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function verseElement(target){return target&&target.closest&&target.closest("#chapter-body .verse-line");}
 function indicatorElement(target){return target&&target.closest&&target.closest("[data-comment-indicator]");}
+function shortCommentaryName(value){
+ var full=String(value||"").trim(),normalized=full.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+ var known=[
+  [/\bhagnos\b/,"Hagnos"],[/\bmatthew\s+henry\b|\bhenry\b/,"Henry"],
+  [/\bchamplin\b/,"Champlin"],[/\bwiersbe\b/,"Wiersbe"],[/\bellicott\b/,"Ellicott"],
+  [/\bholman\b/,"Holman"],[/\bpregador\b/,"Pregador"],[/\balmeida\b/,"Almeida"],
+  [/\brevelada\b/,"Revelada"],[/\bmacarthur\b/,"MacArthur"],[/\bspurgeon\b/,"Spurgeon"],
+  [/\bcalvino\b|\bcalvin\b/,"Calvino"],[/\bmoody\b/,"Moody"]
+ ];
+ for(var i=0;i<known.length;i++)if(known[i][0].test(normalized))return known[i][1];
+ var cleaned=full.replace(/\.[a-z0-9]{2,5}$/i,"")
+  .replace(/\b(comentarios?|expositivos?|comentario|commentary|complete|completo|completa|biblia|bible|da|do|de|das|dos|e|the|and|at|nt|pt|updated|edition|atualizada|atualizado|2017|2019|2020|2021|2022|2023|2024|2025|2026)\b/gi," ")
+  .replace(/[^A-Za-zÀ-ÿ0-9]+/g," ").trim();
+ return (cleaned.split(/\s+/)[0]||"Comentário").slice(0,18);
+}
 function candidates(n){return Array.isArray(coverage[Number(n)])?coverage[Number(n)]:[];}
 function closePicker(){
  if(picker){picker.remove();picker=null;}
@@ -46,7 +61,9 @@ function decorate(book,chapter,verses){
     button.setAttribute("data-comment-module",String(mod.moduleId||""));
     button.setAttribute("aria-label","Abrir "+(mod.moduleName||"comentário")+" em "+book+" "+chapter+":"+n+". Clique ou toque duas vezes para abrir.");
     button.setAttribute("title",(mod.moduleName||"Comentário")+" — clique ou toque duas vezes para abrir");
-    button.textContent=mod.moduleName||"Comentário";
+    button.textContent=shortCommentaryName(mod.moduleName);
+    button.setAttribute("title",(mod.moduleName||"Comentário")+" — "+book+" "+chapter+":"+n);
+    button.setAttribute("aria-label","Abrir comentário "+(mod.moduleName||"Comentário")+" em "+book+" "+chapter+":"+n);
     labels.appendChild(button);
    });
    if(labels.childNodes.length&&line.parentNode)line.parentNode.insertBefore(labels,line);
