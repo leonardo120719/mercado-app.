@@ -1,0 +1,97 @@
+# Púlpito Bible — Bíblia de Estudo e Interpretação
+
+> Projeto independente de estudo bíblico em português. Primeira versão publicada em https://pulpito-bible.onrender.com.
+
+## Visão
+
+Criar um ecossistema de leitura, exegese e ensino bíblico, sem trocar de aplicativo entre passagem, palavra original, análise gramatical, comentários, notas pessoais, exercícios e sermão. O sistema deve distinguir a evidência textual, a informação morfológica, a interpretação de estudiosos e a aplicação contemporânea.
+
+## Produtos estudados e lições
+
+- **YouVersion:** leitura, áudio, planos diários, notas, compartilhamento, comunidade e sincronização.
+- **Bíblia JFA Offline:** foco em leitura em português e uso cotidiano, áudio, ferramentas de estudo e IA.
+- **MyBible:** estudo profundo, dicionários Strong, comentários, referências cruzadas e janelas.
+- **Logos Bible Software:** biblioteca teológica, guias, pesquisa textual e preparação de sermões.
+- **Bible Hub:** interlinear, comentários paralelos, léxicos e concordâncias.
+- **Blue Letter Bible:** investigação lexical e estudo bíblico com comentários e concordâncias.
+- **BibleLine:** genealogias, personagens, relações familiares e cronologia.
+- **BibleProject:** ensino visual, vídeos, trilhas e cursos.
+- **Moed Bible:** experiências brasileiras com Bíblia, Strong, IA e esboços.
+- **AndBible / STEP Bible:** bases linguísticas, modalidades offline, morfologia.
+- **Bíblia Online e Bible Gateway:** leitores e pesquisas em diferentes traduções.
+
+Oportunidade: **integrar ferramentas já existentes, ensinar a utilizá-las corretamente e tornar a pesquisa auditável**. Não se afirma que os recursos sejam mundialmente inéditos.
+
+## O que já funciona nesta primeira versão
+
+1. Leitura dos 66 livros via Midvash, com quatro traduções abertas: Almeida 1911, Bíblia Portuguesa Mundial, Open Nova Bíblia Viva e Nova Versão de Acesso Livre (respeitando licença atribuída pela API).
+2. Navegação por livro e capítulo, seleção de versículo, busca básica por referência, fonte variável e tema escuro.
+3. Cache local limitado de capítulos consultados.
+4. Marcadores e anotações pessoais em localStorage, sem conta ou sincronização.
+5. Demonstrações de análise morfológica verificadas: João 15:4 **μείνατε** (G3306; aoristo imperativo ativo, 2ª pessoa plural), João 15:5 **μένων** (G3306; particípio presente ativo), Gênesis 1:1 **בָּרָא** (H1254; Qal perfeito 3ms), **κλῆμα** (G2814) e **ἐν** (G1722).
+6. Assistente pedagógico guiado por seis etapas com respostas salvas por passagem. **Não é IA generativa** nesta versão.
+7. Cinco exercícios de exegese/gramática com feedback imediato e progresso local.
+8. Criador de sermões: tema, referência, contexto, introdução, tópicos, aplicação e conclusão, com cópia/exportação TXT.
+9. Páginas no próprio aplicativo com análise de concorrentes e mapa das implementações.
+
+## Método de interpretação — sequência didática
+
+1. **Delimite a passagem**: identifique início e fim da unidade literária.
+2. **Observe o texto**: quem fala, a quem, onde, quando e por quê.
+3. **Destaque as estruturas**: repetições, paralelismos, contrastes, conectivos e verbos.
+4. **Leia o contexto imediato**: parágrafos e capítulos anteriores/posteriores.
+5. **Identifique o gênero**: narrativa, poesia, sabedoria, apocalíptica, carta, profecia.
+6. **Investigue o contexto histórico**: autor, destinatários, ambiente cultural e propósito.
+7. **Estude a gramática**: função sintática, tempo, aspecto, modo, voz, pessoa, gênero e número — quando se aplicam.
+8. **Consulte o original**: forma da palavra, lema, Strong e sentidos documentados, sem impor uma definição em todas as ocorrências.
+9. **Compare traduções e testemunhos textuais** quando necessário e legalmente acessíveis.
+10. **Formule a ideia central** em uma frase e fundamente com evidências do próprio texto.
+11. **Confronte comentários e interpretações alternativas** sem transformar uma tradição em dado linguístico.
+12. **Aplique com responsabilidade**: diferencie o significado original da aplicação moderna; anote o que permanece incerto.
+
+### Exemplo: João 15:4–5
+
+- **μείνατε** é imperativo aoristo ativo na segunda pessoa do plural.
+- **μένων** é particípio presente ativo, nominativo masculino singular.
+- O aoristo, isoladamente, **não** significa que a permanência seja um ato instantâneo. Aspecto e relação com a duração devem ser entendidos no contexto.
+- Examinar João 15:1–8 e a unidade dos discursos de despedida; observar videira, ramos, permanência e fruto.
+- Distinguir o sentido da metáfora da aplicação a situações pessoais.
+
+### Exemplo: Gênesis 1:1
+
+- **בָּרָא** = Qal perfeito, terceira pessoa masculina singular, H1254.
+- Não equiparar automaticamente o perfeito hebraico a um único tempo verbal do português.
+- Investigar a estrutura narrativa e o contexto imediato antes de construir conclusões teológicas isoladas.
+
+## Grandes expansões planejadas
+
+- Importação completa de **STEPBible TAGNT, TAHOT, TBESG, TBESH, TEGMC e TEHMC**, com atribuição da licença CC BY 4.0, indexação e validação do alinhamento entre forma, lema, código Strong e versículo.
+- Janela Strong interativa também em comentários, PDF, estudos e sermões; identificação de correspondências a partir de palavras portuguesas com confirmação humana.
+- Biblioteca Teológica com PDFs, comentários, páginas, histórico de leitura, favoritos e marcações.
+- Assistente interpretativo conversacional com IA conectada a fontes verificadas, capaz de oferecer perguntas socráticas, feedback de argumentação, perspectivas interpretativas e incertezas. Requer backend, proteção de dados, autenticação e integração com provedor de IA.
+- Exercícios adaptativos, trilhas de aprendizado, caderno por usuário, exportação PDF e sincronização de dados.
+- Atlas bíblico, genealogias, cronologia com incerteza histórica, biografias e relações interativas.
+- Áudio, leitura inclusiva, pesquisas por fala e câmera e offline ampliado.
+- Integração segura e opt-in ao **Púlpito Studio/Púlpito Expositivo**, sem alterar seus PDFs, sermões ou dados existentes.
+
+## Bases e licenças
+
+- Midvash API: https://api.midvash.com/pt-br — versões de uso livre, crédito junto ao texto via meta.copyright; para traduções CC BY-SA, obedecer aos termos.
+- STEPBible Data: https://github.com/STEPBible/STEPBible-Data — CC BY 4.0 e observações de cada dataset.
+- Exemplos de morfologia: https://biblehub.com/text/john/15-4.htm , https://www.openbible.com/text/john/15-5.htm e https://biblehub.com/genesis/1-1.htm.
+
+**Atenção aos direitos autorais:** versões como NVI, ARA, NVT e outras com todos os direitos reservados não estão importadas. Dependem de autorização antes de sua distribuição.
+
+## Infraestrutura e integridade
+
+- Render Static Site: https://pulpito-bible.onrender.com
+- Código: branch `pulpito-bible` no repositório `leonardo120719/mercado-app.`; a branch `main` e os serviços Mercado existentes não foram editados.
+- Arquivos da aplicação: `pulpito.html`, `styles.css`, `app.js`.
+- Build: copiar os três arquivos para `public/index.html`, `public/styles.css` e `public/app.js`.
+- Persistência local: `localStorage`; não existe autenticação, conta ou backup em nuvem ainda.
+- O cache de capítulos é limitado, e a primeira leitura de um capítulo não salvo requer internet.
+- O leitor depende da disponibilidade da API Midvash; o comportamento foi testado com dados simulados e a implantação Render foi confirmada, mas as chamadas reais do navegador ainda requerem validação de ponta a ponta.
+
+## Critérios para as próximas entregas
+
+Não apresentar análises morfológicas não confirmadas como se fossem automáticas ou exaustivas. Nunca inferir que um número Strong determine o sentido de um texto. A interface deve sinalizar recursos demonstrativos, funcionalidades ativas e futuras. Guardar histórico e material pessoal com políticas claras de privacidade, exportação e eliminação.
