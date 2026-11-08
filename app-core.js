@@ -5,7 +5,7 @@ var MAIN=document.getElementById("app-main");
 var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
-var defaults={splitStudy:true,splitPct:44,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[],parallelVersion:"bpm"};
+var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:44,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[],parallelVersion:"bpm"};
 var saved={};try{saved=JSON.parse(localStorage.getItem(STORE_KEY)||"{}");}catch(e){}
 var state=Object.assign({},defaults,saved);
 state.sermon=Object.assign({},defaults.sermon,state.sermon||{});
@@ -23,6 +23,7 @@ var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapt
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
 
 window.PBConnections.init({
+ onWord:function(word,verse){openDictionaryTerm(word,verse);return true;},
  shouldOpenVersePanel:function(){return !state.splitStudy;},
  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse,name:activeBook.name};},
  setVerse:function(n){if(Number(n)>0){state.selectedVerse=Number(n);persist();window.PBSplitStudy.refresh();}},
@@ -178,7 +179,8 @@ function toolbarAction(action){
  case "next":if(state.chapter<activeBook.chapters)setRef(state.book,state.chapter+1);return;
  case "comments":state.splitStudy=!state.splitStudy;persist();renderReader();return;
  case "split-study":state.splitStudy=!state.splitStudy;persist();renderReader();return;
- case "strong":page("original");return;
+ case "strong":openDictionaryTerm(state.dictionaryTerm||"G3306",state.selectedVerse);return;
+ case "dictionary-pane":state.dictionaryOpen=!state.dictionaryOpen;persist();renderReader();return;
  case "notes":case "bookmarks":page("caderno");return;
  case "modules":page("modulos");return;
  case "sermon":page("sermao");return;
@@ -228,10 +230,40 @@ function renderReaderContent(){
  if(state.showParallel)loadParallelText();
  if(state.showComments&&!state.splitStudy)loadInstalledComments();
  if(state.splitStudy)window.PBSplitStudy.refresh();
+ if(state.dictionaryOpen)window.PBDictionaryStudy.syncReference();
  refreshVerseDecorations();
 }
 function readerOptions(){
  return books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(state.book===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("");
+}
+
+
+/* Persistent linked dictionary window. Independent of the commentary panel. */
+function attachDictionaryStudy(){
+ if(!state.dictionaryOpen)return;
+ window.PBDictionaryStudy.attach({
+  readModule:function(){return state.dictionaryModuleId||"";},
+  readTerm:function(){return state.dictionaryTerm||"";},
+  readReference:function(){return {book:state.book,chapter:state.chapter,verse:state.selectedVerse||0,name:activeBook.name};},
+  onModuleChange:function(id){state.dictionaryModuleId=id;persist();},
+  onTermChange:function(term){state.dictionaryTerm=term;persist();},
+  onClose:function(){state.dictionaryOpen=false;persist();window.PBDictionaryStudy.destroy();},
+  onReference:function(reference){lookupReference(reference);},
+  onAnalyze:function(code){openStrongPopup(code);},
+  notify:notify
+ });
+}
+function openDictionaryTerm(term,verse){
+ var token=String(term||"").trim();
+ if(!token)return;
+ if(verse!==null&&verse!==undefined&&Number(verse)>0){
+  state.selectedVerse=Number(verse);
+  window.PBSplitStudy.refresh();
+ }
+ state.dictionaryTerm=token;
+ state.dictionaryOpen=true;persist();
+ if(!window.PBDictionaryStudy.isAttached())attachDictionaryStudy();
+ window.PBDictionaryStudy.lookup(token);
 }
 
 function attachSplitStudy(){
@@ -249,6 +281,7 @@ function attachSplitStudy(){
 }
 
 function renderReader(){
+ window.PBDictionaryStudy.destroy();
  window.PBSplitStudy.destroy();
  var other=state.parallelVersion||"bpm";
  MAIN.innerHTML='<section class="reader-screen"><div id="dynamic-toolbar"></div><div class="reader-commandbar">'+
@@ -262,6 +295,7 @@ function renderReader(){
  (state.showCrossRefs?'<section class="card card-pad reader-extras"><div class="caps">REFERÊNCIAS CRUZADAS</div><h2 class="section-heading">Passagens relacionadas</h2><p class="feature-note">Sugestões temáticas iniciais, não geradas automaticamente por um comentário externo.</p><div class="row">'+(state.book==="john"&&state.chapter===15?'<button class="btn slim" data-ref-open="João 6:56">João 6:56</button><button class="btn slim" data-ref-open="Gálatas 5:22">Gálatas 5:22</button>':'<button class="btn slim" data-ref-open="João 1:1">João 1:1</button>')+'</div></section>':"")+'</div>':"")+
  '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-page="tutor">✧ Interpretar</button></div></div></section>';
  if(state.splitStudy)attachSplitStudy();
+ if(state.dictionaryOpen)attachDictionaryStudy();
  mountAppToolbar();
  loadChapter();
 }
@@ -468,7 +502,7 @@ document.addEventListener("click",function(ev){
 
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
  var sw=ev.target.closest("[data-strong]");
- if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}openStrongPopup(sw.dataset.strong,sw);return;}
+ if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}var matching=words.find(function(w){return w.id===sw.dataset.strong;});var strongCode=matching?matching.code:sw.dataset.strong;openDictionaryTerm(strongCode,state.selectedVerse);return;}
  var v=ev.target.closest("[data-verse]");if(v){
  state.selectedVerse=Number(v.dataset.verse);persist();
  TS.actions.toggleVerse(v.dataset.usfm||verseGlobalId(state.selectedVerse));
@@ -476,6 +510,7 @@ document.addEventListener("click",function(ev){
  var title=document.getElementById("selected-reference");if(title)title.textContent=ref();
  if(state.showComments&&!state.splitStudy)loadInstalledComments();
  if(state.splitStudy)window.PBSplitStudy.refresh();
+ if(state.dictionaryOpen)window.PBDictionaryStudy.syncReference();
  return;
  }
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
