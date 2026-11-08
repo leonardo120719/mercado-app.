@@ -177,10 +177,10 @@ function toolbarAction(action){
  }
  case "prev":if(state.chapter>1)setRef(state.book,state.chapter-1);return;
  case "next":if(state.chapter<activeBook.chapters)setRef(state.book,state.chapter+1);return;
- case "comments":state.splitStudy=!state.splitStudy;persist();renderReader();return;
- case "split-study":state.splitStudy=!state.splitStudy;persist();renderReader();return;
- case "strong":if(!state.dictionaryOpen){state.dictionaryOpen=true;persist();attachDictionaryStudy();}else if(state.dictionaryTerm)window.PBDictionaryStudy.lookup(state.dictionaryTerm,{noHistory:true});return;
- case "dictionary-pane":state.dictionaryOpen=!state.dictionaryOpen;persist();renderReader();return;
+ case "comments":if(state.dictionaryOpen){hideDictionaryPanel();return;}state.splitStudy=!state.splitStudy;persist();renderReader();return;
+ case "split-study":state.splitStudy=!state.splitStudy;if(!state.splitStudy)state.dictionaryOpen=false;persist();renderReader();return;
+ case "strong":showDictionaryPanel();if(state.dictionaryTerm&&window.PBDictionaryStudy.isAttached())window.PBDictionaryStudy.lookup(state.dictionaryTerm,{noHistory:true});return;
+ case "dictionary-pane":if(state.dictionaryOpen)hideDictionaryPanel();else showDictionaryPanel();return;
  case "notes":case "bookmarks":page("caderno");return;
  case "modules":page("modulos");return;
  case "sermon":page("sermao");return;
@@ -248,6 +248,7 @@ function attachDictionaryStudy(){
   onModuleChange:function(id){state.dictionaryModuleId=id;persist();},
   onTermChange:function(term){state.dictionaryTerm=term;persist();},
   onClose:function(){state.dictionaryOpen=false;persist();window.PBDictionaryStudy.destroy();},
+  onComments:function(){state.dictionaryOpen=false;persist();window.PBDictionaryStudy.destroy();},
   onReference:function(reference){
    var aliases={Jo:"João",Gn:"Gênesis",Lc:"Lucas",Mt:"Mateus",Mc:"Marcos",Sl:"Salmos",At:"Atos",Rm:"Romanos",Is:"Isaías"};
    var parts=/^([A-Za-zÀ-ÿ]+)\s+(\d+(?::\d+(?:[-–]\d+)?)?)/.exec(String(reference||"").trim());
@@ -258,6 +259,18 @@ function attachDictionaryStudy(){
   notify:notify
  });
 }
+function showDictionaryPanel(){
+ var needsSplit=!state.splitStudy||!document.getElementById("pb-study-split");
+ state.splitStudy=true;
+ state.dictionaryOpen=true;
+ persist();
+ if(needsSplit){renderReader();return;}
+ if(!window.PBDictionaryStudy.isAttached())attachDictionaryStudy();
+}
+function hideDictionaryPanel(){
+ state.dictionaryOpen=false;persist();
+ window.PBDictionaryStudy.destroy();
+}
 function openDictionaryTerm(term,verse){
  var token=String(term||"").trim();
  if(!token)return;
@@ -266,9 +279,9 @@ function openDictionaryTerm(term,verse){
   window.PBSplitStudy.refresh();
  }
  state.dictionaryTerm=token;
- state.dictionaryOpen=true;persist();
- if(!window.PBDictionaryStudy.isAttached())attachDictionaryStudy();
- window.PBDictionaryStudy.lookup(token);
+ persist();
+ showDictionaryPanel();
+ if(window.PBDictionaryStudy.isAttached())window.PBDictionaryStudy.lookup(token);
 }
 
 function attachSplitStudy(){
@@ -279,6 +292,7 @@ function attachSplitStudy(){
   readSize:function(){return state.splitPct||44;},
   onResize:function(n){state.splitPct=n;persist();},
   onModuleChange:function(id){state.commentModuleId=id;persist();},
+  onDictionary:showDictionaryPanel,
   onClose:function(){state.splitStudy=false;persist();renderReader();},
   onSermon:function(row){state.sermon.context+=(state.sermon.context?"\n\n":"")+row.moduleName+" — "+ref()+"\n"+row.text;persist();notify("Comentário inserido no sermão");},
   notify:notify
@@ -286,6 +300,7 @@ function attachSplitStudy(){
 }
 
 function renderReader(){
+ if(state.dictionaryOpen)state.splitStudy=true;
  window.PBDictionaryStudy.destroy();
  window.PBSplitStudy.destroy();
  var other=state.parallelVersion||"bpm";
