@@ -1,6 +1,6 @@
 (function(){
 "use strict";
-var DB_NAME="PulpitoBibleModules",DB_VERSION=2;
+var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
 var canonical="genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|1-samuel|2-samuel|1-kings|2-kings|1-chronicles|2-chronicles|ezra|nehemiah|esther|job|psalms|proverbs|ecclesiastes|song-of-solomon|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|1-corinthians|2-corinthians|galatians|ephesians|philippians|colossians|1-thessalonians|2-thessalonians|1-timothy|2-timothy|titus|philemon|hebrews|james|1-peter|2-peter|1-john|2-john|3-john|jude|revelation".split("|");
 var myBibleIds=[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,190,220,230,240,250,260,290,300,310,330,340,350,360,370,380,390,400,410,420,430,440,450,460,470,480,490,500,510,520,530,540,550,560,570,580,590,600,610,620,630,640,650,660,670,680,690,700,710,720,730];
 var idToBook={};myBibleIds.forEach(function(id,i){idToBook[id]=canonical[i];});
@@ -14,7 +14,7 @@ var requested=[
 ];
 function clean(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function simplifyText(s){return String(s==null?"":s).replace(/<br\s*\/?>/gi,"\n").replace(/<\/(?:p|div|h[1-6]|li)>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"').replace(/\n{3,}/g,"\n\n").trim();}
-function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
+function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaryEntries")){var es=d.createObjectStore("commentaryEntries",{keyPath:"key"});es.createIndex("moduleId","moduleId",{unique:false});es.createIndex("passage",["moduleId","book","chapter"],{unique:false});}};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
 function request(req){return new Promise(function(resolve,reject){req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};});}
 async function loadCatalog(){var db=await dbOpen();modules=await request(db.transaction("modules","readonly").objectStore("modules").getAll());modules.sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});return modules;}
 function ready(){return loadCatalog();}
@@ -23,7 +23,28 @@ function moduleName(version){var id=String(version||"").slice(6);var m=modules.f
 function bibleOptions(selected){return modules.filter(function(m){return m.type==="bible";}).map(function(m){var value="local:"+m.id;return '<option value="'+clean(value)+'"'+(selected===value?" selected":"")+'>'+clean(m.abbreviation||m.name)+" — "+clean(m.name)+"</option>";}).join("");}
 function getModuleByVersion(version){return modules.find(function(m){return "local:"+m.id===version&&m.type==="bible";});}
 async function getChapter(version,book,chapter){await dbOpen();var m=getModuleByVersion(version);if(!m)throw Error("Módulo de Bíblia não instalado neste dispositivo");var key=m.id+"/"+book+"/"+chapter;var db=await dbOpen();var row=await request(db.transaction("chapters","readonly").objectStore("chapters").get(key));if(!row||!row.verses||!row.verses.length)throw Error("Este módulo não contém "+book+" "+chapter);return {verses:row.verses,copyright:"Módulo instalado localmente · "+m.name+" · "+(m.license||"Licença não informada no arquivo")+". Verifique as condições de uso da edição.",version:m.abbreviation||m.name};}
-async function getCommentaries(book,chapter,verse){await dbOpen();var active=modules.filter(function(m){return m.type==="commentary";});var db=await dbOpen();var entries=await Promise.all(active.map(async function(m){var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));if(!row)return [];return row.entries.filter(function(e){if(e.fromChapter&&chapter<e.fromChapter)return false;if(e.toChapter&&chapter>e.toChapter)return false;if(verse&&e.fromChapter===chapter&&e.fromVerse&&verse<e.fromVerse)return false;if(verse&&e.toChapter===chapter&&e.toVerse&&verse>e.toVerse)return false;return true;}).slice(0,45).map(function(e){return {moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse};});}));return entries.flat().slice(0,100);}
+
+async function getCommentaries(book,chapter,verse){
+ var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary";});
+ var entries=await Promise.all(active.map(async function(m){
+  var records=[];
+  if(m.storage==="entries-v1"){
+   var idx=db.transaction("commentaryEntries","readonly").objectStore("commentaryEntries").index("passage");
+   records=await request(idx.getAll(IDBKeyRange.only([m.id,book,chap]),180));
+  }else{
+   var row=await request(db.transaction("commentaries","readonly").objectStore("commentaries").get(m.id+"/"+book));
+   records=row&&row.entries||[];
+  }
+  return records.filter(function(e){
+   if(e.fromChapter&&chap<e.fromChapter)return false;
+   if(e.toChapter&&chap>e.toChapter)return false;
+   if(verse&&e.fromChapter===chap&&e.fromVerse&&verse<e.fromVerse)return false;
+   if(verse&&e.toChapter===chap&&e.toVerse&&verse>e.toVerse)return false;
+   return true;
+  }).slice(0,45).map(function(e){return {moduleId:m.id,moduleName:m.name,text:e.text,marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse};});
+ }));
+ return entries.flat().slice(0,100);
+}
 function renderVerse(raw,book,showStrong){var source=String(raw||"");var pattern=/<s>([0-9]{1,5})<\/s>/gi,position=0,output="",match;
  function chunk(str){return clean(str.replace(/<br\s*\/?>/gi,"\n").replace(/<\/p>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&"));}
  while((match=pattern.exec(source))!==null){output+=chunk(source.slice(position,match.index));var prefix=canonical.indexOf(book)<39?"H":"G";var code=prefix+Number(match[1]);if(showStrong){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'">'+code+'</button>';}position=match.index+match[0].length;}
