@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261108-commentary-labels-above-isolated-2";
+window.PB_BUILD_ID = "pb-20261108-compact-commentary-strong-one-tap-3";
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
@@ -123,7 +123,7 @@ function renderVerse(raw,book,showStrong){
   i++;
   while(i<matches.length&&matches[i].index===end){codes.push(prefix+Number(matches[i][1]));end=matches[i].index+matches[i][0].length;i++;}
   output+=chunk(source.slice(position,match.index),codes);
-  if(showStrong)codes.forEach(function(code){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'" title="Toque duas vezes para consultar '+code+'">'+code+'</button>';});
+  if(showStrong)codes.forEach(function(code){output+='<button type="button" class="strong-badge" data-strong="'+code+'" aria-label="Abrir dicionário Strong '+code+'" title="Clique uma vez para abrir o significado Strong '+code+'">'+code+'</button>';});
   position=end;
  }
  output+=chunk(source.slice(position),[]);
@@ -934,6 +934,16 @@ function init(opts){
   var sermon=e.target.closest("[data-pb-sermon]");if(sermon){e.preventDefault();if(config.onSermon)config.onSermon(selectedContext);return;}
   var comment=e.target.closest("[data-pb-comment]");if(comment){e.preventDefault();var row=selectedContext&&selectedContext.comments&&selectedContext.comments[Number(comment.dataset.pbComment)];if(row&&config.onComment)config.onComment(row,selectedContext);return;}
   var studyLink=e.target.closest("[data-pb-study-link]");if(studyLink){e.preventDefault();e.stopImmediatePropagation();activateStudyLink(studyLink);return;}
+  var strongNumber=e.target.closest("#chapter-body .strong-badge, #chapter-body button[data-strong]");
+  if(strongNumber){
+   e.preventDefault();e.stopImmediatePropagation();
+   var strongNow=Date.now();
+   if(lastBibleActivation.node===strongNumber&&strongNow-lastBibleActivation.at<700)return;
+   lastBibleTap=null;
+   lastBibleActivation={node:strongNumber,at:strongNow};
+   activateBibleLink(strongNumber);
+   return;
+  }
   var bibleLink=e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");
   if(bibleLink){
    e.stopImmediatePropagation();
@@ -1348,6 +1358,21 @@ var press=null,holdTimer=null,holdHandledUntil=0,lastTap=null,lastOpened={verse:
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function verseElement(target){return target&&target.closest&&target.closest("#chapter-body .verse-line");}
 function indicatorElement(target){return target&&target.closest&&target.closest("[data-comment-indicator]");}
+function shortCommentaryName(value){
+ var full=String(value||"").trim(),normalized=full.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase();
+ var known=[
+  [/\bhagnos\b/,"Hagnos"],[/\bmatthew\s+henry\b|\bhenry\b/,"Henry"],
+  [/\bchamplin\b/,"Champlin"],[/\bwiersbe\b/,"Wiersbe"],[/\bellicott\b/,"Ellicott"],
+  [/\bholman\b/,"Holman"],[/\bpregador\b/,"Pregador"],[/\balmeida\b/,"Almeida"],
+  [/\brevelada\b/,"Revelada"],[/\bmacarthur\b/,"MacArthur"],[/\bspurgeon\b/,"Spurgeon"],
+  [/\bcalvino\b|\bcalvin\b/,"Calvino"],[/\bmoody\b/,"Moody"]
+ ];
+ for(var i=0;i<known.length;i++)if(known[i][0].test(normalized))return known[i][1];
+ var cleaned=full.replace(/\.[a-z0-9]{2,5}$/i,"")
+  .replace(/\b(comentarios?|expositivos?|comentario|commentary|complete|completo|completa|biblia|bible|da|do|de|das|dos|e|the|and|at|nt|pt|updated|edition|atualizada|atualizado|2017|2019|2020|2021|2022|2023|2024|2025|2026)\b/gi," ")
+  .replace(/[^A-Za-zÀ-ÿ0-9]+/g," ").trim();
+ return (cleaned.split(/\s+/)[0]||"Comentário").slice(0,18);
+}
 function candidates(n){return Array.isArray(coverage[Number(n)])?coverage[Number(n)]:[];}
 function closePicker(){
  if(picker){picker.remove();picker=null;}
@@ -1386,7 +1411,9 @@ function decorate(book,chapter,verses){
     button.setAttribute("data-comment-module",String(mod.moduleId||""));
     button.setAttribute("aria-label","Abrir "+(mod.moduleName||"comentário")+" em "+book+" "+chapter+":"+n+". Clique ou toque duas vezes para abrir.");
     button.setAttribute("title",(mod.moduleName||"Comentário")+" — clique ou toque duas vezes para abrir");
-    button.textContent=mod.moduleName||"Comentário";
+    button.textContent=shortCommentaryName(mod.moduleName);
+    button.setAttribute("title",(mod.moduleName||"Comentário")+" — "+book+" "+chapter+":"+n);
+    button.setAttribute("aria-label","Abrir comentário "+(mod.moduleName||"Comentário")+" em "+book+" "+chapter+":"+n);
     labels.appendChild(button);
    });
    if(labels.childNodes.length&&line.parentNode)line.parentNode.insertBefore(labels,line);
@@ -1601,9 +1628,9 @@ window.PBConnections.init({
   window.PBConnections.open("word",verse,word,anchor);
   return true;
  },
- onStrong:function(strongId,word,verse,anchor){
+ onStrong:function(strongId,word,verse,anchor,strongList){
   if(Number(verse)>0){state.selectedVerse=Number(verse);persist();}
-  window.PBConnections.open("word",verse,strongId,anchor);
+  openStrongPopup(strongId,anchor,word,strongList||[]);
   return true;
  },
  onStudyStrong:function(code,anchor){openStrongPopup(code,anchor);return true;},
@@ -1795,7 +1822,7 @@ function annotateVerse(text,verseNumber){
   if(!word)return;
   html+=esc(source.slice(cursor,match.from));
   html+='<span class="strong-word" tabindex="0" role="button" data-strong="'+esc(match.id)+'" title="Consultar Strong '+esc(word.code)+'">'+esc(source.slice(match.from,match.to))+'</span>';
-  if(state.showStrong)html+='<button type="button" class="strong-badge" data-strong="'+esc(match.id)+'" aria-label="Dicionário Strong '+esc(word.code)+'">'+esc(word.code)+'</button>';
+  if(state.showStrong)html+='<button type="button" class="strong-badge" data-strong="'+esc(match.id)+'" aria-label="Dicionário Strong '+esc(word.code)+'" title="Clique uma vez para abrir o significado Strong '+esc(word.code)+'">'+esc(word.code)+'</button>';
   cursor=match.to;
  });
  return html+esc(source.slice(cursor));
@@ -1937,7 +1964,8 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  var requestedCode=String(wordId||"").toUpperCase().replace(/\s+/g,"");
  var canonicalCode=requestedCode.replace(/^([GH])0*(\d{1,5})[A-Z]?$/,"$1$2");
  var w=words.find(function(x){return String(x.id).toUpperCase()===requestedCode;})||
-  words.find(function(x){return String(x.id).toUpperCase()===canonicalCode;});
+  words.find(function(x){return String(x.id).toUpperCase()===canonicalCode;})||
+  words.find(function(x){return String(x.code||"").toUpperCase()===canonicalCode;});
  if(!w){
   var code=canonicalCode,value=Number(code.slice(1));
   if(!/^[GH][0-9]{1,5}$/.test(code))return;
@@ -1966,7 +1994,7 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  '</div>'+
  '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
- if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:preferredTerm?"dictionary":"strong",onClose:function(){frame.remove();},anchor:anchor});
+ if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:(preferredTerm||(w.meaning==="Entrada Strong sem dicionário conectado"&&window.PBModules.getInstalled().some(function(m){return m.type==="dictionary";})))?"dictionary":"strong",onClose:function(){frame.remove();},anchor:anchor});
  var codes=Array.from(new Set([w.code].concat(extraStrongIds||[]).map(function(x){var id=String(x||"").toUpperCase(),found=words.find(function(item){return String(item.id).toUpperCase()===id;});var resolved=found?String(found.code||found.id):id;return resolved.replace(/^([GH][0-9]{1,5})[A-Z]+$/,"$1");}).filter(function(x){return /^[GH][0-9]{1,5}$/.test(x);})));
  var translated=preferredTerm;
  var lookups=codes.map(function(code){return {term:code,label:"Léxico Strong "+code};});
