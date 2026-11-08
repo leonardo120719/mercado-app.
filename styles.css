@@ -350,3 +350,45 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
  .pb-top-shell .top-menu-grid{grid-template-columns:1fr}
  .pb-top-shell .header-action{min-width:26px}
 }
+
+
+/* Leitura conectada: painel inferior compacto, nunca uma barra lateral. */
+.reader-scripture .pb-linked-word{cursor:pointer;touch-action:manipulation;border-bottom:1px dotted transparent;border-radius:2px;text-decoration:none}
+.reader-scripture .pb-linked-word:hover,.reader-scripture .pb-linked-word:focus-visible{border-bottom-color:#527e99;background:#b4d8e233;outline:0}
+.pb-connected-backdrop{position:fixed;inset:0;background:#091e2a61;z-index:875;display:flex;align-items:flex-end;justify-content:center;padding:0 10px env(safe-area-inset-bottom,0px)}
+.pb-connected-sheet{display:flex;flex-direction:column;width:min(850px,100%);max-height:min(75dvh,730px);min-height:260px;background:var(--white);color:var(--ink);border:1px solid var(--border);border-radius:16px 16px 0 0;box-shadow:0 16px 70px #03141b80;overflow:hidden}
+.pb-connected-top{display:flex;align-items:start;justify-content:space-between;gap:14px;padding:17px 20px 10px;border-bottom:1px solid var(--border)}
+.pb-connected-top h2{font-family:"Libre Baskerville",Georgia,serif;font-weight:400;font-size:21px;margin:6px 0 4px;line-height:1.4}
+.pb-connected-top small{color:var(--sub);font-size:11px}
+.pb-connected-top .reader-icon{flex:none}
+.pb-connected-guidance{margin:0;padding:10px 20px;font-size:11px;line-height:1.6;color:var(--sub);background:var(--brand-soft);border-bottom:1px solid var(--border)}
+.pb-connected-scroll{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 20px;flex:1}
+.pb-connected-scroll section{padding:18px 0;border-bottom:1px solid var(--border)}
+.pb-connected-scroll section:last-child{border:0}
+.pb-connected-scroll h3{font-size:13px;font-weight:750;color:var(--ink);display:flex;align-items:center;gap:8px;margin:0 0 12px}
+.pb-connected-scroll h3 span{display:grid;place-items:center;width:25px;height:25px;background:var(--brand-soft);border-radius:7px;color:var(--brand);font:700 18px Georgia,serif}
+.pb-connection-entry{border:1px solid var(--border);padding:14px 16px;border-radius:10px;margin-bottom:9px;background:var(--paper)}
+.pb-connection-entry>div:first-child{display:flex;justify-content:space-between;flex-wrap:wrap;align-items:start;gap:8px}
+.pb-connection-entry strong{font-size:12px;color:var(--brand)}
+.pb-connection-entry small{font-size:10px;color:var(--sub);letter-spacing:.02em}
+.pb-connection-entry p{white-space:pre-wrap;line-height:1.75;overflow-wrap:anywhere;font-size:12px;color:var(--ink);margin:11px 0}
+.pb-connection-entry details{border-top:1px dashed var(--border);padding:10px 0;font-size:12px}
+.pb-connection-entry summary{cursor:pointer;color:var(--brand);font-weight:700}
+.pb-connection-entry .btn{margin-top:5px}
+.pb-context-strong{display:inline;background:transparent;border:0;padding:0 3px;font-size:11px;color:#1681bb;font-weight:750;vertical-align:baseline;cursor:pointer}
+.pb-context-strong:hover{text-decoration:underline}
+.pb-connections-count{font-size:11px;color:var(--sub);margin:0 0 12px}
+.pb-connected-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:8px;padding:10px 18px max(11px,env(safe-area-inset-bottom));background:var(--white);border-top:1px solid var(--border);box-shadow:0 -3px 10px #061e2510}
+.pb-connected-actions .btn{white-space:nowrap}
+@media(max-width:720px){
+ .pb-connected-backdrop{padding:0}
+ .pb-connected-sheet{width:100%;max-height:76dvh;border-radius:15px 15px 0 0;min-height:300px}
+ .pb-connected-top{padding:15px 14px 9px}
+ .pb-connected-top h2{font-size:19px}
+ .pb-connected-guidance{padding:10px 14px}
+ .pb-connected-scroll{padding:0 13px}
+ .pb-connected-scroll section{padding:13px 0}
+ .pb-connection-entry{padding:11px 12px}
+ .pb-connected-actions{padding:9px 10px max(9px,env(safe-area-inset-bottom));gap:5px}
+ .pb-connected-actions .btn{font-size:10px;padding:7px 9px}
+}
