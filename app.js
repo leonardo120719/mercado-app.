@@ -1,5 +1,4 @@
-/* Púlpito Bible — deployment bundle: modules.js + toolbar-store.js + app-core.js.
-   Source files remain separately versioned; this bundle is required by the existing Render build command. */
+/* Púlpito Bible bundle v2 — source: modules.js + toolbar-store.js + app-core.js. Render deploys this single file. */
 (function(){
 "use strict";
 var DB_NAME="PulpitoBibleModules",DB_VERSION=1;
@@ -433,8 +432,9 @@ state.showStrong=toolbarState.showStrong;
 state.showComments=toolbarState.showComments;
 state.showCrossRefs=toolbarState.showCrossRefs;
 state.showParallel=toolbarState.showParallel;
+state.focusMode=false;
 var books=booksFallback.slice(),activeBook=books.find(function(b){return b.slug===state.book;})||books[42];
-var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v1")||"{}");}catch(e){}
+var chaptersCache={};try{chaptersCache=JSON.parse(localStorage.getItem("pb-chapters-v2")||"{}");}catch(e){}
 var latestChapter=null,loadSeq=0,searchMessage="",toastTimer=null;
 window.PBModules.init({notify:notify,onUpdated:function(select){if(select){state.version=select;state.selectedVerse=0;state.page="leitura";}else if(state.version.startsWith("local:")&&!window.PBModules.getModuleByVersion(state.version)){state.version="alm1911";}persist();render();}}).then(function(){if(state.page==="modulos"||state.page==="leitura")render();}).catch(function(err){console.warn("Biblioteca externa indisponível:",err);});
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -457,7 +457,7 @@ function loadChapter(){
  latestChapter=null;var el=document.getElementById("chapter-body");if(el)el.innerHTML='<div class="loader">Carregando a passagem bíblica…</div>';
  function success(result){
   if(seq!==loadSeq||state.page!=="leitura")return;
-  var cleanVerses=(result.verses||[]).map(function(v,i){return {number:Number(v.number||v.verse)||i+1,text:String(v.text||v.content||"")};});
+  var cleanVerses=(result.verses||[]).map(function(v,i){if(typeof v==="string")return {number:i+1,text:v};return {number:Number(v.number||v.verse)||i+1,text:String(v.text||v.content||"")};});
   if(!cleanVerses.length)throw Error("Não foram encontrados versículos");
   latestChapter={verses:cleanVerses,copyright:result.copyright||"",version:result.version||state.version};
   if(!state.version.startsWith("local:")){
@@ -794,7 +794,7 @@ document.addEventListener("click",function(ev){
  if(a==="toggle-comments"){state.showComments=!state.showComments;persist();renderReader();return;}
  if(a==="toggle-crossrefs"){state.showCrossRefs=!state.showCrossRefs;persist();renderReader();return;}
  if(a==="toggle-parallel"){state.showParallel=!state.showParallel;persist();renderReader();return;}
- if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);persist();renderReader();return;}
+ if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);TS.actions.setFontSize(state.fontSize);persist();renderReader();return;}
  if(a==="reader-font-up"){state.fontSize=Math.min(28,state.fontSize+2);persist();renderReader();return;}
  if(a==="focus-mode"){state.focusMode=!state.focusMode;persist();renderReader();document.body.classList.toggle("focus-reading",state.focusMode);return;}
  if(a==="close-strong"){document.getElementById("strong-window")?.remove();return;}
@@ -837,8 +837,8 @@ document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.action
 document.getElementById("menu-toggle").addEventListener("click",function(){document.getElementById("sidebar").classList.toggle("open");document.getElementById("mobile-overlay").classList.toggle("active");});
 document.getElementById("mobile-overlay").addEventListener("click",function(){document.getElementById("sidebar").classList.remove("open");document.getElementById("mobile-overlay").classList.remove("active");});
 document.getElementById("brand-link").addEventListener("click",function(e){e.preventDefault();page("leitura");});
-document.getElementById("theme-toggle").addEventListener("click",function(){state.theme=state.theme==="dark"?"light":"dark";persist();render();});
-document.getElementById("font-up").addEventListener("click",function(){state.fontSize=Math.min(26,state.fontSize+2);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
+document.getElementById("theme-toggle").addEventListener("click",function(){var next=TS.getState().theme==="dark"?"sepia":"dark";TS.actions.setTheme(next);state.theme=next==="dark"?"dark":"light";state.readerTheme=next==="dark"?"night":next;persist();render();});
+document.getElementById("font-up").addEventListener("click",function(){state.fontSize=Math.min(30,state.fontSize+2);TS.actions.setFontSize(state.fontSize);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 document.getElementById("font-down").addEventListener("click",function(){state.fontSize=Math.max(14,state.fontSize-2);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 render();readBooks();
 })();
