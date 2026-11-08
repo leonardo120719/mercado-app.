@@ -830,3 +830,17 @@ body.focus-reading .pb-top-shell .pb-global-toolbar{top:0}
  .pb-split-bible.pb-dictionary-open{grid-template-columns:minmax(0,1fr) 43%}
  .pb-dictionary-nav button{min-width:23px}
 }
+
+
+/* Override older reader grid rules when dictionary is shown without comments. */
+.reader-active .pb-top-shell .reader-columns.pb-dictionary-open{
+ display:grid!important;
+ grid-template-columns:minmax(0,1fr) minmax(265px,39%)!important;
+}
+@media(max-width:620px) and (orientation:portrait){
+ .reader-active .pb-top-shell .reader-columns.pb-dictionary-open{
+  display:flex!important;
+  flex-direction:column!important;
+  grid-template-columns:minmax(0,1fr)!important;
+ }
+}
