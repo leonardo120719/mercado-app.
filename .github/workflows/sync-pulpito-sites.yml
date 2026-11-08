@@ -39,13 +39,14 @@ jobs:
           cp source/pulpito.html target/pulpito.html
           cp source/styles.css target/styles.css
           cp source/pulpito-sw.js target/pulpito-sw.js
+          cp source/pulpito-sw.js target/public/pulpito-sw.js
           cd target
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- app.js pulpito.html styles.css pulpito-sw.js; then
+          if git diff --quiet -- app.js pulpito.html styles.css pulpito-sw.js public/pulpito-sw.js; then
             echo "Os sites já estão sincronizados."
             exit 0
           fi
-          git add app.js pulpito.html styles.css pulpito-sw.js
+          git add app.js pulpito.html styles.css pulpito-sw.js public/pulpito-sw.js
           git commit -m "Sincroniza Púlpito Bible a partir da versão PWA [skip ci]"
           git push origin HEAD:pulpito-bible
