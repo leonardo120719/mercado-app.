@@ -4,7 +4,7 @@
    One delegated set of handlers, one IndexedDB scan per chapter, no scroll
    listeners. Word/Strong buttons keep their own short-tap behavior. */
 var opts={},started=false,generation=0,reference=null,coverage=Object.create(null);
-var press=null,holdTimer=null,holdHandledUntil=0,lastTap=null,lastOpened={verse:0,at:0},picker=null;
+var press=null,holdTimer=null,holdHandledUntil=0,lastTap=null,lastOpened={verse:0,moduleId:"",at:0},picker=null;
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function verseElement(target){return target&&target.closest&&target.closest("#chapter-body .verse-line");}
 function indicatorElement(target){return target&&target.closest&&target.closest("[data-comment-indicator]");}
@@ -13,7 +13,7 @@ function closePicker(){
  if(picker){picker.remove();picker=null;}
 }
 function invalidate(){
- ++generation;reference=null;coverage=Object.create(null);lastTap=null;
+ ++generation;reference=null;coverage=Object.create(null);lastTap=null;lastOpened={verse:0,moduleId:"",at:0};
  closePicker();
  if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}
  press=null;
@@ -24,35 +24,44 @@ function decorate(book,chapter,verses){
  reference={book:book,chapter:Number(chapter)};
  coverage=Object.create(null);
  closePicker();
- document.querySelectorAll("#chapter-body [data-comment-indicator]").forEach(function(b){b.remove();});
+ document.querySelectorAll("#chapter-body .pb-verse-comment-labels").forEach(function(node){node.remove();});
+ document.querySelectorAll("#chapter-body [data-comment-indicator]").forEach(function(node){node.remove();});
  if(!valid.length||!global.PBModules.getInstalled().some(function(m){return m.type==="commentary";}))return;
  global.PBModules.getCommentaryCoverage(book,chapter,valid).then(function(found){
   if(gen!==generation||!reference||reference.book!==book||reference.chapter!==Number(chapter))return;
   coverage=found||Object.create(null);
   document.querySelectorAll("#chapter-body .verse-line").forEach(function(line){
    var n=Number(line.dataset.verse),mods=candidates(n);
-   if(!mods.length||line.querySelector("[data-comment-indicator]"))return;
-   var total=mods.reduce(function(sum,m){return sum+(m.count||0);},0);
-   var button=document.createElement("button");
-   button.type="button";button.className="pb-verse-comment-indicator";
-   button.setAttribute("data-comment-indicator",String(n));
-   button.setAttribute("aria-label",total+" comentário(s) em "+book+" "+chapter+":"+n+". Toque duas vezes para abrir.");
-   button.setAttribute("title","Comentários deste versículo — toque duas vezes para abrir");
-   button.textContent="▤ Coment."+(total>1?" "+total:"");
-   line.appendChild(button);
+   if(!mods.length)return;
+   var labels=document.createElement("span");
+   labels.className="pb-verse-comment-labels";
+   labels.setAttribute("role","group");
+   labels.setAttribute("aria-label","Comentários vinculados a "+book+" "+chapter+":"+n);
+   mods.forEach(function(mod){
+    var button=document.createElement("button");
+    button.type="button";
+    button.className="pb-verse-comment-indicator";
+    button.setAttribute("data-comment-indicator",String(n));
+    button.setAttribute("data-comment-module",String(mod.moduleId||""));
+    button.setAttribute("aria-label","Abrir "+(mod.moduleName||"comentário")+" em "+book+" "+chapter+":"+n+". Toque duas vezes para abrir.");
+    button.setAttribute("title",(mod.moduleName||"Comentário")+" — toque duas vezes para abrir");
+    button.textContent=mod.moduleName||"Comentário";
+    labels.appendChild(button);
+   });
+   if(labels.childNodes.length)line.insertBefore(labels,line.firstChild);
   });
  }).catch(function(err){
   if(gen===generation&&global.console&&console.warn)console.warn("Indicadores de comentários indisponíveis",err);
  });
 }
-function chooseForVerse(verse,moduleId){
+function chooseForVerse(verse,moduleId,anchor){
  var n=Number(verse),matches=candidates(n);
  var chosen=matches.find(function(m){return m.moduleId===moduleId;});
  if(!chosen)chosen=matches.find(function(m){return m.moduleId===opts.readPreferredModule();})||matches[0];
  closePicker();
  if(!chosen)return;
- lastOpened={verse:n,at:Date.now()};
- if(opts.openCommentary)opts.openCommentary(n,chosen.moduleId);
+ lastOpened={verse:n,moduleId:chosen.moduleId,at:Date.now()};
+ if(opts.openCommentary)opts.openCommentary(n,chosen.moduleId,anchor);
 }
 function pickerContents(verse){
  var n=Number(verse),matches=candidates(n),installed=global.PBModules.getInstalled().filter(function(m){return m.type==="commentary";});
@@ -80,7 +89,7 @@ function showPicker(verse,anchor){
  el.dataset.verse=String(n);
  el.addEventListener("click",function(e){
   var choice=e.target.closest("[data-vc-choice]");
-  if(choice){e.preventDefault();e.stopPropagation();chooseForVerse(n,choice.dataset.vcChoice);return;}
+  if(choice){e.preventDefault();e.stopPropagation();chooseForVerse(n,choice.dataset.vcChoice,anchor);return;}
   var action=e.target.closest("[data-vc-action]");
   if(action){e.preventDefault();e.stopPropagation();if(action.dataset.vcAction==="modules"&&opts.openModules){closePicker();opts.openModules();}else closePicker();}
  });
@@ -132,12 +141,12 @@ function onClick(e){
  var badge=indicatorElement(e.target);
  if(badge){
   e.preventDefault();e.stopImmediatePropagation();
-  var n=Number(badge.dataset.commentIndicator),now=Date.now();
+  var n=Number(badge.dataset.commentIndicator),moduleId=badge.dataset.commentModule||"",now=Date.now();
   if(opts.selectVerse)opts.selectVerse(n);
-  if(lastTap&&lastTap.verse===n&&now-lastTap.at<480){
+  if(lastTap&&lastTap.verse===n&&lastTap.moduleId===moduleId&&now-lastTap.at<480){
    lastTap=null;
-   if(now-lastOpened.at>700||lastOpened.verse!==n)chooseForVerse(n);
-  }else lastTap={verse:n,at:now};
+   if(lastOpened.verse!==n||lastOpened.moduleId!==moduleId||now-lastOpened.at>700)chooseForVerse(n,moduleId,badge);
+  }else lastTap={verse:n,moduleId:moduleId,at:now};
   return;
  }
  if(Date.now()<holdHandledUntil&&verseElement(e.target)){
@@ -149,15 +158,15 @@ function onDoubleClick(e){
  var badge=indicatorElement(e.target);
  if(!badge)return;
  e.preventDefault();e.stopImmediatePropagation();
- var n=Number(badge.dataset.commentIndicator),now=Date.now();
- if(lastOpened.verse!==n||now-lastOpened.at>700)chooseForVerse(n);
+ var n=Number(badge.dataset.commentIndicator),moduleId=badge.dataset.commentModule||"",now=Date.now();
+ if(lastOpened.verse!==n||lastOpened.moduleId!==moduleId||now-lastOpened.at>700)chooseForVerse(n,moduleId,badge);
 }
 function onKeydown(e){
  if(e.key==="Escape"){closePicker();stopPress();return;}
  var badge=indicatorElement(e.target);
  if(!badge||(e.key!=="Enter"&&e.key!==" "))return;
  e.preventDefault();e.stopImmediatePropagation();
- chooseForVerse(badge.dataset.commentIndicator);
+ chooseForVerse(badge.dataset.commentIndicator,badge.dataset.commentModule,badge);
 }
 function init(config){
  opts=config||{};
