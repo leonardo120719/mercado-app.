@@ -1,5 +1,5 @@
 /* Púlpito Bible — offline app shell */
-const CACHE_NAME = "pulpito-bible-shell-v1";
+const CACHE_NAME = "pulpito-bible-shell-v2";
 const APP_SHELL = [
   "/",
   "/index.html",
