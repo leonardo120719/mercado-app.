@@ -1466,6 +1466,7 @@ function onClick(e){
  if(badge){
   e.preventDefault();e.stopImmediatePropagation();
   var n=Number(badge.dataset.commentIndicator),now=Date.now();
+  if(opts.selectVerse)opts.selectVerse(n);
   if(lastTap&&lastTap.verse===n&&now-lastTap.at<480){
    lastTap=null;
    if(now-lastOpened.at>700||lastOpened.verse!==n)chooseForVerse(n);
@@ -1537,8 +1538,12 @@ window.PBVerseComments.init({
  readBookName:function(){return activeBook.name;},
  readPreferredModule:function(){return state.commentModuleId||"";},
  selectVerse:function(verse){
-  state.selectedVerse=Number(verse)||0;
+  var n=Number(verse)||0;if(!n)return;
+  state.selectedVerse=n;
+  var id=verseGlobalId(n),selected=TS.getState().currentVerseSelection||[];
+  if(selected.indexOf(id)<0)TS.actions.toggleVerse(id);
   persist();
+  refreshVerseDecorations();
   var label=document.getElementById("selected-reference");if(label)label.textContent=ref();
  },
  openCommentary:function(verse,moduleId){
