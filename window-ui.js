@@ -32,6 +32,18 @@ function mount(root,config){
  panel.tabIndex=-1;
  var onClose=typeof config.onClose==="function"?config.onClose:function(){root.remove();};
  applyTab(root,config.defaultTab||"strong");
+ if(config.anchor&&global.innerWidth>=MOBILE_BREAKPOINT&&typeof config.anchor.getBoundingClientRect==="function"){
+  try{
+   var around=config.anchor.getBoundingClientRect(),size=panel.getBoundingClientRect();
+   var left=around.right+14,top=around.top-34;
+   if(left+size.width>global.innerWidth-8)left=around.left-size.width-14;
+   if(left<8)left=global.innerWidth-size.width-12;
+   panel.style.left=Math.max(8,left)+"px";
+   panel.style.top=Math.max(8,Math.min(top,global.innerHeight-size.height-8))+"px";
+   panel.style.right="auto";
+  }catch(_){}
+ }
+
  function handleClick(event){
   var tab=event.target.closest("[data-pb-win-tab]");
   if(tab&&panel.contains(tab)){
