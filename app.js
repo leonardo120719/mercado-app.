@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-classic-longpress-v31";
+window.PB_BUILD_ID = "pb-20261109-crossref-numbers-v32";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
