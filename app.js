@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-checkbox-pointer-v27";
+window.PB_BUILD_ID = "pb-20261109-tap-lock-v28";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1666,11 +1666,8 @@ function onPointerEnd(e){if(press&&e.pointerId===press.pointerId)stopPress();}
 function onContextMenu(e){
  var verse=verseElement(e.target);
  if(!verse||indicatorElement(e.target))return;
+ /* Menu nativo não seleciona nem alterna versículos; apenas o temporizador do gesto longo. */
  e.preventDefault();
- if(Date.now()-(window.__pbLongPressAt||0)<1200)return;
- stopPress();holdHandledUntil=Date.now()+900;
- window.__pbMultiSelectMode=true;
- if(opts.selectVerse)opts.selectVerse(Number(verse.dataset.verse));
 }
 function onClick(e){
  var badge=indicatorElement(e.target);
