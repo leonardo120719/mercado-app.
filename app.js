@@ -1624,6 +1624,18 @@ function onClick(e){
   }else lastTap={verse:n,moduleId:moduleId,at:now};
   return;
  }
+ /* Um toque somente desfaz uma seleção temporária já ativa.
+    Não apaga marcações permanentes nem interfere nos duplos toques. */
+ var tappedVerse=verseElement(e.target);
+ if(tappedVerse&&Date.now()>=holdHandledUntil&&window.PBToolbar){
+  var selected=window.PBToolbar.getState().currentVerseSelection||[];
+  if(selected.includes(tappedVerse.dataset.usfm)){
+   e.preventDefault();e.stopImmediatePropagation();
+   window.PBToolbar.actions.clearSelection();
+   if(typeof refreshVerseDecorations==="function")refreshVerseDecorations();
+   return;
+  }
+ }
  if(Date.now()<holdHandledUntil&&verseElement(e.target)){
   e.preventDefault();e.stopImmediatePropagation();holdHandledUntil=0;return;
  }
