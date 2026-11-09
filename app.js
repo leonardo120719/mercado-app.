@@ -1563,7 +1563,7 @@ function onClick(e){
  if(badge){
   e.preventDefault();e.stopImmediatePropagation();
   var n=Number(badge.dataset.commentIndicator),moduleId=badge.dataset.commentModule||"",now=Date.now();
-  if(opts.selectVerse)opts.selectVerse(n);
+  /* Primeiro clique no nome do comentário não altera estado nem abre janela. */
   if(lastTap&&lastTap.verse===n&&lastTap.moduleId===moduleId&&now-lastTap.at<480){
    lastTap=null;
    if(lastOpened.verse!==n||lastOpened.moduleId!==moduleId||now-lastOpened.at>700)chooseForVerse(n,moduleId,badge);
