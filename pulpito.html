@@ -82,4 +82,43 @@
     });
   }
 })();
-</script></body></html>
+</script><script>
+/* Android APK: detecta novas versões sem comprometer o conteúdo offline.
+   A instalação de novo APK requer confirmação do Android. */
+(function(){
+  if(!window.Capacitor || !window.Capacitor.isNativePlatform || !window.Capacitor.isNativePlatform())return;
+  var endpoint="https://pulpito-bible-android.onrender.com/app.js";
+  var builds="https://github.com/leonardo120719/mercado-app./actions/workflows/android-apk.yml";
+  var shown=false;
+  async function check(){
+    if(!navigator.onLine || shown)return;
+    try{
+      var controller=new AbortController();
+      var timer=setTimeout(function(){controller.abort();},9000);
+      var response=await fetch(endpoint+"?apk-version="+Date.now(),{cache:"no-store",signal:controller.signal});
+      clearTimeout(timer);
+      if(!response.ok)return;
+      var body=await response.text();
+      var match=body.match(/window\\.PB_BUILD_ID\\s*=\\s*["']([^"']+)["']/);
+      if(!match || !window.PB_BUILD_ID || match[1]===window.PB_BUILD_ID)return;
+      shown=true;
+      var box=document.createElement("div");
+      box.setAttribute("role","status");
+      box.style.cssText="position:fixed;bottom:16px;left:12px;right:12px;z-index:999999;padding:14px;border-radius:12px;background:#123b48;color:white;box-shadow:0 8px 30px #0005;font:14px/1.5 system-ui";
+      var msg=document.createElement("div");
+      msg.textContent="Nova versão do Púlpito Bible disponível. Para atualizar este APK, baixe e instale a nova versão por cima da atual, sem desinstalar.";
+      var actions=document.createElement("div");actions.style.cssText="display:flex;gap:10px;margin-top:10px";
+      var go=document.createElement("button");go.textContent="Ver atualização";go.style.cssText="padding:8px 12px;border-radius:8px;border:0;cursor:pointer";
+      go.onclick=function(){window.open(builds,"_system");};
+      var dismiss=document.createElement("button");dismiss.textContent="Depois";dismiss.style.cssText="padding:8px 12px;border-radius:8px;border:1px solid #fff;background:transparent;color:white";
+      dismiss.onclick=function(){box.remove();};
+      actions.append(go,dismiss);box.append(msg,actions);document.body.appendChild(box);
+    }catch(e){}
+  }
+  window.addEventListener("online",check);
+  document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check();});
+  setTimeout(check,12000);
+  setInterval(check,3600000);
+})();
+</script>
+</body></html>
