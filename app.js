@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-checkbox-toggle-v26";
+window.PB_BUILD_ID = "pb-20261109-checkbox-pointer-v27";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1771,7 +1771,7 @@ window.PBVerseComments.init({
   var n=Number(verse)||0;if(!n)return;
   state.selectedVerse=n;
   var id=verseGlobalId(n),selected=TS.getState().currentVerseSelection||[];
-  if(selected.indexOf(id)<0)TS.actions.toggleVerse(id);
+  TS.actions.toggleVerse(id);
   persist();
   refreshVerseDecorations();
   var label=document.getElementById("selected-reference");if(label)label.textContent=ref();
@@ -1914,19 +1914,28 @@ document.addEventListener("click",function(e){
  if(action==="cancel"){window.__pbCheckboxMode=false;window.__pbMultiSelectMode=false;toolbar.actions.clearSelection();}
  var refresh=window.__pbRefreshCheckboxes;if(refresh)refresh();
 },true);
-/* Checkbox controlado: um toque marca; o próximo desmarca. */
+/* Uma única ação por toque: pointerup no celular, click no teclado/browser. */
+var pbLastBoxAction={id:"",at:0};
+function pbToggleCheckbox(box){
+ if(!window.__pbCheckboxMode||!window.PBToolbar)return;
+ var id=box.dataset.pbVerseCheck,now=Date.now();
+ if(pbLastBoxAction.id===id&&now-pbLastBoxAction.at<350)return;
+ pbLastBoxAction={id:id,at:now};
+ window.PBToolbar.actions.toggleVerse(id);
+ if(window.__pbRefreshCheckboxes)window.__pbRefreshCheckboxes();
+}
+document.addEventListener("pointerup",function(e){
+ var box=e.target.closest&&e.target.closest("input[data-pb-verse-check]");
+ if(box&&e.button===0)pbToggleCheckbox(box);
+},true);
 document.addEventListener("click",function(e){
  var box=e.target.closest&&e.target.closest("input[data-pb-verse-check]");
  if(!box)return;
  e.preventDefault();e.stopImmediatePropagation();
- if(!window.__pbCheckboxMode||!window.PBToolbar)return;
- window.PBToolbar.actions.toggleVerse(box.dataset.pbVerseCheck);
- if(window.__pbRefreshCheckboxes)window.__pbRefreshCheckboxes();
+ pbToggleCheckbox(box);
 },true);
 document.addEventListener("change",function(e){
- if(e.target&&e.target.matches&&e.target.matches("input[data-pb-verse-check]")){
-  e.stopImmediatePropagation();
- }
+ if(e.target&&e.target.matches&&e.target.matches("input[data-pb-verse-check]"))e.stopImmediatePropagation();
 },true);
 function refreshVerseDecorations(){
  var ts=TS.getState();
