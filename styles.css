@@ -1075,3 +1075,19 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 #chapter-body .verse-line:not(.selected):not(.pb-multi-selected) .verse-text:active {
  background-color:transparent!important;
 }
+
+/* v32: número maior e área exclusiva para duplo toque nas referências cruzadas. */
+#chapter-body .verse-line .verse-num {
+ display:inline-block;
+ font-size:14px!important;
+ line-height:1.15!important;
+ font-weight:800!important;
+ vertical-align:super;
+ margin-right:10px!important;
+ padding:4px 5px 5px 3px;
+ min-width:20px;
+ text-align:center;
+ cursor:pointer;
+ touch-action:manipulation;
+ -webkit-tap-highlight-color:transparent;
+}
