@@ -1624,14 +1624,13 @@ function onClick(e){
   }else lastTap={verse:n,moduleId:moduleId,at:now};
   return;
  }
- /* Um toque somente desfaz uma seleção temporária já ativa.
-    Não apaga marcações permanentes nem interfere nos duplos toques. */
+ /* No modo de seleção, cada toque alterna apenas o versículo tocado. */
  var tappedVerse=verseElement(e.target);
  if(tappedVerse&&Date.now()>=holdHandledUntil&&window.PBToolbar){
   var selected=window.PBToolbar.getState().currentVerseSelection||[];
-  if(selected.includes(tappedVerse.dataset.usfm)){
+  if(selected.length){
    e.preventDefault();e.stopImmediatePropagation();
-   window.PBToolbar.actions.clearSelection();
+   window.PBToolbar.actions.toggleVerse(tappedVerse.dataset.usfm);
    if(typeof refreshVerseDecorations==="function")refreshVerseDecorations();
    return;
   }
