@@ -1,4 +1,16 @@
 window.PB_BUILD_ID = "pb-20261108-compact-commentary-strong-one-tap-6";
+/* Bloqueio global prioritário: clique simples jamais inicia seleção. 
+   Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
+document.addEventListener("click",function(e){
+ var target=e.target;
+ if(!target||!target.closest||!target.closest("#chapter-body .verse-line"))return;
+ var toolbar=window.PBToolbar;
+ var selected=toolbar&&toolbar.getState().currentVerseSelection||[];
+ if(window.__pbMultiSelectMode!==true||!selected.length){
+  e.preventDefault();
+  e.stopImmediatePropagation();
+ }
+},true);
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
