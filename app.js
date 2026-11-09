@@ -401,6 +401,54 @@ async function removeModule(id){
  nkeys.forEach(function(key){tx.objectStore("commentaries").delete(key);});dkeys.forEach(function(key){tx.objectStore("lexicon").delete(key);});
  await done;await loadCatalog();onUpdated();notify("Módulo removido.");renderPage();
 }
+/* Proteção dos módulos: exportação/restauração explícita, sem apagar dados existentes. */
+var PB_BACKUP_STORES=["modules","chapters","commentaries","lexicon","commentaryEntries"];
+async function protectStorage(){
+ if(navigator.storage&&navigator.storage.persist){
+  try{await navigator.storage.persist();}catch(e){console.warn("Armazenamento persistente indisponível",e);}
+ }
+}
+async function backupModules(){
+ var db=await dbOpen(),parts=['{"format":"pulpito-bible-modules-backup-v1","origin":'+JSON.stringify(location.origin)+',"createdAt":'+JSON.stringify(new Date().toISOString())+',"stores":{'];
+ for(var i=0;i<PB_BACKUP_STORES.length;i++){
+  var name=PB_BACKUP_STORES[i],first=true;
+  parts.push((i?",":"")+JSON.stringify(name)+":[");
+  await new Promise(function(resolve,reject){
+   var tx=db.transaction(name,"readonly"),req=tx.objectStore(name).openCursor();
+   req.onsuccess=function(){var cursor=req.result;if(!cursor)return;parts.push((first?"":",")+JSON.stringify(cursor.value));first=false;cursor.continue();};
+   req.onerror=function(){reject(req.error);};
+   tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error);};
+  });
+  parts.push("]");
+ }
+ parts.push("}}");
+ var blob=new Blob(parts,{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");
+ link.href=url;link.download="pulpito-bible-backup-"+new Date().toISOString().slice(0,10)+".json";
+ document.body.appendChild(link);link.click();link.remove();setTimeout(function(){URL.revokeObjectURL(url);},60000);
+ notify("Cópia dos módulos preparada. Guarde o arquivo em Arquivos ou iCloud.");
+}
+async function restoreModules(file){
+ if(!file)return;
+ var backup=JSON.parse(await file.text());
+ if(backup.format!=="pulpito-bible-modules-backup-v1"||!backup.stores)throw Error("Este arquivo não é um backup de módulos do Púlpito Bible.");
+ var db=await dbOpen(),total=0;
+ for(var name of PB_BACKUP_STORES){
+  var entries=backup.stores[name]||[];
+  if(!Array.isArray(entries))throw Error("Estrutura de backup inválida: "+name);
+  for(var offset=0;offset<entries.length;offset+=100){
+   var batch=entries.slice(offset,offset+100),tx=db.transaction(name,"readwrite");
+   await new Promise(function(resolve,reject){
+    var store=tx.objectStore(name);
+    batch.forEach(function(item){store.put(item);});
+    tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error||Error("Erro na restauração"));};tx.onabort=function(){reject(tx.error||Error("Restauração interrompida"));};
+   });
+   total+=batch.length;
+  }
+ }
+ await loadCatalog();onUpdated();renderPage();
+ notify("Backup restaurado sem excluir os módulos que já estavam instalados ("+total+" registros).");
+}
+protectStorage();
 function getUiMarkup(){
  return '<div class="content module-library">'+
  '<div class="eyebrow">PÚLPITO BIBLE / MÓDULOS EXTERNOS</div><h1 class="page-title">Biblioteca de módulos</h1><p class="subtitle">Instale Bíblias, comentários e dicionários Strong armazenados em ZIP ou SQLite3. Os arquivos ficam neste aparelho e os comentários acompanham a passagem escolhida.</p>'+
@@ -408,13 +456,13 @@ function getUiMarkup(){
  '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher arquivos ZIP, SQLite3 ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.json"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
  '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
- '<button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
+ '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,application/json" style="display:none"></label></div><p class="feature-note">Proteja seus módulos antes de trocar de endereço, navegador ou aparelho. A restauração acrescenta os registros sem apagar os existentes. No iPhone, salve o backup no app Arquivos ou iCloud Drive.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
  (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
  '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Consultar dicionário Strong</h2><span class="chip greenish">Léxicos instalados</span></div><div class="search-bar"><input id="dictionary-query" class="field" placeholder="Ex.: H7563 ou G3306"><button id="dictionary-search" class="btn primary" type="button">Consultar</button></div><div id="dictionary-results" class="feature-note" role="status" aria-live="polite">Após instalar um léxico, consulte aqui ou toque no número Strong dentro da Bíblia.</div></section><section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Traduções desejadas</h2><span class="chip">Disponíveis via importação autorizada</span></div>'+
  '<div class="module-catalog">'+requested.map(function(t){var found=modules.find(function(m){return m.type==="bible"&&((m.abbreviation||"").toUpperCase()===t.code||(m.name||"").toLowerCase()===t.name.toLowerCase());});return '<div class="module-catalog-item"><div><strong>'+clean(t.code)+' · '+clean(t.name)+'</strong><p>'+clean(t.holder)+' · '+clean(t.status)+'</p></div><span class="chip '+(found?"greenish":"")+'">'+(found?"Instalado":"Não incluído")+'</span></div>';}).join("")+'</div>'+
  '<p class="feature-note">NVI, NTLH, NAA e ACF não são fornecidas nem baixadas automaticamente pelo aplicativo. A King James de 1611 também exige verificação dos direitos aplicáveis à edição e ao território. A instalação depende de arquivo compatível obtido com autorização.</p></section>'+
- '<section class="card card-pad" style="margin-top:18px"><h2 class="section-heading">Como instalar</h2><p class="feature-note">1. Obtenha legalmente o módulo e salve o arquivo ZIP ou SQLite3 no dispositivo. 2. Toque em “Escolher arquivos” e selecione o documento no aplicativo Arquivos. 3. Confirme o direito de utilização e a importação será iniciada. 4. Ative uma Bíblia instalada pelo botão “Ler agora” ou pelo seletor de traduções. 5. Ative Comentários no leitor e toque no número Strong para consultar os dicionários instalados.</p><p class="feature-note">Os dados são armazenados em IndexedDB no navegador. Eles não são sincronizados entre aparelhos; limpar os dados do site pode apagá-los. Exporte ou mantenha cópia original dos seus ZIPs.</p></section></div>';
+ '<section class="card card-pad" style="margin-top:18px"><h2 class="section-heading">Como instalar</h2><p class="feature-note">1. Obtenha legalmente o módulo e salve o arquivo ZIP ou SQLite3 no dispositivo. 2. Toque em “Escolher arquivos” e selecione o documento no aplicativo Arquivos. 3. Confirme o direito de utilização e a importação será iniciada. 4. Ative uma Bíblia instalada pelo botão “Ler agora” ou pelo seletor de traduções. 5. Ative Comentários no leitor e toque no número Strong para consultar os dicionários instalados.</p><p class="feature-note">Os módulos ficam no IndexedDB deste endereço e navegador. Atualizações normais não devem apagá-los, mas iOS pode remover dados locais em situações de falta de espaço. Use Fazer backup dos módulos e guarde o arquivo no iCloud. Endereços diferentes têm bibliotecas separadas.</p></section></div>';
 }
 
 async function searchDictionaryUi(){
@@ -437,11 +485,11 @@ async function downloadSample(){
  zip.file("comments.json",JSON.stringify([{book:"john",chapter:15,verse:4,text:"Exemplo de anotação: observe o verbo 'permanecer' e leia João 15:1–8 antes de elaborar uma aplicação."},{book:"psalms",chapter:73,verse:3,text:"Exemplo de anotação: observe a tensão entre a prosperidade dos ímpios e a mudança de perspectiva em Salmos 73:17."}],null,2));
  var blob=await zip.generateAsync({type:"blob"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="pulpito-bible-modulo-exemplo.zip";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2500);
 }
-document.addEventListener("change",function(e){if(e.target&&e.target.id==="module-file"){var files=Array.from(e.target.files||[]);if(files.length)importFiles(files);}});
+document.addEventListener("change",function(e){if(e.target&&e.target.id==="module-restore"){var f=e.target.files&&e.target.files[0];if(f)restoreModules(f).catch(function(err){notify("Não foi possível restaurar: "+err.message);});e.target.value="";return;}if(e.target&&e.target.id==="module-file"){var files=Array.from(e.target.files||[]);if(files.length)importFiles(files);}});
 document.addEventListener("click",function(e){
- var act=e.target&&e.target.closest&&e.target.closest("[data-module-remove],[data-module-activate],#module-sample,#dictionary-search");
+ var act=e.target&&e.target.closest&&e.target.closest("[data-module-remove],[data-module-activate],#module-sample,#module-backup,#dictionary-search");
  if(!act)return;
- if(act.id==="module-sample"){downloadSample();return;}if(act.id==="dictionary-search"){searchDictionaryUi();return;}
+ if(act.id==="module-backup"){backupModules().catch(function(err){notify("Falha no backup: "+err.message);});return;}if(act.id==="module-sample"){downloadSample();return;}if(act.id==="dictionary-search"){searchDictionaryUi();return;}
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
 });
