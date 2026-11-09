@@ -680,8 +680,9 @@ window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bible
   function selectionMarkup(s){
     return '<div class="mtb-selection">'+
       '<span class="mtb-count">'+s.currentVerseSelection.length+' selecionado(s)</span>'+
-      item("copy","Copiar","▣")+item("share","Compartilhar","↗")+
-      item("highlight","Marcar com cor","▨")+item("note","Adicionar nota","✎")+
+      item("comments-verse","Comentários","▤")+item("note","Minha anotação","✎")+
+      item("explain-verse","Explicar","✧")+item("sermon-verse","Sermão","▤")+item("copy","Copiar","▣")+
+      item("highlight","Marcar","▨")+
       item("clear","Limpar seleção","×")+
       '</div>'+
       (s.paletteOpen?'<div class="mtb-palette" role="group" aria-label="Escolher cor de marcação">'+
@@ -1562,7 +1563,7 @@ function onPointerDown(e){
   if(!press)return;
   var old=press;press=null;holdTimer=null;
   holdHandledUntil=Date.now()+900;
-  showPicker(old.verse,old.node);
+  if(opts.selectVerse)opts.selectVerse(old.verse);
  },560);
 }
 function onPointerMove(e){
@@ -1575,7 +1576,7 @@ function onContextMenu(e){
  if(!verse||indicatorElement(e.target))return;
  e.preventDefault();
  stopPress();holdHandledUntil=Date.now()+900;
- showPicker(verse.dataset.verse,verse);
+ if(opts.selectVerse)opts.selectVerse(Number(verse.dataset.verse));
 }
 function onClick(e){
  var badge=indicatorElement(e.target);
@@ -1863,6 +1864,13 @@ function toolbarAction(action){
   var t=TS.getState();state.showStrong=t.showStrong;state.showComments=t.showComments;state.showCrossRefs=t.showCrossRefs;state.showParallel=t.showParallel;
   state.readerMode=t.continuousText?"continuous":"verses";persist();renderReader();return;
  }
+ case "comments-verse":{
+  var n=selectionNumbers()[0]||state.selectedVerse;
+  if(n&&window.PBVerseComments)window.PBVerseComments.showPicker(n,document.querySelector('#chapter-body .verse-line[data-verse="'+n+'"]'));
+  return;
+ }
+ case "explain-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;persist();}page("tutor");return;}
+ case "sermon-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;state.sermon.context+=(state.sermon.context?"\\n\\n":"")+activeBook.name+" "+state.chapter+":"+n;persist();notify("Versículo adicionado ao sermão");}return;}
  case "copy":shareOrCopy(false);return;
  case "share":shareOrCopy(true);return;
  case "note":{var n=selectionNumbers();if(n.length){state.selectedVerse=n[0];persist();}noteModal();return;}
