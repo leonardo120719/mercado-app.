@@ -1864,7 +1864,10 @@ function refreshVerseDecorations(){
  var dock=document.querySelector(".reader-actiondock");if(dock)dock.hidden=!ts.currentVerseSelection.length;
  document.querySelectorAll("#chapter-body .verse-line").forEach(function(node){
   var id=node.dataset.usfm;
-  node.classList.toggle("selected",ts.currentVerseSelection.includes(id));
+  var isSelected=ts.currentVerseSelection.includes(id);
+  node.classList.toggle("selected",isSelected);
+  node.classList.toggle("pb-multi-selected",isSelected);
+  node.setAttribute("aria-selected",isSelected?"true":"false");
   var color=TS.COLORS[ts.highlights[id]];
   node.classList.toggle("highlighted",!!color);
   if(color)node.style.setProperty("--verse-mark",color);
