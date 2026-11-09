@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-crossref-numbers-v32";
+window.PB_BUILD_ID = "pb-20261109-acervo-v33";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -510,10 +510,50 @@ async function restoreModules(file){
  notify("Backup restaurado sem excluir os módulos que já estavam instalados ("+total+" registros).");
 }
 protectStorage();
+
+/* Púlpito Acervo: catálogo de módulos autorizados, com instalação offline via IndexedDB. */
+var pbAcervoItems=[];
+async function loadPbAcervo(){
+ var target=document.getElementById("pb-acervo-list");
+ if(!target)return;
+ if(!navigator.onLine){target.textContent="Sem internet. Seus módulos instalados continuam disponíveis offline.";return;}
+ target.textContent="Consultando catálogo...";
+ try{
+  var response=await fetch("/pulpito-acervo.json",{cache:"no-store"});
+  if(!response.ok)throw Error("Catálogo indisponível");
+  var data=await response.json();
+  pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.url&&m.license&&m.distributionAuthorized===true;}):[];
+  if(!pbAcervoItems.length){target.textContent="O catálogo de downloads está sendo preparado. Enquanto isso, use Instalar ZIP do dispositivo.";return;}
+  target.innerHTML=pbAcervoItems.map(function(m,i){
+   return '<article class="module-comment"><strong>'+clean(m.name)+'</strong><small>'+clean(m.type||"Módulo")+' • '+clean(m.license)+'</small><p>'+clean(m.description||"Disponível para instalação offline")+'</p><button type="button" class="btn" data-pb-acervo-download="'+i+'">↓ Baixar e instalar</button></article>';
+  }).join("");
+ }catch(err){target.textContent="Não foi possível consultar o catálogo. Você ainda pode instalar seus próprios arquivos ZIP.";}
+}
+async function installPbAcervo(index,button){
+ var m=pbAcervoItems[index];if(!m||busy)return;
+ var rights=document.getElementById("module-rights");
+ if(!rights||!rights.checked){notify("Confirme a permissão de uso dos módulos antes de instalar.");return;}
+ var url;
+ try{url=new URL(m.url,location.origin);}catch(e){notify("Endereço de módulo inválido.");return;}
+ if(url.origin!==location.origin||!/^\\/(?!\\/)/.test(url.pathname)){notify("Por segurança, o download deve estar hospedado no Púlpito Bible.");return;}
+ if(!/\\.(zip|sqlite3|sqlite|db|json)$/i.test(url.pathname)){notify("Formato de módulo não suportado.");return;}
+ button.disabled=true;button.textContent="Baixando...";
+ try{
+  var response=await fetch(url.href,{cache:"no-store"});
+  if(!response.ok)throw Error("Download indisponível");
+  var length=Number(response.headers.get("content-length")||0);
+  if(length>70*1024*1024)throw Error("Arquivo excede 70 MB");
+  var blob=await response.blob();
+  if(blob.size>70*1024*1024)throw Error("Arquivo excede 70 MB");
+  var file=new File([blob],url.pathname.split("/").pop(),{type:blob.type});
+  await importFiles([file]);
+ }catch(err){notify("Não foi possível instalar: "+err.message);}
+ finally{button.disabled=false;button.textContent="↓ Baixar e instalar";}
+}
 function getUiMarkup(){
  return '<div class="content module-library">'+
  '<div class="eyebrow">PÚLPITO BIBLE / MÓDULOS EXTERNOS</div><h1 class="page-title">Biblioteca de módulos</h1><p class="subtitle">Instale Bíblias, comentários e dicionários Strong armazenados em ZIP ou SQLite3. Os arquivos ficam neste aparelho e os comentários acompanham a passagem escolhida.</p>'+
- '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
+ '<section class="card card-pad" style="margin:12px 0"><div class="panel-heading"><h2 class="section-heading">✦ Púlpito Acervo — baixar módulos</h2><span class="chip greenish">Downloads autorizados</span></div><p class="feature-note">Catálogo próprio de Bíblias, comentários e dicionários com licença de distribuição. Os módulos baixados ficam neste aparelho e funcionam offline. Para arquivos pessoais, use a instalação ZIP abaixo.</p><div id="pb-acervo-list" aria-live="polite">Carregando catálogo...</div><button class="btn" type="button" id="pb-acervo-refresh">↻ Atualizar catálogo</button></section>'+\n '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
  '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher arquivos ZIP, SQLite3 ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.json"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
  '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
@@ -538,7 +578,7 @@ async function searchDictionaryUi(){
  }catch(err){box.textContent=err.message||"Erro na pesquisa";}
 }
 
-function renderPage(){var root=document.getElementById("app-main");if(root)root.innerHTML=getUiMarkup();}
+function renderPage(){var root=document.getElementById("app-main");if(root)root.innerHTML=getUiMarkup();loadPbAcervo();}
 async function downloadSample(){
  if(!window.JSZip){notify("Biblioteca ZIP indisponível");return;}
  var zip=new JSZip();
@@ -548,7 +588,7 @@ async function downloadSample(){
 }
 document.addEventListener("change",function(e){if(e.target&&e.target.id==="module-restore"){var f=e.target.files&&e.target.files[0];if(f)restoreModules(f).catch(function(err){notify("Não foi possível restaurar: "+err.message);});e.target.value="";return;}if(e.target&&e.target.id==="module-file"){var files=Array.from(e.target.files||[]);if(files.length)importFiles(files);}});
 document.addEventListener("click",function(e){
- var act=e.target&&e.target.closest&&e.target.closest("[data-module-remove],[data-module-activate],#module-sample,#module-backup,#dictionary-search");
+ var act=e.target&&e.target.closest&&e.target.closest("[data-pb-acervo-download],#pb-acervo-refresh,[data-module-remove],[data-module-activate],#module-sample,#module-backup,#dictionary-search");
  if(!act)return;
  if(act.id==="module-backup"){backupModules().catch(function(err){notify("Falha no backup: "+err.message);});return;}if(act.id==="module-sample"){downloadSample();return;}if(act.id==="dictionary-search"){searchDictionaryUi();return;}
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
