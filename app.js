@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-tap-lock-v28";
+window.PB_BUILD_ID = "pb-20261109-remove-legacy-v29";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1593,7 +1593,7 @@ function showPicker(verse,anchor){
  if(!reference)return;
  var n=Number(verse);if(!n||!Number.isInteger(n))return;
  closePicker();
- if(opts.selectVerse)opts.selectVerse(n);
+ /* Abrir comentários não deve selecionar ou pintar o versículo. */
  var el=document.createElement("div");
  el.id="pb-verse-comment-picker";el.className="pb-vc-picker";
  el.setAttribute("role","dialog");el.setAttribute("aria-label","Escolher comentário para o versículo "+n);
@@ -2099,7 +2099,7 @@ function renderReaderContent(){
  var rows=latestChapter.verses.map(function(v){
   var r=activeBook.name+" "+state.chapter+":"+v.number;
   var vid=verseGlobalId(v.number),color=TS.COLORS[TS.getState().highlights[vid]]||"";
-  return '<span class="verse-line'+(TS.getState().currentVerseSelection.includes(vid)?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" role="button" tabindex="0" title="Pressione e segure para selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+window.PBConnections.wrapHtml((state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number)))+'</span>';
+  return '<span class="verse-line'+(TS.getState().currentVerseSelection.includes(vid)?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" title="Pressione e segure para selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+window.PBConnections.wrapHtml((state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number)))+'</span>';
  }).join(state.readerMode==="verses"?"":" ");
  holder.innerHTML='<div class="verse-list '+(state.readerMode==="verses"?"segmented":"")+'">'+rows+'</div><div class="credit">'+esc(latestChapter.copyright||"Texto disponibilizado pela API Midvash; consulte os termos da tradução.")+'</div>';
  var el=document.getElementById("selected-reference");if(el)el.textContent=ref();
@@ -2431,8 +2431,6 @@ document.addEventListener("click",function(ev){
  /* Leitura: clique simples no texto, palavra, Strong ou versículo é inerte. Aberturas por duplo clique e seleção por pressionar/segurar são tratadas separadamente. */
  if(ev.target.closest("#chapter-body"))return;
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
- var sw=ev.target.closest("#chapter-body [data-strong]");
- if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}var matching=words.find(function(w){return w.id===sw.dataset.strong;});var strongCode=matching?matching.code:sw.dataset.strong;openDictionaryTerm(strongCode,state.selectedVerse);return;}
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
  var w=ev.target.closest("[data-word]");if(w){currentWord=words.find(function(t){return t.id===w.dataset.word;})||currentWord;renderOriginal();return;}
  var st=ev.target.closest("[data-step]");if(st){state.tutorStep=+st.dataset.step;persist();renderTutor();return;}
