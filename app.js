@@ -1016,6 +1016,7 @@ function init(opts){
   var start=pbTouchStart;pbTouchStart=null;cancelPbHold();
   if(!start||start.held||!e.changedTouches.length)return;
   var touch=e.changedTouches[0];
+  window.__pbSelectionTouchAt=Date.now();
   if(Date.now()-start.at>320||Math.abs(touch.clientX-start.x)>10||Math.abs(touch.clientY-start.y)>10)return;
   var now=Date.now();
   if(now-start.at>450){pbTouchTap=null;return;}
@@ -1644,7 +1645,7 @@ function onClick(e){
  }
  /* No modo de seleção, cada toque alterna apenas o versículo tocado. */
  var tappedVerse=verseElement(e.target);
- if(tappedVerse&&window.__pbMultiSelectMode===true&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
+ if(tappedVerse&&window.__pbMultiSelectMode===true&&e.detail!==0&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
   var selected=window.PBToolbar.getState().currentVerseSelection||[];
   if(selected.length){
    e.preventDefault();e.stopImmediatePropagation();
