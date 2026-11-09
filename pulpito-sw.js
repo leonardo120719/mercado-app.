@@ -1,9 +1,9 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v22";
+const CACHE_NAME = "pulpito-bible-shell-v23";
 const APP_SHELL = [
   "/",
-  "/index.html",
+  "/pulpito.html",
   "/styles.css",
   "/app.js",
   "/pulpito-manifest.webmanifest"
@@ -69,7 +69,7 @@ self.addEventListener("fetch", event => {
         return response;
       } catch (_) {
         return (await cache.match(request)) ||
-          (await cache.match("/index.html")) ||
+          (await cache.match("/pulpito.html")) ||
           new Response("Púlpito Bible: abra o aplicativo online uma vez para preparar o cache.", {
             status: 503,
             headers: { "Content-Type": "text/plain;charset=utf-8" }
@@ -82,7 +82,7 @@ self.addEventListener("fetch", event => {
   event.respondWith((async () => {
     const cache = await caches.open(CACHE_NAME);
     const cached = await cache.match(request);
-    const critical = ["/", "/index.html", "/app.js", "/styles.css", "/pulpito-manifest.webmanifest"].includes(url.pathname);
+    const critical = ["/", "/index.html", "/pulpito.html", "/app.js", "/styles.css", "/pulpito-manifest.webmanifest"].includes(url.pathname);
     if (cached && !critical) return cached;
     try {
       const response = await fetch(request, { cache: critical ? "no-store" : "default" });
