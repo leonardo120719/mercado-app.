@@ -1035,3 +1035,7 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 
 /* Painel de ações aparece somente após seleção explícita. */
 .reader-actiondock[hidden]{display:none!important}
+
+/* iOS Safari: sem alças azuis ou menu nativo de copiar dentro do leitor bíblico. */
+#chapter-body, #chapter-body *, #chapter-body *::before, #chapter-body *::after { -webkit-user-select:none!important; user-select:none!important; -webkit-touch-callout:none!important; }
+#chapter-body ::selection { background:transparent!important; color:inherit!important; }
