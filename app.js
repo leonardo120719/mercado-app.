@@ -1005,7 +1005,7 @@ function init(opts){
   cancelPbHold();
   pbTouchStart={x:t.clientX,y:t.clientY,at:Date.now(),target:e.target,held:false};
   var verse=e.target.closest("#chapter-body .verse-line");
-  if(verse)pbHoldTimer=setTimeout(function(){if(!pbTouchStart)return;pbTouchStart.held=true;pbTouchTap=null;if(window.PBVerseComments)window.PBVerseComments.selectLongVerse(Number(verse.dataset.verse));},560);
+  if(verse)pbHoldTimer=setTimeout(function(){if(!pbTouchStart)return;pbTouchStart.held=true;pbTouchTap=null;window.__pbMultiSelectMode=true;if(window.PBVerseComments)window.PBVerseComments.selectLongVerse(Number(verse.dataset.verse));},560);
  },{capture:true,passive:false});
  document.addEventListener("touchmove",function(e){
   if(!pbTouchStart||!e.touches.length)return;
@@ -1015,6 +1015,8 @@ function init(opts){
  document.addEventListener("touchend",function(e){
   var start=pbTouchStart;pbTouchStart=null;cancelPbHold();
   if(!start||start.held||!e.changedTouches.length)return;
+  var touch=e.changedTouches[0];
+  if(Date.now()-start.at>320||Math.abs(touch.clientX-start.x)>10||Math.abs(touch.clientY-start.y)>10)return;
   var now=Date.now();
   if(now-start.at>450){pbTouchTap=null;return;}
   var target=start.target;
@@ -1022,8 +1024,10 @@ function init(opts){
      que pode ser suprimido por gestos nativos ou pelo leitor. */
   var verse=target.closest("#chapter-body .verse-line");
   var active=window.PBToolbar&&window.PBToolbar.getState().currentVerseSelection||[];
-  if(verse&&active.length){
+  if(!active.length)window.__pbMultiSelectMode=false;
+  if(verse&&window.__pbMultiSelectMode===true&&active.length){
    window.PBToolbar.actions.toggleVerse(verse.dataset.usfm);
+   if(!window.PBToolbar.getState().currentVerseSelection.length)window.__pbMultiSelectMode=false;
    if(typeof refreshVerseDecorations==="function")refreshVerseDecorations();
    window.__pbSelectionTouchAt=now;
    pbTouchTap=null;
@@ -1609,6 +1613,7 @@ function onPointerDown(e){
   if(!press)return;
   var old=press;press=null;holdTimer=null;
   holdHandledUntil=Date.now()+900;
+  window.__pbMultiSelectMode=true;
   if(opts.selectVerse)opts.selectVerse(old.verse);
  },560);
 }
@@ -1622,6 +1627,7 @@ function onContextMenu(e){
  if(!verse||indicatorElement(e.target))return;
  e.preventDefault();
  stopPress();holdHandledUntil=Date.now()+900;
+ window.__pbMultiSelectMode=true;
  if(opts.selectVerse)opts.selectVerse(Number(verse.dataset.verse));
 }
 function onClick(e){
@@ -1638,14 +1644,15 @@ function onClick(e){
  }
  /* No modo de seleção, cada toque alterna apenas o versículo tocado. */
  var tappedVerse=verseElement(e.target);
- if(tappedVerse&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
+ if(tappedVerse&&window.__pbMultiSelectMode===true&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
   var selected=window.PBToolbar.getState().currentVerseSelection||[];
   if(selected.length){
    e.preventDefault();e.stopImmediatePropagation();
    window.PBToolbar.actions.toggleVerse(tappedVerse.dataset.usfm);
+   if(!window.PBToolbar.getState().currentVerseSelection.length)window.__pbMultiSelectMode=false;
    if(typeof refreshVerseDecorations==="function")refreshVerseDecorations();
    return;
-  }
+  }else window.__pbMultiSelectMode=false;
  }
  if(Date.now()<holdHandledUntil&&verseElement(e.target)){
   e.preventDefault();e.stopImmediatePropagation();holdHandledUntil=0;return;
@@ -1861,6 +1868,7 @@ function selectionNumbers(){
 }
 function refreshVerseDecorations(){
  var ts=TS.getState();
+ if(!ts.currentVerseSelection.length)window.__pbMultiSelectMode=false;
  var dock=document.querySelector(".reader-actiondock");if(dock)dock.hidden=!ts.currentVerseSelection.length;
  document.querySelectorAll("#chapter-body .verse-line").forEach(function(node){
   var id=node.dataset.usfm;
