@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/svg+xml" sizes="192x192" href="/pulpito-icon-192.svg"><link rel="apple-touch-icon" href="/pulpito-icon-192.svg"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css"></head>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/svg+xml" sizes="192x192" href="/pulpito-icon-192.svg"><link rel="apple-touch-icon" href="/pulpito-icon-192.svg"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css"></head>
 <body><div class="app-shell pb-top-shell"><div class="workarea">
 <header class="topbar" id="topbar">
   <div class="topbar-main">
     <a href="#" class="top-brand" id="brand-link" aria-label="Púlpito Bible — início"><span class="top-brand-icon">✦</span><span class="top-brand-word">PÚLPITO <strong>BIBLE</strong></span></a>
     <div class="header-context" id="page-location">Leitura bíblica</div>
-    <div class="header-tools"><button id="pwa-install" class="header-action pwa-install" type="button" title="Instalar Púlpito Bible no Android" aria-label="Instalar Púlpito Bible">⇩ <span>Instalar</span></button>
+    <div class="header-tools"><button id="pwa-install" class="header-action pwa-install" type="button" title="Instalar Púlpito Bible no iPhone ou Android" aria-label="Instalar Púlpito Bible no iPhone ou Android">⇩ <span>Instalar</span></button>
       <button id="theme-toggle" class="header-action" title="Alternar tema" aria-label="Alternar tema">◐</button>
       <button id="font-down" class="header-action font-action" title="Diminuir fonte" aria-label="Diminuir fonte">A−</button>
       <button id="font-up" class="header-action font-action" title="Aumentar fonte" aria-label="Aumentar fonte">A+</button>
@@ -65,9 +65,12 @@
       button.classList.remove("is-ready");
       return;
     }
-    var message=/Android/i.test(navigator.userAgent)
-      ?"No Android, abra esta página no Google Chrome, toque no menu ⋮ e escolha “Instalar app”. Se aparecer “Adicionar à tela inicial”, confirme."
-      :"Abra o menu do navegador e escolha “Instalar Púlpito Bible” ou “Adicionar à tela inicial”.";
+    var isIOS=/iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+    var message=isIOS
+      ?"Para instalar o Púlpito Bible no iPhone: abra este endereço no Safari, toque em Compartilhar (quadrado com seta para cima), escolha “Adicionar à Tela de Início” e confirme em “Adicionar”. Se aparecer “Abrir como App”, deixe ativado. Depois abra o ícone Púlpito Bible na tela inicial."
+      :/Android/i.test(navigator.userAgent)
+        ?"No Android, abra esta página no Google Chrome, toque no menu ⋮ e escolha “Instalar app”. Se aparecer “Adicionar à tela inicial”, confirme."
+        :"Abra esta página no navegador do celular e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.";
     window.alert(message);
   });
   window.addEventListener("appinstalled",function(){button.hidden=true;});
