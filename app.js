@@ -1927,7 +1927,7 @@ function renderReaderContent(){
  var rows=latestChapter.verses.map(function(v){
   var r=activeBook.name+" "+state.chapter+":"+v.number;
   var vid=verseGlobalId(v.number),color=TS.COLORS[TS.getState().highlights[vid]]||"";
-  return '<span class="verse-line'+(state.selectedVerse===v.number?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" role="button" tabindex="0" title="Selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+window.PBConnections.wrapHtml((state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number)))+'</span>';
+  return '<span class="verse-line'+(TS.getState().currentVerseSelection.includes(vid)?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" role="button" tabindex="0" title="Pressione e segure para selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+window.PBConnections.wrapHtml((state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number)))+'</span>';
  }).join(state.readerMode==="verses"?"":" ");
  holder.innerHTML='<div class="verse-list '+(state.readerMode==="verses"?"segmented":"")+'">'+rows+'</div><div class="credit">'+esc(latestChapter.copyright||"Texto disponibilizado pela API Midvash; consulte os termos da tradução.")+'</div>';
  var el=document.getElementById("selected-reference");if(el)el.textContent=ref();
