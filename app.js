@@ -938,7 +938,8 @@ function open(kind,verse,word,anchor,moduleId){
  '</section>';
  document.body.appendChild(modal);
  if(global.PBWindowUI)global.PBWindowUI.mount(modal,{defaultTab:kind==="word"?"dictionary":"commentaries",onClose:close,anchor:anchor});
- var list=kind==="word"?[query]:verseCodes(context.verse);
+ var linkedStrong=kind==="word"&&anchor&&anchor.dataset?String(anchor.dataset.pbStrongList||anchor.dataset.pbStrong||anchor.dataset.strong||"").split(",").map(function(v){return v.trim();}).filter(Boolean):[];
+ var list=kind==="word"?Array.from(new Set([query].concat(linkedStrong))):verseCodes(context.verse);
  if(!list.length){
   drawResults("pb-connected-dictionary",'<p class="feature-note">Nenhum Strong confirmado para esse versículo. Toque diretamente numa palavra para pesquisar verbetes em português.</p>',seq);
  }else{
@@ -987,8 +988,8 @@ function activateBibleLink(node){
  var verseNode=node&&node.closest?node.closest("#chapter-body [data-verse]"):null,verse=verseNode?Number(verseNode.dataset.verse):null;
  var strongId=node.dataset.pbStrong||node.dataset.strong||"",strongList=String(node.dataset.pbStrongList||strongId).split(",").map(function(x){return x.trim();}).filter(Boolean),word=String(node.dataset.pbWord||node.textContent||"").trim();
  clearWordTextSelection();
- if(strongId){if(config&&config.onStrong&&config.onStrong(strongId,word,verse,node,strongList)===true)return;open("word",verse,strongId,node);return;}
- if(config&&config.onWord&&config.onWord(word,verse,node,"")===true)return;open("word",verse,word,node);
+ if(strongId&&node.matches(".strong-badge,button[data-strong]")){if(config&&config.onStrong&&config.onStrong(strongId,word,verse,node,strongList)===true)return;open("word",verse,strongId,node);return;}
+ if(config&&config.onWord&&config.onWord(word,verse,node,strongId)===true)return;open("word",verse,word,node);
 }
 function activateStudyLink(node){var kind=node.dataset.pbStudyLink;if(kind==="reference"){if(config&&config.onStudyReference){config.onStudyReference(node.dataset.reference||"",node);return;}open("verse",0,"",node);return;}if(kind==="strong"){var code=node.dataset.strongCode||"";if(config&&config.onStudyStrong){config.onStudyStrong(code,node);return;}open("strong",0,code,node);}}
 function init(opts){
@@ -999,16 +1000,6 @@ function init(opts){
   var sermon=e.target.closest("[data-pb-sermon]");if(sermon){e.preventDefault();if(config.onSermon)config.onSermon(selectedContext);return;}
   var comment=e.target.closest("[data-pb-comment]");if(comment){e.preventDefault();var row=selectedContext&&selectedContext.comments&&selectedContext.comments[Number(comment.dataset.pbComment)];if(row&&config.onComment)config.onComment(row,selectedContext);return;}
   var studyLink=e.target.closest("[data-pb-study-link]");if(studyLink){e.preventDefault();e.stopImmediatePropagation();activateStudyLink(studyLink);return;}
-  var strongNumber=e.target.closest("#chapter-body .strong-badge, #chapter-body button[data-strong]");
-  if(strongNumber){
-   e.preventDefault();e.stopImmediatePropagation();
-   var strongNow=Date.now();
-   if(lastBibleActivation.node===strongNumber&&strongNow-lastBibleActivation.at<700)return;
-   lastBibleTap=null;
-   lastBibleActivation={node:strongNumber,at:strongNow};
-   activateBibleLink(strongNumber);
-   return;
-  }
   var bibleLink=e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");
   if(bibleLink){
    e.stopImmediatePropagation();
@@ -1020,10 +1011,7 @@ function init(opts){
     e.preventDefault();
     lastBibleActivation={node:null,at:0};
     lastBibleTap={node:bibleLink,at:now};
-    var verseNode=bibleLink.closest("#chapter-body [data-verse]"),verse=verseNode?Number(verseNode.dataset.verse):null;
-    var word=String(bibleLink.dataset.pbWord||bibleLink.textContent||"").trim();
-    if(config&&config.onSelectWord)config.onSelectWord(word,verse,bibleLink);
-    selectWordText(bibleLink);
+    /* Primeiro toque: nenhuma janela, alteração de seleção ou salvamento. */
    }
    return;
   }
@@ -1689,7 +1677,6 @@ window.PBConnections.init({
   return true;
  },
  onWord:function(word,verse,anchor){
-  if(Number(verse)>0){state.selectedVerse=Number(verse);persist();}
   window.PBConnections.open("word",verse,word,anchor);
   return true;
  },
