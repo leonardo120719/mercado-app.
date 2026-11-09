@@ -1043,3 +1043,17 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 /* Gestos consistentes em Android e iOS, sem bloquear rolagem vertical. */
 #chapter-body { touch-action:pan-y; -webkit-tap-highlight-color:transparent; }
 #chapter-body .verse-line, #chapter-body .verse-line * { -webkit-touch-callout:none!important; -webkit-user-select:none!important; user-select:none!important; }
+
+/* Seleção múltipla: todos os versículos seguem o destaque do primeiro. */
+#chapter-body .verse-line.pb-multi-selected,
+#chapter-body .verse-line.selected,
+#chapter-body .verse-line.pb-multi-selected:hover {
+ background-color:rgba(255,224,135,.58)!important;
+ box-shadow:inset 0 -2px 0 #bb8624!important;
+ border-radius:2px;
+ -webkit-box-decoration-break:clone;
+ box-decoration-break:clone;
+}
+#chapter-body .verse-line.pb-multi-selected .pb-linked-word,
+#chapter-body .verse-line.pb-multi-selected .strong-word {background-color:transparent!important;}
+.reader-paper.night #chapter-body .verse-line.pb-multi-selected {background-color:rgba(86,112,130,.55)!important;}
