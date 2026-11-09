@@ -1039,3 +1039,7 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 /* iOS Safari: sem alças azuis ou menu nativo de copiar dentro do leitor bíblico. */
 #chapter-body, #chapter-body *, #chapter-body *::before, #chapter-body *::after { -webkit-user-select:none!important; user-select:none!important; -webkit-touch-callout:none!important; }
 #chapter-body ::selection { background:transparent!important; color:inherit!important; }
+
+/* Gestos consistentes em Android e iOS, sem bloquear rolagem vertical. */
+#chapter-body { touch-action:pan-y; -webkit-tap-highlight-color:transparent; }
+#chapter-body .verse-line, #chapter-body .verse-line * { -webkit-touch-callout:none!important; -webkit-user-select:none!important; user-select:none!important; }
