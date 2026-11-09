@@ -1018,7 +1018,7 @@ function init(opts){
   }
   lastBibleTap=null;var word=e.target.closest("[data-pb-word]");if(word){e.stopImmediatePropagation();return;}
   if(e.target.closest("[data-strong]"))return;
-  var verse=e.target.closest("#chapter-body [data-verse]");if(verse&&(!config.shouldOpenVersePanel||config.shouldOpenVersePanel()))open("verse",verse.dataset.verse,"",verse);
+  /* Um clique no texto do versículo é sempre inerte. A seleção só acontece ao pressionar e segurar. */
  },true);
  document.addEventListener("dblclick",function(e){var bibleLink=e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");if(!bibleLink)return;e.preventDefault();e.stopImmediatePropagation();if(lastBibleActivation.node===bibleLink&&Date.now()-lastBibleActivation.at<700)return;lastBibleTap=null;lastBibleActivation={node:bibleLink,at:Date.now()};activateBibleLink(bibleLink);},true);
  document.addEventListener("keydown",function(e){if(e.key==="Escape"){close();return;}if(e.key!=="Enter"&&e.key!==" ")return;var studyLink=e.target.closest&&e.target.closest("[data-pb-study-link]");if(studyLink){e.preventDefault();e.stopImmediatePropagation();activateStudyLink(studyLink);return;}var bibleLink=e.target.closest&&e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");if(bibleLink){e.preventDefault();e.stopImmediatePropagation();lastBibleActivation={node:bibleLink,at:Date.now()};activateBibleLink(bibleLink);}},true);
