@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-strict-checkbox-v24";
+window.PB_BUILD_ID = "pb-20261109-no-single-tap-v25";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -7,10 +7,8 @@ document.addEventListener("click",function(e){
  if(target.closest("input[data-pb-verse-check]"))return;
  var toolbar=window.PBToolbar;
  var selected=toolbar&&toolbar.getState().currentVerseSelection||[];
- if(true){
-  e.preventDefault();
-  e.stopImmediatePropagation();
- }
+ e.preventDefault();
+ e.stopImmediatePropagation();
 },true);
 /* Referências cruzadas ao tocar duas vezes exclusivamente na numeração. */
 (function(){
@@ -2420,16 +2418,6 @@ document.addEventListener("click",function(ev){
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
  var sw=ev.target.closest("#chapter-body [data-strong]");
  if(sw){ev.preventDefault();ev.stopPropagation();var strongVerse=sw.closest("[data-verse]");if(strongVerse){state.selectedVerse=Number(strongVerse.dataset.verse);persist();}var matching=words.find(function(w){return w.id===sw.dataset.strong;});var strongCode=matching?matching.code:sw.dataset.strong;openDictionaryTerm(strongCode,state.selectedVerse);return;}
- var v=ev.target.closest("[data-verse]");if(v){
- state.selectedVerse=Number(v.dataset.verse);persist();
- TS.actions.toggleVerse(v.dataset.usfm||verseGlobalId(state.selectedVerse));
- refreshVerseDecorations();
- var title=document.getElementById("selected-reference");if(title)title.textContent=ref();
- if(state.showComments&&!state.splitStudy)loadInstalledComments();
- if(state.splitStudy)window.PBSplitStudy.refresh();
- if(state.dictionaryOpen)window.PBDictionaryStudy.syncReference();
- return;
- }
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
  var w=ev.target.closest("[data-word]");if(w){currentWord=words.find(function(t){return t.id===w.dataset.word;})||currentWord;renderOriginal();return;}
  var st=ev.target.closest("[data-step]");if(st){state.tutorStep=+st.dataset.step;persist();renderTutor();return;}
