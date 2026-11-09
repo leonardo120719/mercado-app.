@@ -1,0 +1,54 @@
+name: Pulpito Bible Android APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [pulpito-bible-pwa]
+    paths:
+      - 'app.js'
+      - 'styles.css'
+      - 'pulpito.html'
+      - 'pulpito-sw.js'
+      - 'pulpito-manifest.webmanifest'
+      - 'pulpito-icon-*.svg'
+      - '.github/workflows/android-apk.yml'
+permissions:
+  contents: read
+jobs:
+  android-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Prepare local Pulpito Bible web bundle
+        run: |
+          mkdir -p www
+          cp pulpito.html www/index.html
+          cp pulpito.html www/pulpito.html
+          cp app.js styles.css pulpito-sw.js pulpito-manifest.webmanifest www/
+          cp pulpito-icon-*.svg www/
+          cat > package.json <<'EOF'
+          {"name":"pulpito-bible-android","version":"1.0.0","private":true,"type":"module","dependencies":{"@capacitor/core":"^7.4.0","@capacitor/android":"^7.4.0"},"devDependencies":{"@capacitor/cli":"^7.4.0"}}
+          EOF
+          cat > capacitor.config.json <<'EOF'
+          {"appId":"com.pulpitobible.app","appName":"Púlpito Bible","webDir":"www","server":{"androidScheme":"https"}}
+          EOF
+          npm install --no-audit --no-fund
+          npx cap add android
+      - name: Build installable debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulpito-bible-android-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
