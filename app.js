@@ -1613,6 +1613,17 @@ function init(config){
  opts=config||{};
  if(started)return;
  started=true;
+ /* Bloqueia seleção nativa do Safari sem interferir na seleção contextual própria. */
+ document.addEventListener("selectstart",function(e){
+  if(e.target&&e.target.closest&&e.target.closest("#chapter-body"))e.preventDefault();
+ },true);
+ document.addEventListener("selectionchange",function(){
+  var sel=window.getSelection&&window.getSelection();
+  if(!sel||sel.isCollapsed||!sel.rangeCount)return;
+  var anchor=sel.anchorNode&&sel.anchorNode.nodeType===1?sel.anchorNode:sel.anchorNode&&sel.anchorNode.parentElement;
+  var focus=sel.focusNode&&sel.focusNode.nodeType===1?sel.focusNode:sel.focusNode&&sel.focusNode.parentElement;
+  if((anchor&&anchor.closest&&anchor.closest("#chapter-body"))||(focus&&focus.closest&&focus.closest("#chapter-body")))sel.removeAllRanges();
+ });
  document.addEventListener("pointerdown",onPointerDown,true);
  document.addEventListener("pointermove",onPointerMove,true);
  document.addEventListener("pointerup",onPointerEnd,true);
