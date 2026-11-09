@@ -1032,3 +1032,6 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 
 /* Leitor: impede seleção nativa de palavras por toque simples ou toque longo; o gesto longo usa a seleção contextual própria do Púlpito Bible. */
 #chapter-body, #chapter-body .verse-line, #chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* Painel de ações aparece somente após seleção explícita. */
+.reader-actiondock[hidden]{display:none!important}

@@ -1793,6 +1793,7 @@ function selectionNumbers(){
 }
 function refreshVerseDecorations(){
  var ts=TS.getState();
+ var dock=document.querySelector(".reader-actiondock");if(dock)dock.hidden=!ts.currentVerseSelection.length;
  document.querySelectorAll("#chapter-body .verse-line").forEach(function(node){
   var id=node.dataset.usfm;
   node.classList.toggle("selected",ts.currentVerseSelection.includes(id));
@@ -1931,6 +1932,7 @@ function renderReaderContent(){
  }).join(state.readerMode==="verses"?"":" ");
  holder.innerHTML='<div class="verse-list '+(state.readerMode==="verses"?"segmented":"")+'">'+rows+'</div><div class="credit">'+esc(latestChapter.copyright||"Texto disponibilizado pela API Midvash; consulte os termos da tradução.")+'</div>';
  var el=document.getElementById("selected-reference");if(el)el.textContent=ref();
+ refreshVerseDecorations();
  var b=document.getElementById("bookmark-btn");if(b)b.textContent=currentMarked()?"★ Favorito":"☆ Favorito";
  if(state.showParallel)loadParallelText();
  if(state.showComments&&!state.splitStudy)loadInstalledComments();
