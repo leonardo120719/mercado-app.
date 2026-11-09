@@ -997,21 +997,24 @@ function init(opts){
  config=opts||{};if(initialized)return;initialized=true;
  /* Gestos iOS: impedir o comportamento nativo ANTES de o Safari criar seleção.
     Toques duplos são reconhecidos aqui, sem depender de cliques sintetizados. */
- var pbTouchTap=null,pbTouchStart=null;
+ var pbTouchTap=null,pbTouchStart=null,pbHoldTimer=null;
+ function cancelPbHold(){if(pbHoldTimer){clearTimeout(pbHoldTimer);pbHoldTimer=null;}}
  document.addEventListener("touchstart",function(e){
   if(e.touches.length!==1||!e.target.closest||!e.target.closest("#chapter-body"))return;
   var t=e.touches[0];
-  pbTouchStart={x:t.clientX,y:t.clientY,at:Date.now(),target:e.target};
-  if(e.cancelable)e.preventDefault();
+  cancelPbHold();
+  pbTouchStart={x:t.clientX,y:t.clientY,at:Date.now(),target:e.target,held:false};
+  var verse=e.target.closest("#chapter-body .verse-line");
+  if(verse)pbHoldTimer=setTimeout(function(){if(!pbTouchStart)return;pbTouchStart.held=true;pbTouchTap=null;if(window.PBVerseComments)window.PBVerseComments.selectLongVerse(Number(verse.dataset.verse));},560);
  },{capture:true,passive:false});
  document.addEventListener("touchmove",function(e){
   if(!pbTouchStart||!e.touches.length)return;
   var t=e.touches[0];
-  if(Math.abs(t.clientX-pbTouchStart.x)>12||Math.abs(t.clientY-pbTouchStart.y)>12){pbTouchStart=null;pbTouchTap=null;}
+  if(Math.abs(t.clientX-pbTouchStart.x)>12||Math.abs(t.clientY-pbTouchStart.y)>12 ){cancelPbHold();pbTouchStart=null;pbTouchTap=null;}
  },{capture:true,passive:true});
  document.addEventListener("touchend",function(e){
-  var start=pbTouchStart;pbTouchStart=null;
-  if(!start||!e.changedTouches.length)return;
+  var start=pbTouchStart;pbTouchStart=null;cancelPbHold();
+  if(!start||start.held||!e.changedTouches.length)return;
   var now=Date.now();
   if(now-start.at>450){pbTouchTap=null;return;}
   var target=start.target;
@@ -1025,6 +1028,7 @@ function init(opts){
    else comment.dispatchEvent(new MouseEvent("dblclick",{bubbles:true,cancelable:true}));
   }else pbTouchTap={key:key,at:now};
  },{capture:true,passive:true});
+ document.addEventListener("touchcancel",function(){cancelPbHold();pbTouchStart=null;pbTouchTap=null;},{capture:true,passive:true});
  document.addEventListener("click",function(e){
   var closeBtn=e.target.closest("[data-pb-close]");if(closeBtn){e.preventDefault();close();return;}
   var note=e.target.closest("[data-pb-note]");if(note){e.preventDefault();if(config.onNote)config.onNote(selectedContext);return;}
@@ -1586,7 +1590,7 @@ function stopPress(){if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}press
 function onPointerDown(e){
  if(picker&&!picker.contains(e.target)&&!verseElement(e.target)){closePicker();}
  var marker=indicatorElement(e.target),verse=verseElement(e.target);
- if(marker||!verse||e.button!==0){stopPress();return;}
+ if(marker||!verse||e.button!==0||e.pointerType==="touch"){stopPress();return;}
  stopPress();
  press={verse:Number(verse.dataset.verse),node:verse,x:e.clientX,y:e.clientY,pointerId:e.pointerId};
  holdTimer=setTimeout(function(){
@@ -1663,7 +1667,7 @@ function init(config){
  document.addEventListener("dblclick",onDoubleClick,true);
  document.addEventListener("keydown",onKeydown,true);
 }
-global.PBVerseComments={init:init,decorate:decorate,invalidate:invalidate,showPicker:showPicker};
+global.PBVerseComments={init:init,decorate:decorate,invalidate:invalidate,showPicker:showPicker,selectLongVerse:function(n){holdHandledUntil=Date.now()+900;if(opts.selectVerse)opts.selectVerse(n);}};
 })(window);
 
 ;
