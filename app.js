@@ -11,6 +11,39 @@ document.addEventListener("click",function(e){
   e.stopImmediatePropagation();
  }
 },true);
+/* Referências cruzadas ao tocar duas vezes exclusivamente na numeração. */
+(function(){
+ var lastTouch=null;
+ function openRefs(num){
+  var verse=document.querySelector('#chapter-body .verse-line[data-verse="'+num+'"]');
+  if(!verse)return;
+  var old=document.getElementById("pb-crossrefs-dialog");if(old)old.remove();
+  var panel=document.createElement("div");
+  panel.id="pb-crossrefs-dialog";panel.setAttribute("role","dialog");
+  panel.setAttribute("aria-label","Referências cruzadas do versículo "+num);
+  panel.style.cssText="position:fixed;z-index:99999;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,420px);max-height:70vh;overflow:auto;background:var(--reader-paper,#fffdf7);color:#17212a;border:1px solid #b8ad96;border-radius:14px;padding:20px;box-shadow:0 16px 60px #0006;font:15px/1.5 system-ui";
+  var label=document.createElement("strong");label.textContent="Referências cruzadas — versículo "+num;
+  var close=document.createElement("button");close.type="button";close.textContent="Fechar";close.style.cssText="float:right;padding:5px 10px";close.addEventListener("click",function(){panel.remove();});
+  var info=document.createElement("p");info.textContent="As referências cruzadas deste versículo serão exibidas aqui quando houver uma base de referências disponível. Nenhuma referência foi inventada.";
+  panel.append(close,label,info);
+  document.body.appendChild(panel);
+ }
+ document.addEventListener("dblclick",function(e){
+  var num=e.target.closest&&e.target.closest("#chapter-body .verse-line .verse-num");
+  if(!num)return;
+  e.preventDefault();e.stopImmediatePropagation();
+  var verse=num.closest(".verse-line");if(verse)openRefs(verse.dataset.verse);
+ },true);
+ document.addEventListener("touchend",function(e){
+  var num=e.target.closest&&e.target.closest("#chapter-body .verse-line .verse-num");
+  if(!num||!e.changedTouches.length)return;
+  var verse=num.closest(".verse-line");if(!verse)return;
+  var t=e.changedTouches[0],now=Date.now();
+  if(lastTouch&&lastTouch.verse===verse.dataset.usfm&&now-lastTouch.at<430&&Math.abs(t.clientX-lastTouch.x)<20&&Math.abs(t.clientY-lastTouch.y)<20){
+   lastTouch=null;e.preventDefault();e.stopImmediatePropagation();openRefs(verse.dataset.verse);
+  }else lastTouch={verse:verse.dataset.usfm,at:now,x:t.clientX,y:t.clientY};
+ },{capture:true,passive:false});
+})();
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
