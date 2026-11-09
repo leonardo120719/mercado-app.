@@ -1506,9 +1506,28 @@ function showPicker(verse,anchor){
  var el=document.createElement("div");
  el.id="pb-verse-comment-picker";el.className="pb-vc-picker";
  el.setAttribute("role","dialog");el.setAttribute("aria-label","Escolher comentário para o versículo "+n);
- el.innerHTML=pickerContents(n);
+ el.innerHTML='<div class="pb-vc-toolbar" role="toolbar" aria-label="Ferramentas do versículo" style="display:flex;flex-wrap:wrap;gap:5px;padding:8px;border-bottom:1px solid #ccd5da">'+
+  '<button type="button" data-vc-tool="comments">▤ Comentários</button>'+
+  '<button type="button" data-vc-tool="note">✎ Minha anotação</button>'+
+  '<button type="button" data-vc-tool="explain">◈ Explicar</button>'+
+  '<button type="button" data-vc-tool="sermon">▤ Sermão</button>'+
+  '<button type="button" data-vc-tool="copy">⧉ Copiar</button>'+
+  '</div><div data-vc-picker-content hidden>'+pickerContents(n)+'</div>';
  el.dataset.verse=String(n);
  el.addEventListener("click",function(e){
+  var tool=e.target.closest("[data-vc-tool]");
+  if(tool){
+   e.preventDefault();e.stopPropagation();
+   var action=tool.dataset.vcTool;
+   if(action==="comments"){
+    var content=el.querySelector("[data-vc-picker-content]");
+    if(content)content.hidden=!content.hidden;
+    return;
+   }
+   closePicker();
+   if(opts.onVerseTool)opts.onVerseTool(action,n,anchor);
+   return;
+  }
   var choice=e.target.closest("[data-vc-choice]");
   if(choice){e.preventDefault();e.stopPropagation();chooseForVerse(n,choice.dataset.vcChoice,anchor);return;}
   var action=e.target.closest("[data-vc-action]");
@@ -1527,7 +1546,7 @@ function showPicker(verse,anchor){
   global.PBModules.getCommentaryCoverage(book,chapter,[n]).then(function(data){
    if(picker===el&&gen===generation&&reference&&reference.book===book&&reference.chapter===chapter){
     coverage[n]=data[n]||[];
-    el.innerHTML=pickerContents(n);
+    var content=el.querySelector("[data-vc-picker-content]");if(content)content.innerHTML=pickerContents(n);
    }
   }).catch(function(){});
  }
@@ -1661,6 +1680,21 @@ window.PBVerseComments.init({
   var reference=document.getElementById("selected-reference");
   if(reference)reference.textContent=ref();
   window.PBConnections.openCommentary(n,moduleId,anchor);
+ },
+ onVerseTool:function(action,n,anchor){
+  state.selectedVerse=n;persist();
+  if(action==="note"){noteModal();return;}
+  if(action==="explain"){page("tutor");return;}
+  if(action==="sermon"){
+   state.sermon.context+=(state.sermon.context?"\\n\\n":"")+activeBook.name+" "+state.chapter+":"+n;
+   persist();notify("Referência adicionada ao sermão");return;
+  }
+  if(action==="copy"){
+   var verse=anchor&&anchor.innerText?anchor.innerText.trim():"";
+   var output=activeBook.name+" "+state.chapter+":"+n+(verse?" — "+verse:"");
+   if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(output).then(function(){notify("Versículo copiado");}).catch(function(){notify("Não foi possível copiar");});
+   return;
+  }
  },
  openModules:function(){page("modulos");}
 });
