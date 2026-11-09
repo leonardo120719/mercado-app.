@@ -995,6 +995,36 @@ function activateBibleLink(node){
 function activateStudyLink(node){var kind=node.dataset.pbStudyLink;if(kind==="reference"){if(config&&config.onStudyReference){config.onStudyReference(node.dataset.reference||"",node);return;}open("verse",0,"",node);return;}if(kind==="strong"){var code=node.dataset.strongCode||"";if(config&&config.onStudyStrong){config.onStudyStrong(code,node);return;}open("strong",0,code,node);}}
 function init(opts){
  config=opts||{};if(initialized)return;initialized=true;
+ /* Gestos iOS: impedir o comportamento nativo ANTES de o Safari criar seleção.
+    Toques duplos são reconhecidos aqui, sem depender de cliques sintetizados. */
+ var pbTouchTap=null,pbTouchStart=null;
+ document.addEventListener("touchstart",function(e){
+  if(e.touches.length!==1||!e.target.closest||!e.target.closest("#chapter-body"))return;
+  var t=e.touches[0];
+  pbTouchStart={x:t.clientX,y:t.clientY,at:Date.now(),target:e.target};
+  if(e.cancelable)e.preventDefault();
+ },{capture:true,passive:false});
+ document.addEventListener("touchmove",function(e){
+  if(!pbTouchStart||!e.touches.length)return;
+  var t=e.touches[0];
+  if(Math.abs(t.clientX-pbTouchStart.x)>12||Math.abs(t.clientY-pbTouchStart.y)>12){pbTouchStart=null;pbTouchTap=null;}
+ },{capture:true,passive:true});
+ document.addEventListener("touchend",function(e){
+  var start=pbTouchStart;pbTouchStart=null;
+  if(!start||!e.changedTouches.length)return;
+  var now=Date.now();
+  if(now-start.at>450){pbTouchTap=null;return;}
+  var target=start.target;
+  var word=target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");
+  var comment=target.closest("#chapter-body [data-comment-indicator]");
+  var key=word||comment;
+  if(!key){pbTouchTap=null;return;}
+  if(pbTouchTap&&pbTouchTap.key===key&&now-pbTouchTap.at<550){
+   pbTouchTap=null;
+   if(word){lastBibleActivation={node:word,at:now};activateBibleLink(word);}
+   else comment.dispatchEvent(new MouseEvent("dblclick",{bubbles:true,cancelable:true}));
+  }else pbTouchTap={key:key,at:now};
+ },{capture:true,passive:true});
  document.addEventListener("click",function(e){
   var closeBtn=e.target.closest("[data-pb-close]");if(closeBtn){e.preventDefault();close();return;}
   var note=e.target.closest("[data-pb-note]");if(note){e.preventDefault();if(config.onNote)config.onNote(selectedContext);return;}
