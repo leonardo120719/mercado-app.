@@ -1072,7 +1072,7 @@ function init(opts){
   if(target.closest("#chapter-body .verse-num, #chapter-body [data-comment-indicator], #chapter-body .strong-badge, #chapter-body .strong-word, #chapter-body .pb-linked-word, #chapter-body [data-strong]"))return;
   var active=window.PBToolbar&&window.PBToolbar.getState().currentVerseSelection||[];
   if(!active.length)window.__pbMultiSelectMode=false;
-  if(verse&&window.__pbMultiSelectMode===true&&active.length){
+  if(verse&&window.__pbCheckboxMode!==true&&window.__pbMultiSelectMode===true&&active.length){
    window.PBToolbar.actions.toggleVerse(verse.dataset.usfm);
    if(!window.PBToolbar.getState().currentVerseSelection.length)window.__pbMultiSelectMode=false;
    if(typeof refreshVerseDecorations==="function")refreshVerseDecorations();
@@ -1694,7 +1694,7 @@ function onClick(e){
  if(tappedVerse&&e.target.closest(".verse-num, [data-comment-indicator], .strong-badge, .strong-word, .pb-linked-word, [data-strong]"))return;
  /* Um toque real em celular é tratado exclusivamente no touchend. */
  if(tappedVerse&&Date.now()-(window.__pbSelectionTouchAt||0)<950){e.preventDefault();e.stopImmediatePropagation();return;}
- if(tappedVerse&&window.__pbMultiSelectMode===true&&e.detail!==0&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
+ if(tappedVerse&&window.__pbCheckboxMode!==true&&window.__pbMultiSelectMode===true&&e.detail!==0&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
   var selected=window.PBToolbar.getState().currentVerseSelection||[];
   if(selected.length){
    e.preventDefault();e.stopImmediatePropagation();
@@ -1916,9 +1916,51 @@ function verseGlobalId(number){
 function selectionNumbers(){
  return TS.getState().currentVerseSelection.filter(id=>id.startsWith(verseGlobalId(1).replace(/\.1$/,"."))).map(id=>Number(id.split(".").pop())).filter(Number.isInteger).sort((a,b)=>a-b);
 }
+/* Seleção por caixas: gestos independentes do texto bíblico. */
+window.__pbCheckboxMode=false;
+document.addEventListener("click",function(e){
+ var btn=e.target.closest&&e.target.closest("[data-pb-select-action]");
+ if(!btn)return;
+ e.preventDefault();e.stopImmediatePropagation();
+ var action=btn.dataset.pbSelectAction;
+ var toolbar=window.PBToolbar;if(!toolbar)return;
+ if(action==="multi"){window.__pbCheckboxMode=true;window.__pbMultiSelectMode=true;}
+ if(action==="all"){
+  var ids=Array.from(document.querySelectorAll("#chapter-body .verse-line[data-usfm]")).map(function(n){return n.dataset.usfm;});
+  toolbar.actions.setSelection(ids);window.__pbCheckboxMode=true;window.__pbMultiSelectMode=true;
+ }
+ if(action==="done"){window.__pbCheckboxMode=false;window.__pbMultiSelectMode=false;}
+ if(action==="cancel"){window.__pbCheckboxMode=false;window.__pbMultiSelectMode=false;toolbar.actions.clearSelection();}
+ var refresh=window.__pbRefreshCheckboxes;if(refresh)refresh();
+},true);
+document.addEventListener("change",function(e){
+ var box=e.target.closest&&e.target.closest("input[data-pb-verse-check]");
+ if(!box)return;
+ e.stopImmediatePropagation();
+ var toolbar=window.PBToolbar;
+ if(toolbar&&window.__pbCheckboxMode)toolbar.actions.toggleVerse(box.dataset.pbVerseCheck);
+},true);
 function refreshVerseDecorations(){
  var ts=TS.getState();
- if(!ts.currentVerseSelection.length)window.__pbMultiSelectMode=false;
+ if(!ts.currentVerseSelection.length&&!window.__pbCheckboxMode)window.__pbMultiSelectMode=false;
+ var holder=document.getElementById("chapter-body");
+ if(holder){
+  var controls=document.getElementById("pb-multiselect-controls");
+  if(!controls){controls=document.createElement("div");controls.id="pb-multiselect-controls";controls.style.cssText="display:flex;flex-wrap:wrap;gap:7px;padding:9px 4px;position:sticky;top:0;z-index:10;background:var(--reader-paper,#fffdf7)";holder.parentNode.insertBefore(controls,holder);}
+  var active=ts.currentVerseSelection.length>0,checkMode=window.__pbCheckboxMode===true;
+  controls.style.display=(active||checkMode)?"flex":"none";
+  controls.innerHTML=checkMode?'<button type="button" data-pb-select-action="all">☑ Selecionar todos</button><button type="button" data-pb-select-action="done">Concluir</button><button type="button" data-pb-select-action="cancel">Cancelar</button>':'<button type="button" data-pb-select-action="multi">☐ Selecionar vários</button>';
+  document.querySelectorAll("#chapter-body .verse-line").forEach(function(node){
+   var checkbox=node.querySelector("input[data-pb-verse-check]");
+   if(checkMode&&!checkbox){
+    checkbox=document.createElement("input");checkbox.type="checkbox";checkbox.dataset.pbVerseCheck=node.dataset.usfm;
+    checkbox.setAttribute("aria-label","Selecionar versículo "+node.dataset.verse);
+    checkbox.style.cssText="width:19px;height:19px;margin:0 9px 0 2px;vertical-align:middle;accent-color:#bb8624;cursor:pointer";
+    node.insertBefore(checkbox,node.firstChild);
+   }else if(!checkMode&&checkbox){checkbox.remove();checkbox=null;}
+   if(checkbox)checkbox.checked=ts.currentVerseSelection.includes(node.dataset.usfm);
+  });
+ }
  var dock=document.querySelector(".reader-actiondock");if(dock)dock.hidden=!ts.currentVerseSelection.length;
  document.querySelectorAll("#chapter-body .verse-line").forEach(function(node){
   var id=node.dataset.usfm;
@@ -1935,6 +1977,7 @@ function refreshVerseDecorations(){
 TS.subscribe(function(next,prev){
  if(next.currentVerseSelection!==prev.currentVerseSelection)refreshVerseDecorations();
 });
+window.__pbRefreshCheckboxes=refreshVerseDecorations;
 function toolbarNavigation(){
  return {
   version:state.version,book:state.book,chapter:state.chapter,
