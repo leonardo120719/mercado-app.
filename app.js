@@ -18,7 +18,24 @@ function clean(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){ret
 function simplifyText(s){return String(s==null?"":s).replace(/<br\s*\/?>/gi,"\n").replace(/<\/(?:p|div|h[1-6]|li)>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"').replace(/\n{3,}/g,"\n\n").trim();}
 function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaryEntries")){var es=d.createObjectStore("commentaryEntries",{keyPath:"key"});es.createIndex("moduleId","moduleId",{unique:false});es.createIndex("passage",["moduleId","book","chapter"],{unique:false});}};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
 function request(req){return new Promise(function(resolve,reject){req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};});}
-async function loadCatalog(){var db=await dbOpen();modules=await request(db.transaction("modules","readonly").objectStore("modules").getAll());modules.sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});return modules;}
+async function loadCatalog(){
+ var db=await dbOpen();
+ var rows=await request(db.transaction("modules","readonly").objectStore("modules").getAll());
+ if(!rows.length){
+  /* Never interpret a failed load as an instruction to reset or recreate modules. */
+  var known=0;
+  try{known=Number(localStorage.getItem("pb-modules-last-known-count")||0);}catch(e){}
+  if(known>0){
+   lastStatus="Atenção: este navegador já tinha "+known+" módulo(s), mas o banco local está vazio. Não reinstale os módulos nem limpe os dados do site. Verifique o endereço e restaure um backup, se necessário.";
+   console.warn("Púlpito Bible: catálogo local inesperadamente vazio; nenhuma exclusão executada.");
+  }
+ }else{
+  try{localStorage.setItem("pb-modules-last-known-count",String(rows.length));}catch(e){}
+ }
+ modules=rows;
+ modules.sort(function(a,b){return (a.name||"").localeCompare(b.name||"");});
+ return modules;
+}
 function ready(){return loadCatalog();}
 function installed(){return modules.slice();}
 function moduleName(version){var id=String(version||"").slice(6);var m=modules.find(function(x){return x.id===id;});return m?m.name:"Módulo não encontrado";}
