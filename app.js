@@ -1018,6 +1018,18 @@ function init(opts){
   var now=Date.now();
   if(now-start.at>450){pbTouchTap=null;return;}
   var target=start.target;
+  /* Android/iOS: a seleção múltipla não depende do evento click,
+     que pode ser suprimido por gestos nativos ou pelo leitor. */
+  var verse=target.closest("#chapter-body .verse-line");
+  var active=window.PBToolbar&&window.PBToolbar.getState().currentVerseSelection||[];
+  if(verse&&active.length){
+   window.PBToolbar.actions.toggleVerse(verse.dataset.usfm);
+   if(typeof refreshVerseDecorations==="function")refreshVerseDecorations();
+   window.__pbSelectionTouchAt=now;
+   pbTouchTap=null;
+   if(e.cancelable)e.preventDefault();
+   return;
+  }
   var word=target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");
   var comment=target.closest("#chapter-body [data-comment-indicator]");
   var key=word||comment;
@@ -1626,7 +1638,7 @@ function onClick(e){
  }
  /* No modo de seleção, cada toque alterna apenas o versículo tocado. */
  var tappedVerse=verseElement(e.target);
- if(tappedVerse&&Date.now()>=holdHandledUntil&&window.PBToolbar){
+ if(tappedVerse&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
   var selected=window.PBToolbar.getState().currentVerseSelection||[];
   if(selected.length){
    e.preventDefault();e.stopImmediatePropagation();
