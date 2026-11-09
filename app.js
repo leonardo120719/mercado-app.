@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-restore-longpress-v30";
+window.PB_BUILD_ID = "pb-20261109-classic-longpress-v31";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1665,9 +1665,12 @@ function onPointerMove(e){
 function onPointerEnd(e){if(press&&e.pointerId===press.pointerId)stopPress();}
 function onContextMenu(e){
  var verse=verseElement(e.target);
- if(!verse||indicatorElement(e.target))return;
- /* Menu nativo não seleciona nem alterna versículos; apenas o temporizador do gesto longo. */
+ if(!verse||indicatorElement(e.target)||e.target.closest("input[data-pb-verse-check]"))return;
  e.preventDefault();
+ if(Date.now()-(window.__pbLongPressAt||0)<1200)return;
+ stopPress();holdHandledUntil=Date.now()+900;
+ window.__pbMultiSelectMode=true;
+ if(opts.selectVerse)opts.selectVerse(Number(verse.dataset.verse));
 }
 function onClick(e){
  var badge=indicatorElement(e.target);
@@ -2099,7 +2102,7 @@ function renderReaderContent(){
  var rows=latestChapter.verses.map(function(v){
   var r=activeBook.name+" "+state.chapter+":"+v.number;
   var vid=verseGlobalId(v.number),color=TS.COLORS[TS.getState().highlights[vid]]||"";
-  return '<span class="verse-line'+(TS.getState().currentVerseSelection.includes(vid)?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" title="Pressione e segure para selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+window.PBConnections.wrapHtml((state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number)))+'</span>';
+  return '<span class="verse-line'+(TS.getState().currentVerseSelection.includes(vid)?" selected":"")+(state.bookmarks.includes(r)?" marked":"")+(color?" highlighted":"")+'" data-usfm="'+esc(vid)+'" style="'+(color?"--verse-mark:"+color:"")+'" data-verse="'+v.number+'" role="button" tabindex="0" title="Pressione e segure para selecionar versículo '+v.number+'"><sup class="verse-num">'+v.number+'</sup>'+window.PBConnections.wrapHtml((state.version.startsWith("local:")?window.PBModules.renderVerse(v.text,state.book,state.showStrong):annotateVerse(v.text,v.number)))+'</span>';
  }).join(state.readerMode==="verses"?"":" ");
  holder.innerHTML='<div class="verse-list '+(state.readerMode==="verses"?"segmented":"")+'">'+rows+'</div><div class="credit">'+esc(latestChapter.copyright||"Texto disponibilizado pela API Midvash; consulte os termos da tradução.")+'</div>';
  var el=document.getElementById("selected-reference");if(el)el.textContent=ref();
