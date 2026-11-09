@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261108-compact-commentary-strong-one-tap-6";
+window.PB_BUILD_ID = "pb-20261109-auto-update-v23";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
