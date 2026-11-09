@@ -1645,6 +1645,8 @@ function onClick(e){
  }
  /* No modo de seleção, cada toque alterna apenas o versículo tocado. */
  var tappedVerse=verseElement(e.target);
+ /* Um toque real em celular é tratado exclusivamente no touchend. */
+ if(tappedVerse&&Date.now()-(window.__pbSelectionTouchAt||0)<950){e.preventDefault();e.stopImmediatePropagation();return;}
  if(tappedVerse&&window.__pbMultiSelectMode===true&&e.detail!==0&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
   var selected=window.PBToolbar.getState().currentVerseSelection||[];
   if(selected.length){
