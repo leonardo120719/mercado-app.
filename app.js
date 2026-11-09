@@ -4,6 +4,7 @@ window.PB_BUILD_ID = "pb-20261108-compact-commentary-strong-one-tap-6";
 document.addEventListener("click",function(e){
  var target=e.target;
  if(!target||!target.closest||!target.closest("#chapter-body .verse-line"))return;
+ if(target.closest("input[data-pb-verse-check]"))return;
  var toolbar=window.PBToolbar;
  var selected=toolbar&&toolbar.getState().currentVerseSelection||[];
  if(window.__pbMultiSelectMode!==true||!selected.length||target.closest(".verse-num, [data-comment-indicator], .strong-badge, .strong-word, .pb-linked-word, [data-strong]")){
@@ -1050,7 +1051,7 @@ function init(opts){
   cancelPbHold();
   pbTouchStart={x:t.clientX,y:t.clientY,at:Date.now(),target:e.target,held:false};
   var verse=e.target.closest("#chapter-body .verse-line");
-  if(verse&&!e.target.closest("#chapter-body .verse-num, #chapter-body [data-comment-indicator], #chapter-body .strong-badge, #chapter-body .strong-word, #chapter-body .pb-linked-word, #chapter-body [data-strong]"))pbHoldTimer=setTimeout(function(){if(!pbTouchStart)return;pbTouchStart.held=true;pbTouchTap=null;window.__pbMultiSelectMode=true;if(window.PBVerseComments)window.PBVerseComments.selectLongVerse(Number(verse.dataset.verse));},560);
+  if(verse&&!e.target.closest("input[data-pb-verse-check], #chapter-body .verse-num, #chapter-body [data-comment-indicator], #chapter-body .strong-badge, #chapter-body .strong-word, #chapter-body .pb-linked-word, #chapter-body [data-strong]"))pbHoldTimer=setTimeout(function(){if(!pbTouchStart)return;pbTouchStart.held=true;pbTouchTap=null;window.__pbMultiSelectMode=true;if(window.PBVerseComments)window.PBVerseComments.selectLongVerse(Number(verse.dataset.verse));},560);
  },{capture:true,passive:false});
  document.addEventListener("touchmove",function(e){
   if(!pbTouchStart||!e.touches.length)return;
@@ -1069,6 +1070,7 @@ function init(opts){
   /* Android/iOS: a seleção múltipla não depende do evento click,
      que pode ser suprimido por gestos nativos ou pelo leitor. */
   var verse=target.closest("#chapter-body .verse-line");
+  if(target.closest("input[data-pb-verse-check]"))return;
   if(target.closest("#chapter-body .verse-num, #chapter-body [data-comment-indicator], #chapter-body .strong-badge, #chapter-body .strong-word, #chapter-body .pb-linked-word, #chapter-body [data-strong]"))return;
   var active=window.PBToolbar&&window.PBToolbar.getState().currentVerseSelection||[];
   if(!active.length)window.__pbMultiSelectMode=false;
@@ -1691,7 +1693,7 @@ function onClick(e){
  }
  /* No modo de seleção, cada toque alterna apenas o versículo tocado. */
  var tappedVerse=verseElement(e.target);
- if(tappedVerse&&e.target.closest(".verse-num, [data-comment-indicator], .strong-badge, .strong-word, .pb-linked-word, [data-strong]"))return;
+ if(tappedVerse&&e.target.closest("input[data-pb-verse-check], .verse-num, [data-comment-indicator], .strong-badge, .strong-word, .pb-linked-word, [data-strong]"))return;
  /* Um toque real em celular é tratado exclusivamente no touchend. */
  if(tappedVerse&&Date.now()-(window.__pbSelectionTouchAt||0)<950){e.preventDefault();e.stopImmediatePropagation();return;}
  if(tappedVerse&&window.__pbCheckboxMode!==true&&window.__pbMultiSelectMode===true&&e.detail!==0&&Date.now()>=holdHandledUntil&&Date.now()-(window.__pbSelectionTouchAt||0)>650&&window.PBToolbar){
