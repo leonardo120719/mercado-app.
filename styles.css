@@ -1057,3 +1057,21 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 #chapter-body .verse-line.pb-multi-selected .pb-linked-word,
 #chapter-body .verse-line.pb-multi-selected .strong-word {background-color:transparent!important;}
 .reader-paper.night #chapter-body .verse-line.pb-multi-selected {background-color:rgba(86,112,130,.55)!important;}
+
+/* v28: clique simples nunca exibe realce visual nem foco amarelo no texto.
+   O amarelo permanece reservado aos versículos efetivamente selecionados. */
+#chapter-body .verse-line:not(.selected):not(.pb-multi-selected),
+#chapter-body .verse-line:not(.selected):not(.pb-multi-selected):hover,
+#chapter-body .verse-line:not(.selected):not(.pb-multi-selected):active,
+#chapter-body .verse-line:not(.selected):not(.pb-multi-selected):focus,
+#chapter-body .verse-line:not(.selected):not(.pb-multi-selected):focus-within {
+ background-color:transparent!important;
+ box-shadow:none!important;
+}
+#chapter-body .verse-line,
+#chapter-body .verse-line * {
+ -webkit-tap-highlight-color:transparent!important;
+}
+#chapter-body .verse-line:not(.selected):not(.pb-multi-selected) .verse-text:active {
+ background-color:transparent!important;
+}
