@@ -99,7 +99,7 @@
       clearTimeout(timer);
       if(!response.ok)return;
       var body=await response.text();
-      var match=body.match(/window\\.PB_BUILD_ID\\s*=\\s*["']([^"']+)["']/);
+      var match=body.match(/window\.PB_BUILD_ID\s*=\s*["']([^"']+)["']/);
       if(!match || !window.PB_BUILD_ID || match[1]===window.PB_BUILD_ID)return;
       shown=true;
       var box=document.createElement("div");
