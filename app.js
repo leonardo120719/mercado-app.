@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-no-single-tap-v25";
+window.PB_BUILD_ID = "pb-20261109-checkbox-toggle-v26";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1914,12 +1914,19 @@ document.addEventListener("click",function(e){
  if(action==="cancel"){window.__pbCheckboxMode=false;window.__pbMultiSelectMode=false;toolbar.actions.clearSelection();}
  var refresh=window.__pbRefreshCheckboxes;if(refresh)refresh();
 },true);
-document.addEventListener("change",function(e){
+/* Checkbox controlado: um toque marca; o próximo desmarca. */
+document.addEventListener("click",function(e){
  var box=e.target.closest&&e.target.closest("input[data-pb-verse-check]");
  if(!box)return;
- e.stopImmediatePropagation();
- var toolbar=window.PBToolbar;
- if(toolbar&&window.__pbCheckboxMode)toolbar.actions.toggleVerse(box.dataset.pbVerseCheck);
+ e.preventDefault();e.stopImmediatePropagation();
+ if(!window.__pbCheckboxMode||!window.PBToolbar)return;
+ window.PBToolbar.actions.toggleVerse(box.dataset.pbVerseCheck);
+ if(window.__pbRefreshCheckboxes)window.__pbRefreshCheckboxes();
+},true);
+document.addEventListener("change",function(e){
+ if(e.target&&e.target.matches&&e.target.matches("input[data-pb-verse-check]")){
+  e.stopImmediatePropagation();
+ }
 },true);
 function refreshVerseDecorations(){
  var ts=TS.getState();
