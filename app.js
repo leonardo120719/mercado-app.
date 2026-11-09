@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-remove-legacy-v29";
+window.PB_BUILD_ID = "pb-20261109-restore-longpress-v30";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1049,7 +1049,7 @@ function init(opts){
   cancelPbHold();
   pbTouchStart={x:t.clientX,y:t.clientY,at:Date.now(),target:e.target,held:false};
   var verse=e.target.closest("#chapter-body .verse-line");
-  if(verse&&!e.target.closest("input[data-pb-verse-check], #chapter-body .verse-num, #chapter-body [data-comment-indicator], #chapter-body .strong-badge, #chapter-body .strong-word, #chapter-body .pb-linked-word, #chapter-body [data-strong]"))pbHoldTimer=setTimeout(function(){if(!pbTouchStart)return;pbTouchStart.held=true;pbTouchTap=null;window.__pbLongPressAt=Date.now();window.__pbMultiSelectMode=true;if(window.PBVerseComments)window.PBVerseComments.selectLongVerse(Number(verse.dataset.verse));},560);
+  if(verse&&!e.target.closest("input[data-pb-verse-check], #chapter-body .verse-num, #chapter-body [data-comment-indicator]"))pbHoldTimer=setTimeout(function(){if(!pbTouchStart)return;pbTouchStart.held=true;pbTouchTap=null;window.__pbLongPressAt=Date.now();window.__pbMultiSelectMode=true;if(window.PBVerseComments)window.PBVerseComments.selectLongVerse(Number(verse.dataset.verse));},560);
  },{capture:true,passive:false});
  document.addEventListener("touchmove",function(e){
   if(!pbTouchStart||!e.touches.length)return;
