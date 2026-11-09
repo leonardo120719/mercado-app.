@@ -1,6 +1,6 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v30";
+const CACHE_NAME = "pulpito-bible-shell-v31";
 const APP_SHELL = [
   "/",
   "/pulpito.html",
