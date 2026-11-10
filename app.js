@@ -1422,6 +1422,11 @@ function recordTerm(term){
 function lookup(term,opts){
  if(!session||!session.root.isConnected)return;
  var normalized=normalizeTerm(term),selected=selectedModule(),target=session.root.querySelector("#pb-dictionary-definition");
+ var available=dictionaryModules(),isStrong=/^[GH]0*\d{1,5}$/i.test(normalized);
+ var preferred=available.find(function(m){return isStrong?/strong|léxico|lexico|cwsd/i.test(m.name+" "+m.abbreviation):!/strong|cwsd/i.test(m.name+" "+m.abbreviation);});
+ if(preferred&&(!selected||(isStrong&&!/strong|léxico|lexico|cwsd/i.test(selected.name+" "+selected.abbreviation))||(!isStrong&&/strong|cwsd/i.test(selected.name+" "+selected.abbreviation)))){
+  selected=preferred;session.config.onModuleChange(selected.id);
+ }
  if(!normalized||!target)return;
  opts=opts||{};
  session.term=normalized;
