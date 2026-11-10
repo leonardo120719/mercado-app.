@@ -1923,27 +1923,51 @@ function closeTranslationPicker(){
 }
 function openTranslationPicker(){
  if(state.page!=="leitura")return;
- var root=document.createElement("div");root.id="pb-translation-picker";root.className="modal-backdrop";
- root.innerHTML='<section class="modal" role="dialog" aria-modal="true" aria-labelledby="pb-translation-title"><header class="panel-heading"><h2 id="pb-translation-title">Escolher tradução</h2><button type="button" class="btn slim" data-translation-close aria-label="Fechar traduções">×</button></header>'+
-  '<div class="pb-translation-options">'+toolbarNavigation().versions.map(function(version){
-   return '<button type="button" class="btn'+(version.value===state.version?" primary":"")+'" data-translation="'+esc(version.value)+'" aria-pressed="'+(version.value===state.version)+'">'+esc(version.label)+'</button>';
-  }).join("")+'</div></section>';
+ // Small dropdown below the translation control, not a full-screen modal.
+ var trigger=document.querySelector('[data-toolbar-action="translation"]');
+ if(!trigger)return;
+ document.getElementById("pb-translation-picker")?.remove();
+ var root=document.createElement("div");
+ root.id="pb-translation-picker";
+ root.className="pb-translation-dropdown";
+ root.setAttribute("role","listbox");
+ root.setAttribute("aria-label","Escolher tradução");
+ root.style.cssText="position:fixed;z-index:10000;min-width:190px;max-width:min(340px,calc(100vw - 20px));max-height:55vh;overflow-y:auto;background:#fff;color:#193b42;border:1px solid #d4dee0;border-radius:10px;box-shadow:0 8px 26px #0003;padding:5px;";
+ root.innerHTML=toolbarNavigation().versions.map(function(version){
+  return '<button type="button" role="option" data-translation="'+esc(version.value)+'" aria-selected="'+(version.value===state.version)+'" style="display:block;width:100%;padding:11px 14px;text-align:left;border:0;border-radius:6px;background:'+(version.value===state.version?'#dcecf0':'transparent')+';color:#193b42;font:inherit;cursor:pointer">'+esc(version.label)+'</button>';
+ }).join("");
+ document.body.appendChild(root);
+ var rect=trigger.getBoundingClientRect();
+ var width=Math.min(340,Math.max(190,rect.width+65));
+ root.style.width=width+"px";
+ root.style.left=Math.max(10,Math.min(rect.left,window.innerWidth-width-10))+"px";
+ var below=window.innerHeight-rect.bottom;
+ if(below>=Math.min(root.offsetHeight,220)||below>=window.innerHeight-rect.top){
+  root.style.top=Math.min(rect.bottom+4,window.innerHeight-root.offsetHeight-8)+"px";
+ }else{
+  root.style.top=Math.max(8,rect.top-root.offsetHeight-4)+"px";
+ }
  root.addEventListener("click",function(event){
   var option=event.target.closest("[data-translation]");
-  if(option){state.version=option.dataset.translation;closeTranslationPicker();persist();renderReader();return;}
-  if(event.target===root||event.target.closest("[data-translation-close]"))closeTranslationPicker();
+  if(!option)return;
+  state.version=option.dataset.translation;
+  closeTranslationPicker();
+  persist();
+  renderReader();
  });
- root.addEventListener("keydown",function(event){
-  if(event.key==="Escape"){event.preventDefault();closeTranslationPicker();}
-  if(event.key==="Tab"){
-   var buttons=Array.from(root.querySelectorAll("button")),first=buttons[0],last=buttons[buttons.length-1];
-   if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}
-   if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}
+ function dismiss(event){
+  if(!root.isConnected){document.removeEventListener("pointerdown",dismiss,true);document.removeEventListener("keydown",escape,true);return;}
+  if(!root.contains(event.target)&&!trigger.contains(event.target)){
+   root.remove();document.removeEventListener("pointerdown",dismiss,true);document.removeEventListener("keydown",escape,true);
   }
- });
- document.getElementById("pb-translation-picker")?.remove();
- document.body.appendChild(root);root.querySelector("button").focus();
+ }
+ function escape(event){
+  if(event.key==="Escape"){closeTranslationPicker();document.removeEventListener("pointerdown",dismiss,true);document.removeEventListener("keydown",escape,true);}
+ }
+ document.addEventListener("pointerdown",dismiss,true);
+ document.addEventListener("keydown",escape,true);
 }
+
 document.addEventListener("dblclick",function(event){
  if(!event.target.closest?.('[data-toolbar-action="translation"]'))return;
  event.preventDefault();event.stopPropagation();
