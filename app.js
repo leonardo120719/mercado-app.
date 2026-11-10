@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-toolbar-v34";
+window.PB_BUILD_ID = "pb-20261110-mybible-modules-v35";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -46,7 +46,7 @@ document.addEventListener("click",function(e){
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
-var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
+var DB_NAME="PulpitoBibleModules",DB_VERSION=4;
 var canonical="genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|1-samuel|2-samuel|1-kings|2-kings|1-chronicles|2-chronicles|ezra|nehemiah|esther|job|psalms|proverbs|ecclesiastes|song-of-solomon|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|1-corinthians|2-corinthians|galatians|ephesians|philippians|colossians|1-thessalonians|2-thessalonians|1-timothy|2-timothy|titus|philemon|hebrews|james|1-peter|2-peter|1-john|2-john|3-john|jude|revelation".split("|");
 var myBibleIds=[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,190,220,230,240,250,260,290,300,310,330,340,350,360,370,380,390,400,410,420,430,440,450,460,470,480,490,500,510,520,530,540,550,560,570,580,590,600,610,620,630,640,650,660,670,680,690,700,710,720,730];
 var idToBook={};myBibleIds.forEach(function(id,i){idToBook[id]=canonical[i];});
@@ -60,7 +60,7 @@ var requested=[
 ];
 function clean(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function simplifyText(s){return String(s==null?"":s).replace(/<br\s*\/?>/gi,"\n").replace(/<\/(?:p|div|h[1-6]|li)>/gi,"\n").replace(/<[^>]*>/g,"").replace(/&nbsp;/gi," ").replace(/&amp;/gi,"&").replace(/&lt;/gi,"<").replace(/&gt;/gi,">").replace(/&quot;/gi,'"').replace(/\n{3,}/g,"\n\n").trim();}
-function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaryEntries")){var es=d.createObjectStore("commentaryEntries",{keyPath:"key"});es.createIndex("moduleId","moduleId",{unique:false});es.createIndex("passage",["moduleId","book","chapter"],{unique:false});}};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
+function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaryEntries")){var es=d.createObjectStore("commentaryEntries",{keyPath:"key"});es.createIndex("moduleId","moduleId",{unique:false});es.createIndex("passage",["moduleId","book","chapter"],{unique:false});}}if(!d.objectStoreNames.contains("moduleFiles"))d.createObjectStore("moduleFiles",{keyPath:"id"});r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
 function request(req){return new Promise(function(resolve,reject){req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};});}
 async function loadCatalog(){
  var db=await dbOpen();
@@ -427,15 +427,28 @@ async function deleteRelated(store,id){
  return new Promise(function(resolve,reject){var idx=store.index("moduleId"),range=IDBKeyRange.only(id),req=idx.openCursor();req.onsuccess=function(){var cur=req.result;if(cur){cur.delete();cur.continue();}else resolve();};req.onerror=function(){reject(req.error);};});
 }
 async function relatedKeys(store,id){var db=await dbOpen();return request(db.transaction(store,"readonly").objectStore(store).index("moduleId").getAllKeys(IDBKeyRange.only(id)));}
-async function saveModule(parsed,filename){
+async function saveModule(parsed,filename,sourceInfo){
  if(parsed.alreadySaved)return parsed;
- var id="ext-"+filenameSlug(filename)+"-"+(parsed.type==="bible"?"b":parsed.type==="dictionary"?"d":"c");var db=await dbOpen();
- var meta={id:id,type:parsed.type,name:String(parsed.name||filename).slice(0,130),abbreviation:String(parsed.abbreviation||"EXT").slice(0,30),language:String(parsed.language||"").slice(0,60),license:String(parsed.license||"não informada").slice(0,400),description:String(parsed.description||"").slice(0,400),format:parsed.format,count:parsed.count,file:filename,installedAt:Date.now()};
+ sourceInfo=sourceInfo||{};
+ var id=sourceInfo.moduleId||("ext-"+filenameSlug(filename)+"-"+(parsed.type==="bible"?"b":parsed.type==="dictionary"?"d":"c"));
+ var db=await dbOpen();
+ var meta={id:id,type:parsed.type,name:String(parsed.name||filename).slice(0,130),abbreviation:String(parsed.abbreviation||"EXT").slice(0,30),language:String(parsed.language||"").slice(0,60),license:String(parsed.license||"não informada").slice(0,400),description:String(parsed.description||"").slice(0,400),format:parsed.format,count:parsed.count,file:filename,fileName:sourceInfo.fileName||filename,installedAt:Date.now(),raw:false};
+ if(sourceInfo.registryKey){meta.registryKey=sourceInfo.registryKey;meta.registryUrl=sourceInfo.registryUrl;meta.registryName=sourceInfo.registryName;meta.downloadUrl=sourceInfo.downloadUrl;meta.updateDate=sourceInfo.updateDate||"";meta.installedUpdateDate=sourceInfo.updateDate||"";meta.updateInfo=sourceInfo.updateInfo||"";}
  var collection=parsed.type==="bible"?"chapters":parsed.type==="dictionary"?"lexicon":"commentaries";
- var oldKeys=await relatedKeys(collection,id),tx=db.transaction(["modules",collection],"readwrite");
+ var oldKeys=await relatedKeys(collection,id),tx=db.transaction(["modules",collection,"moduleFiles"],"readwrite");
  var done=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error||Error("Falha ao gravar módulo"));};tx.onabort=function(){reject(tx.error||Error("Importação cancelada"));};});
  var store=tx.objectStore(collection);oldKeys.forEach(function(key){store.delete(key);});
  parsed.groups.forEach(function(group){var key=parsed.type==="dictionary"?id+"/"+group.topic:id+"/"+group.book+(parsed.type==="bible"?"/"+group.chapter:"");store.put(Object.assign({key:key,moduleId:id},group));});
+ tx.objectStore("moduleFiles").delete(id);
+ tx.objectStore("modules").put(meta);
+ await done;await loadCatalog();onUpdated();return meta;
+}
+async function saveRawModule(file,item){
+ var id="reg-"+filenameSlug((item.registryUrl||"")+"/"+(item.fileName||file.name)).slice(0,70);
+ var db=await dbOpen(),meta={id:id,type:item.type||"other",name:String(item.name||item.description||file.name).slice(0,130),abbreviation:String(item.abbreviation||filenameSlug(file.name).slice(0,25)).slice(0,30),language:String(item.language||"").slice(0,60),license:String(item.license||"não informada pelo repositório").slice(0,400),description:String(item.description||"").slice(0,400),format:"Arquivo original MyBible (armazenado offline)",count:0,file:file.name,fileName:item.fileName||file.name,installedAt:Date.now(),raw:true,registryKey:item.key,registryUrl:item.registryUrl,registryName:item.registryName,downloadUrl:item.downloadUrl,updateDate:item.updateDate||"",installedUpdateDate:item.updateDate||"",updateInfo:item.updateInfo||""};
+ var tx=db.transaction(["modules","moduleFiles"],"readwrite");
+ var done=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error||Error("Falha ao guardar o módulo"));};tx.onabort=function(){reject(tx.error||Error("Armazenamento interrompido"));};});
+ tx.objectStore("moduleFiles").put({id:id,fileName:file.name,mimeType:file.type||"application/octet-stream",blob:file.slice(0,file.size,file.type||"application/octet-stream")});
  tx.objectStore("modules").put(meta);
  await done;await loadCatalog();onUpdated();return meta;
 }
@@ -452,22 +465,35 @@ async function importFiles(files){
  if(ok.length)notify(ok.length+" módulo(s) instalado(s).");if(problems.length)notify("Alguns módulos não puderam ser importados.");
  renderPage();
 }
-async function removeModule(id){
+async function removeModule(id,ask){
  var m=modules.find(function(m){return m.id===id;});if(!m)return;
- if(!confirm("Excluir o módulo '"+m.name+"' deste navegador? Suas notas pessoais não serão apagadas."))return;
- var db=await dbOpen();var ckeys=await relatedKeys("chapters",id),nkeys=await relatedKeys("commentaries",id),dkeys=await relatedKeys("lexicon",id);
- var tx=db.transaction(["modules","chapters","commentaries","lexicon"],"readwrite");
- var done=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};});
- tx.objectStore("modules").delete(id);ckeys.forEach(function(key){tx.objectStore("chapters").delete(key);});
- nkeys.forEach(function(key){tx.objectStore("commentaries").delete(key);});dkeys.forEach(function(key){tx.objectStore("lexicon").delete(key);});
+ if(ask!==false&&!confirm("Excluir o módulo '"+m.name+"' deste navegador? Suas notas pessoais não serão apagadas."))return;
+ var db=await dbOpen(),ckeys=await relatedKeys("chapters",id),nkeys=await relatedKeys("commentaries",id),dkeys=await relatedKeys("lexicon",id),ekeys=await relatedKeys("commentaryEntries",id);
+ var tx=db.transaction(["modules","chapters","commentaries","lexicon","commentaryEntries","moduleFiles"],"readwrite");
+ var done=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};tx.onabort=function(){reject(tx.error||Error("Remoção interrompida"));};});
+ tx.objectStore("modules").delete(id);tx.objectStore("moduleFiles").delete(id);
+ ckeys.forEach(function(key){tx.objectStore("chapters").delete(key);});
+ nkeys.forEach(function(key){tx.objectStore("commentaries").delete(key);});
+ dkeys.forEach(function(key){tx.objectStore("lexicon").delete(key);});
+ ekeys.forEach(function(key){tx.objectStore("commentaryEntries").delete(key);});
  await done;await loadCatalog();onUpdated();notify("Módulo removido.");renderPage();
 }
 /* Proteção dos módulos: exportação/restauração explícita, sem apagar dados existentes. */
-var PB_BACKUP_STORES=["modules","chapters","commentaries","lexicon","commentaryEntries"];
+var PB_BACKUP_STORES=["modules","chapters","commentaries","lexicon","commentaryEntries","moduleFiles"];
 async function protectStorage(){
  if(navigator.storage&&navigator.storage.persist){
   try{await navigator.storage.persist();}catch(e){console.warn("Armazenamento persistente indisponível",e);}
  }
+}
+async function blobToBase64(blob){
+ var bytes=new Uint8Array(await blob.arrayBuffer()),parts=[],step=24576;
+ for(var offset=0;offset<bytes.length;offset+=step){var slice=bytes.subarray(offset,Math.min(bytes.length,offset+step)),binary="";for(var i=0;i<slice.length;i++)binary+=String.fromCharCode(slice[i]);parts.push(btoa(binary));}
+ return parts.join("");
+}
+function base64ToBlobBytes(value){
+ var binary=atob(value||""),bytes=new Uint8Array(binary.length);
+ for(var i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+ return bytes;
 }
 async function backupModules(){
  var db=await dbOpen(),parts=['{"format":"pulpito-bible-modules-backup-v1","origin":'+JSON.stringify(location.origin)+',"createdAt":'+JSON.stringify(new Date().toISOString())+',"stores":{'];
@@ -476,7 +502,7 @@ async function backupModules(){
   parts.push((i?",":"")+JSON.stringify(name)+":[");
   await new Promise(function(resolve,reject){
    var tx=db.transaction(name,"readonly"),req=tx.objectStore(name).openCursor();
-   req.onsuccess=function(){var cursor=req.result;if(!cursor)return;parts.push((first?"":",")+JSON.stringify(cursor.value));first=false;cursor.continue();};
+   req.onsuccess=async function(){var cursor=req.result;if(!cursor)return;try{var value=cursor.value;if(name==="moduleFiles"&&value.blob){value={id:value.id,fileName:value.fileName,mimeType:value.mimeType,dataBase64:await blobToBase64(value.blob)};}parts.push((first?"":",")+JSON.stringify(value));first=false;cursor.continue();}catch(err){reject(err);}};
    req.onerror=function(){reject(req.error);};
    tx.oncomplete=resolve;tx.onabort=function(){reject(tx.error);};
   });
@@ -486,7 +512,7 @@ async function backupModules(){
  var blob=new Blob(parts,{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");
  link.href=url;link.download="pulpito-bible-backup-"+new Date().toISOString().slice(0,10)+".json";
  document.body.appendChild(link);link.click();link.remove();setTimeout(function(){URL.revokeObjectURL(url);},60000);
- notify("Cópia dos módulos preparada. Guarde o arquivo em Arquivos ou iCloud.");
+ notify("Backup dos módulos preparado. Guarde o arquivo em Arquivos ou iCloud.");
 }
 async function restoreModules(file){
  if(!file)return;
@@ -496,11 +522,11 @@ async function restoreModules(file){
  for(var name of PB_BACKUP_STORES){
   var entries=backup.stores[name]||[];
   if(!Array.isArray(entries))throw Error("Estrutura de backup inválida: "+name);
-  for(var offset=0;offset<entries.length;offset+=100){
-   var batch=entries.slice(offset,offset+100),tx=db.transaction(name,"readwrite");
+  for(var offset=0;offset<entries.length;offset+=25){
+   var batch=entries.slice(offset,offset+25),tx=db.transaction(name,"readwrite");
    await new Promise(function(resolve,reject){
     var store=tx.objectStore(name);
-    batch.forEach(function(item){store.put(item);});
+    batch.forEach(function(item){if(name==="moduleFiles"&&item.dataBase64){store.put({id:item.id,fileName:item.fileName,mimeType:item.mimeType||"application/octet-stream",blob:new Blob([base64ToBlobBytes(item.dataBase64)],{type:item.mimeType||"application/octet-stream"})});}else store.put(item);});
     tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error||Error("Erro na restauração"));};tx.onabort=function(){reject(tx.error||Error("Restauração interrompida"));};
    });
    total+=batch.length;
@@ -511,60 +537,250 @@ async function restoreModules(file){
 }
 protectStorage();
 
-/* Púlpito Acervo: catálogo de módulos autorizados, com instalação offline via IndexedDB. */
-var pbAcervoItems=[];
-async function loadPbAcervo(){
- var target=document.getElementById("pb-acervo-list");
- if(!target)return;
- if(!navigator.onLine){target.textContent="Sem internet. Seus módulos instalados continuam disponíveis offline.";return;}
- target.textContent="Consultando catálogo...";
- try{
-  var response=await fetch("/pulpito-acervo.json",{cache:"no-store"});
-  if(!response.ok)throw Error("Catálogo indisponível");
-  var data=await response.json();
-  pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.url&&m.license&&m.distributionAuthorized===true;}):[];
-  if(!pbAcervoItems.length){target.textContent="O catálogo de downloads está sendo preparado. Enquanto isso, use Instalar ZIP do dispositivo.";return;}
-  target.innerHTML=pbAcervoItems.map(function(m,i){
-   return '<article class="module-comment"><strong>'+clean(m.name)+'</strong><small>'+clean(m.type||"Módulo")+' • '+clean(m.license)+'</small><p>'+clean(m.description||"Disponível para instalação offline")+'</p><button type="button" class="btn" data-pb-acervo-download="'+i+'">↓ Baixar e instalar</button></article>';
-  }).join("");
- }catch(err){target.textContent="Não foi possível consultar o catálogo. Você ainda pode instalar seus próprios arquivos ZIP.";}
+/* Gerenciador de módulos compatível com os registros públicos do MyBible. */
+var PB_MAIN_REGISTRY_URL="https://raw.githubusercontent.com/leonardo120719/mercado-app./pulpito-bible-pwa/pulpito-acervo.json";
+var PB_REGISTRY_KEY="pb-module-registries-v1",PB_REGISTRY_CACHE_KEY="pb-module-registry-cache-v1",PB_AUTO_UPDATE_KEY="pb-module-auto-update-v1";
+var pbAcervoItems=[],pbRegistryModules=[],pbRegistryErrors=[],pbCatalogLoaded=false,pbCatalogLoading=false,pbAutoUpdateRun=false;
+var pbModuleView="catalog",pbSelectedModuleKeys=new Set(),pbModuleFilters={search:"",type:"all",language:"all",status:"all"},pbLanguageSet=(function(){try{return localStorage.getItem("pb-module-language-set")||"pt,en";}catch(e){return "pt,en";}})();
+function readRegistrySources(){
+ var saved=[];try{saved=JSON.parse(localStorage.getItem(PB_REGISTRY_KEY)||"[]");}catch(e){}
+ if(!Array.isArray(saved))saved=[];
+ if(!saved.some(function(r){return r&&r.primary;}))saved.unshift({url:PB_MAIN_REGISTRY_URL,name:"Púlpito Bible",primary:true});
+ return saved.filter(function(r){return r&&r.url;});
 }
-async function installPbAcervo(index,button){
- var m=pbAcervoItems[index];if(!m||busy)return;
- var rights=document.getElementById("module-rights");
- if(!rights||!rights.checked){notify("Confirme a permissão de uso dos módulos antes de instalar.");return;}
- var url;
- try{url=new URL(m.url,location.origin);}catch(e){notify("Endereço de módulo inválido.");return;}
- if(url.origin!==location.origin||!url.pathname.startsWith("/")){notify("Por segurança, o download deve estar hospedado no Púlpito Bible.");return;}
- if(![".zip",".sqlite3",".sqlite",".db",".json"].some(function(ext){return url.pathname.toLowerCase().endsWith(ext);})){notify("Formato de módulo não suportado.");return;}
- button.disabled=true;button.textContent="Baixando...";
- try{
-  var response=await fetch(url.href,{cache:"no-store"});
-  if(!response.ok)throw Error("Download indisponível");
-  var length=Number(response.headers.get("content-length")||0);
-  if(length>70*1024*1024)throw Error("Arquivo excede 70 MB");
-  var blob=await response.blob();
-  if(blob.size>70*1024*1024)throw Error("Arquivo excede 70 MB");
-  var file=new File([blob],url.pathname.split("/").pop(),{type:blob.type});
-  await importFiles([file]);
- }catch(err){notify("Não foi possível instalar: "+err.message);}
- finally{button.disabled=false;button.textContent="↓ Baixar e instalar";}
+function saveRegistrySources(list){try{localStorage.setItem(PB_REGISTRY_KEY,JSON.stringify(list));}catch(e){notify("Não foi possível salvar a lista de repositórios neste aparelho.");}}
+function moduleTypeFromName(value){
+ var s=String(value||"").toLowerCase().replace(/[_-]+/g," ");
+ if(/bundle|conjunto/.test(s))return "bundle";
+ if(/cross.?reference|cross references|references|referencias cruzadas/.test(s))return "cross_reference";
+ if(/subheading|subheadings|headings|titulos/.test(s))return "subheading";
+ if(/reading.?plan|reading plan|plano de leitura/.test(s))return "reading_plan";
+ if(/devotion|devotional|devocional/.test(s))return "devotion";
+ if(/dictionary|dictionaries|lexicon|lexicons|strong/.test(s))return "dictionary";
+ if(/commentar|comentario/.test(s))return "commentary";
+ if(/bible|biblia|scripture/.test(s))return "bible";
+ return "other";
 }
+function moduleTypeLabel(type){
+ return ({bible:"Bíblia",commentary:"Comentário",dictionary:"Dicionário / Strong",cross_reference:"Referências cruzadas",subheading:"Títulos e subtítulos",reading_plan:"Plano de leitura",devotion:"Devocional",bundle:"Conjunto de módulos",other:"Outro módulo"})[type]||"Módulo";
+}
+function normalizeRegistryItem(raw,registry){
+ raw=raw||{};
+ var fileName=String(raw.file_name||raw.filename||raw.name||"").trim();
+ var downloadUrl=String(raw.download_url||raw.downloadUrl||raw.url||"").trim();
+ var kind=String(raw.type||raw.module_type||raw.kind||"").trim();
+ if(!kind)kind=moduleTypeFromName(fileName+" "+String(raw.description||""));
+ else kind=moduleTypeFromName(kind);
+ if(!fileName&&!downloadUrl&&!Array.isArray(raw.modules))return null;
+ var name=String(raw.name||raw.title||raw.module_name||raw.description||fileName||"Conjunto de módulos").trim();
+ return {key:registry.url+"::"+(fileName||downloadUrl||name),registryUrl:registry.url,registryName:registry.name||"Repositório adicional",fileName:fileName||name,downloadUrl:downloadUrl,name:name,type:kind,language:String(raw.language_code||raw.language||raw.lang||"").trim(),description:String(raw.detailed_info||raw.description||"").trim(),author:String(raw.author||raw.editor||raw.translator||"").trim(),updateDate:String(raw.update_date||raw.updated_at||raw.version_date||"").trim(),updateInfo:String(raw.update_info||raw.changelog||"").trim(),size:raw.size_bytes||raw.file_size||raw.size||"",license:String(raw.license||raw.copyright||"").trim(),raw:raw};
+}
+function registrySources(){return readRegistrySources();}
+function getInstalledForRegistryItem(item){
+ return modules.find(function(m){return m.registryKey===item.key||(m.registryUrl===item.registryUrl&&m.fileName===item.fileName);})||null;
+}
+function isRemoteNewer(remote,installed){
+ if(!remote||!installed)return false;
+ var a=Date.parse(remote),b=Date.parse(installed);
+ if(Number.isFinite(a)&&Number.isFinite(b))return a>b;
+ return String(remote)>String(installed);
+}
+function registryItemStatus(item){
+ var installed=getInstalledForRegistryItem(item);
+ if(!installed)return "available";
+ if(isRemoteNewer(item.updateDate,installed.installedUpdateDate||installed.updateDate))return "updated";
+ return "downloaded";
+}
+function registryItemId(item){
+ return "reg-"+filenameSlug((item.registryUrl||"")+"/"+(item.fileName||item.key)).slice(0,70);
+}
+function cachedRegistryModules(){
+ try{var value=JSON.parse(localStorage.getItem(PB_REGISTRY_CACHE_KEY)||"[]");return Array.isArray(value)?value:[];}catch(e){return [];}
+}
+async function loadPbAcervo(force){
+ if(pbCatalogLoading)return;
+ if(pbCatalogLoaded&&!force){renderPbModuleList();renderPbRegistryList();return;}
+ if(!navigator.onLine){pbRegistryModules=cachedRegistryModules();pbCatalogLoaded=true;pbRegistryErrors=["Sem conexão. Exibindo o último catálogo salvo; módulos instalados continuam disponíveis offline."];renderPbModuleList();renderPbRegistryList();return;}
+ pbCatalogLoading=true;pbRegistryErrors=[];var loaded=[];
+ var sources=registrySources();
+ for(var i=0;i<sources.length;i++){
+  var source=sources[i];
+  try{
+   var response=await fetch(source.url,{cache:"no-store",mode:"cors"});
+   if(!response.ok)throw Error("HTTP "+response.status);
+   var data=await response.json();
+   if(!data||!Array.isArray(data.modules))throw Error("O arquivo não contém uma lista 'modules' compatível com MyBible.");
+   var label=String(data.description||source.name||"Repositório");
+   sources[i].name=label;
+   data.modules.forEach(function(raw){var item=normalizeRegistryItem(raw,{url:source.url,name:label});if(item&&item.downloadUrl)loaded.push(item);else if(item&&item.type==="bundle")loaded.push(item);});
+  }catch(err){pbRegistryErrors.push((source.name||source.url)+": "+(err.message||String(err)));}
+ }
+ pbRegistryModules=loaded;
+ if(!loaded.length){var cached=cachedRegistryModules();if(cached.length)pbRegistryModules=cached;}
+ pbCatalogLoaded=true;pbCatalogLoading=false;saveRegistrySources(sources);
+ try{localStorage.setItem(PB_REGISTRY_CACHE_KEY,JSON.stringify(pbRegistryModules));}catch(e){}
+ renderPbModuleList();renderPbRegistryList();
+ var status=document.getElementById("pb-module-status");
+ if(status&&pbRegistryErrors.length)status.textContent=pbRegistryErrors.join(" • ");
+ if(localStorage.getItem(PB_AUTO_UPDATE_KEY)==="true"&&!pbAutoUpdateRun){pbAutoUpdateRun=true;autoUpdateRegistryModules();}
+}
+function formatModuleSize(value){
+ var n=Number(value);if(!Number.isFinite(n)||n<=0)return "";
+ if(n<1024)return n+" B";if(n<1024*1024)return (n/1024).toFixed(1)+" KB";return (n/(1024*1024)).toFixed(1)+" MB";
+}
+function currentRegistryItems(){
+ var items=[];
+ if(pbModuleView==="my"){
+  items=modules.map(function(m){
+   var source=pbRegistryModules.find(function(x){return x.key===m.registryKey;});
+   return source?Object.assign({},source,{installedModule:m,status:registryItemStatus(source)}):{key:"local::"+m.id,name:m.name,fileName:m.fileName||m.file,type:m.type,language:m.language,description:m.description,license:m.license,installedModule:m,status:"local-only",registryName:"Somente neste aparelho"};
+  });
+ }else{
+  items=pbRegistryModules.map(function(item){return Object.assign({},item,{installedModule:getInstalledForRegistryItem(item),status:registryItemStatus(item)});});
+  if(pbModuleView==="updates")items=items.filter(function(item){return item.status==="updated";});
+ }
+ var q=pbModuleFilters.search.toLowerCase().trim();
+ if(q)items=items.filter(function(item){return [item.name,item.description,item.author,item.fileName,item.language,item.registryName,item.type].join(" ").toLowerCase().includes(q);});
+ if(pbModuleFilters.type!=="all")items=items.filter(function(item){return item.type===pbModuleFilters.type;});
+ if(pbModuleFilters.language!=="all")items=items.filter(function(item){return String(item.language||"").toLowerCase().startsWith(pbModuleFilters.language.toLowerCase());});
+ if(pbModuleFilters.status!=="all")items=items.filter(function(item){return item.status===pbModuleFilters.status;});
+ return items.sort(function(a,b){return String(a.name||"").localeCompare(String(b.name||""),"pt-BR");});
+}
+function renderPbRegistryList(){
+ var target=document.getElementById("pb-registry-list");if(!target)return;
+ var sources=registrySources();
+ target.innerHTML=sources.map(function(r){return '<div class="pb-registry-row"><div><strong>'+clean(r.name||r.url)+'</strong><small>'+clean(r.url)+'</small></div>'+(r.primary?'<span class="pb-module-state">Principal</span>':'<button type="button" class="btn slim" data-pb-registry-remove="'+clean(r.url)+'">Remover</button>')+'</div>';}).join("");
+}
+function renderPbModuleList(){
+ var target=document.getElementById("pb-module-list");if(!target)return;
+ var items=currentRegistryItems(),count=document.getElementById("pb-module-count");
+ if(count)count.textContent=items.length+" módulo(s)";
+ var selected=items.filter(function(item){return pbSelectedModuleKeys.has(item.key);});
+ var bulk=document.getElementById("pb-bulk-actions");
+ if(bulk){bulk.hidden=!selected.length;bulk.innerHTML=selected.length?'<span>'+selected.length+' selecionado(s)</span><button class="btn slim" id="pb-bulk-download" type="button">Baixar selecionados</button><button class="btn slim" id="pb-bulk-update" type="button">Atualizar selecionados</button><button class="btn slim" id="pb-bulk-remove" type="button">Remover selecionados</button><button class="btn slim" id="pb-bulk-clear" type="button">Limpar seleção</button>':'';}
+ if(!items.length){
+  target.innerHTML='<div class="pb-module-empty">'+(pbModuleView==="updates"?"Nenhuma atualização pendente.":pbModuleView==="my"?"Nenhum módulo instalado neste aparelho.":"Nenhum módulo encontrado neste catálogo. Adicione um repositório adicional ou importe um arquivo autorizado.")+'</div>';
+  return;
+ }
+ target.innerHTML=items.map(function(item){
+  var installed=item.installedModule||getInstalledForRegistryItem(item),status=item.status||registryItemStatus(item);
+  var label=status==="updated"?"Atualização disponível":status==="downloaded"?"Baixado":status==="local-only"?"Somente local":"Disponível";
+  var action=status==="updated"?"Atualizar":status==="available"?"Baixar":"";
+  var date=item.updateDate?"Atualizado em "+item.updateDate:"";
+  var details=[moduleTypeLabel(item.type),item.language||"Idioma não informado",item.fileName||"",item.author||"",date,formatModuleSize(item.size),item.registryName||""].filter(Boolean).join(" · ");
+  var button=action&&item.downloadUrl?'<button class="btn primary slim" type="button" data-pb-module-download="'+clean(item.key)+'">'+action+'</button>':"";
+  var remove=installed?'<button class="btn slim" type="button" data-pb-module-remove="'+clean(installed.id)+'">Remover</button>':"";
+  var info=item.updateInfo?'<p class="pb-module-update-info">'+clean(item.updateInfo)+'</p>':"";
+  return '<article class="pb-module-card"><label class="pb-module-check"><input type="checkbox" data-pb-module-select="'+clean(item.key)+'" '+(pbSelectedModuleKeys.has(item.key)?"checked":"")+' aria-label="Selecionar '+clean(item.name)+'"></label><div class="pb-module-body"><div class="pb-module-titleline"><strong>'+clean(item.name)+'</strong><span class="pb-module-state '+clean(status)+'">'+label+'</span></div><small>'+clean(details)+'</small><p>'+clean(item.description||"Sem descrição fornecida pelo repositório.")+'</p>'+info+'</div><div class="pb-module-actions">'+button+remove+'</div></article>';
+ }).join("");
+}
+function renderPage(){var root=document.getElementById("app-main");if(root)root.innerHTML=getUiMarkup();renderPbModuleList();renderPbRegistryList();if(!pbCatalogLoaded)loadPbAcervo(false);}
+async function fetchRegistryModule(item){
+ if(!item||!item.downloadUrl)throw Error("O repositório não informou o endereço de download deste módulo.");
+ var url;try{url=new URL(item.downloadUrl);}catch(e){throw Error("Endereço de download inválido.");}
+ if(url.protocol!=="https:")throw Error("Por segurança, os downloads de módulos precisam usar HTTPS.");
+ var response=await fetch(url.href,{cache:"no-store",mode:"cors"});
+ if(!response.ok)throw Error("Falha no download (HTTP "+response.status+").");
+ var blob=await response.blob();
+ if(blob.size>250*1024*1024)throw Error("O arquivo ultrapassa o limite de 250 MB.");
+ var file=new File([blob],item.fileName||url.pathname.split("/").pop()||"module.SQLite3",{type:blob.type||"application/octet-stream"});
+ var sourceInfo={moduleId:registryItemId(item),registryKey:item.key,registryUrl:item.registryUrl,registryName:item.registryName,downloadUrl:item.downloadUrl,fileName:item.fileName||file.name,updateDate:item.updateDate,updateInfo:item.updateInfo};
+ var parsed=[];
+ try{parsed=await parseFile(file);}catch(err){
+  if(["cross_reference","subheading","reading_plan","devotion","bundle","other"].includes(item.type)){var rawMeta=await saveRawModule(file,item);return rawMeta;}
+  throw err;
+ }
+ var saved=[];
+ for(var i=0;i<parsed.length;i++){
+  var part=parsed[i];
+  if(item.name&&parsed.length===1)part.name=item.name;
+  if(item.language)part.language=item.language;
+  if(item.license)part.license=item.license;
+  if(item.description)part.description=item.description;
+  var partSource=Object.assign({},sourceInfo);
+  if(parsed.length>1){partSource.moduleId=sourceInfo.moduleId+"-"+filenameSlug(part.abbreviation||String(i));partSource.fileName=file.name+"-"+(part.abbreviation||i);}
+  saved.push(await saveModule(part,file.name,partSource));
+ }
+ return saved[0]||null;
+}
+async function downloadRegistryModule(key,button){
+ var item=pbRegistryModules.find(function(x){return x.key===key;});if(!item)return;
+ if(busy){notify("Aguarde a operação de módulos em andamento.");return;}
+ if(item.type==="bundle"&&Array.isArray(item.raw.modules)){
+  var children=item.raw.modules.map(function(raw){return normalizeRegistryItem(raw,{url:item.registryUrl,name:item.registryName});}).filter(Boolean);
+  for(var i=0;i<children.length;i++){await downloadRegistryItem(children[i]);}
+  notify("Conjunto de módulos processado.");return;
+ }
+ if(button){button.disabled=true;button.textContent="Baixando…";}
+ try{await downloadRegistryItem(item);notify("Módulo instalado: "+item.name);await loadCatalog();renderPage();}
+ catch(err){notify("Não foi possível baixar "+item.name+": "+(err.message||String(err)));}
+ finally{if(button){button.disabled=false;button.textContent=registryItemStatus(item)==="updated"?"Atualizar":"Baixar";}}
+}
+async function downloadRegistryItem(item){
+ if(busy)throw Error("Outra importação está em andamento.");
+ busy=true;var status=document.getElementById("pb-module-status");
+ if(status)status.textContent="Baixando e verificando: "+item.name+"…";
+ try{return await fetchRegistryModule(item);}
+ finally{busy=false;}
+}
+async function downloadSelected(onlyUpdates){
+ var items=currentRegistryItems().filter(function(item){return pbSelectedModuleKeys.has(item.key)&&item.downloadUrl&&(!onlyUpdates||item.status==="updated");});
+ if(!items.length){notify("Selecione módulos disponíveis ou atualizados.");return;}
+ for(var i=0;i<items.length;i++){try{await downloadRegistryItem(items[i]);}catch(err){notify(items[i].name+": "+(err.message||String(err)));}}
+ pbSelectedModuleKeys.clear();await loadCatalog();renderPage();
+}
+async function removeSelected(){
+ var items=currentRegistryItems().filter(function(item){return pbSelectedModuleKeys.has(item.key)&&item.installedModule;});
+ if(!items.length){notify("Selecione módulos instalados para remover.");return;}
+ if(!confirm("Remover "+items.length+" módulo(s) selecionado(s) deste aparelho?"))return;
+ for(var i=0;i<items.length;i++)await removeModule(items[i].installedModule.id,false);
+ pbSelectedModuleKeys.clear();await loadCatalog();renderPage();
+}
+async function addRegistry(){
+ var field=document.getElementById("pb-registry-url"),url=String(field&&field.value||"").trim();
+ if(!url){notify("Informe o endereço do repositório.");return;}
+ try{
+  var parsed=new URL(url);if(parsed.protocol!=="https:")throw Error("Use um endereço HTTPS.");
+  var response=await fetch(parsed.href,{cache:"no-store",mode:"cors"});if(!response.ok)throw Error("Não foi possível abrir o arquivo (HTTP "+response.status+").");
+  var data=await response.json();if(!data||!Array.isArray(data.modules))throw Error("O JSON não segue o formato de repositório do MyBible.");
+  var list=registrySources();if(list.some(function(r){return r.url===parsed.href;}))throw Error("Este repositório já está cadastrado.");
+  list.push({url:parsed.href,name:String(data.description||parsed.hostname),primary:false});saveRegistrySources(list);
+  if(field)field.value="";pbCatalogLoaded=false;await loadPbAcervo(true);notify("Repositório adicionado: "+String(data.description||parsed.hostname));
+ }catch(err){notify("Não foi possível adicionar o repositório: "+(err.message||String(err)));}
+}
+function removeRegistry(url){
+ var list=registrySources().filter(function(r){return r.url!==url||r.primary;});saveRegistrySources(list);pbCatalogLoaded=false;pbSelectedModuleKeys.clear();loadPbAcervo(true);
+}
+async function autoUpdateRegistryModules(){
+ var updates=pbRegistryModules.filter(function(item){return registryItemStatus(item)==="updated";});
+ for(var i=0;i<updates.length;i++){try{await downloadRegistryItem(updates[i]);}catch(err){console.warn("Atualização automática de módulo falhou",updates[i].name,err);}}
+ if(updates.length){await loadCatalog();renderPage();notify("Verificação automática concluída.");}
+}
+async function checkModuleUpdates(){
+ pbCatalogLoaded=false;await loadPbAcervo(true);
+ var count=pbRegistryModules.filter(function(item){return registryItemStatus(item)==="updated";}).length;
+ notify(count?count+" atualização(ões) disponível(is).":"Seus módulos estão atualizados.");
+}
+
 function getUiMarkup(){
+ var installedMarkup=modules.length?modules.map(function(m){
+  return '<div class="module-installed"><div><span class="chip">'+clean(moduleTypeLabel(m.type).toUpperCase())+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+(m.count||0)+' itens</p><p class="tiny muted">'+clean(m.format||"Módulo local")+" · "+clean(m.license||"licença não informada")+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';
+ }).join(""):'<div class="empty">Nenhum módulo instalado neste aparelho.</div>';
  return '<div class="content module-library">'+
- '<div class="eyebrow">PÚLPITO BIBLE / MÓDULOS EXTERNOS</div><h1 class="page-title">Biblioteca de módulos</h1><p class="subtitle">Instale Bíblias, comentários e dicionários Strong armazenados em ZIP ou SQLite3. Os arquivos ficam neste aparelho e os comentários acompanham a passagem escolhida.</p>'+
- '<section class="card card-pad" style="margin:12px 0"><div class="panel-heading"><h2 class="section-heading">✦ Púlpito Acervo — baixar módulos</h2><span class="chip greenish">Downloads autorizados</span></div><p class="feature-note">Catálogo próprio de Bíblias, comentários e dicionários com licença de distribuição. Os módulos baixados ficam neste aparelho e funcionam offline. Para arquivos pessoais, use a instalação ZIP abaixo.</p><div id="pb-acervo-list" aria-live="polite">Carregando catálogo...</div><button class="btn" type="button" id="pb-acervo-refresh">↻ Atualizar catálogo</button></section>'+
- '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
- '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher arquivos ZIP, SQLite3 ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.json"></label>'+
- '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
- '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
- '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,application/json" style="display:none"></label></div><p class="feature-note">Proteja seus módulos antes de trocar de endereço, navegador ou aparelho. A restauração acrescenta os registros sem apagar os existentes. No iPhone, salve o backup no app Arquivos ou iCloud Drive.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
- '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
- (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
- '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Consultar dicionário Strong</h2><span class="chip greenish">Léxicos instalados</span></div><div class="search-bar"><input id="dictionary-query" class="field" placeholder="Ex.: H7563 ou G3306"><button id="dictionary-search" class="btn primary" type="button">Consultar</button></div><div id="dictionary-results" class="feature-note" role="status" aria-live="polite">Após instalar um léxico, consulte aqui ou toque no número Strong dentro da Bíblia.</div></section><section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Traduções desejadas</h2><span class="chip">Disponíveis via importação autorizada</span></div>'+
- '<div class="module-catalog">'+requested.map(function(t){var found=modules.find(function(m){return m.type==="bible"&&((m.abbreviation||"").toUpperCase()===t.code||(m.name||"").toLowerCase()===t.name.toLowerCase());});return '<div class="module-catalog-item"><div><strong>'+clean(t.code)+' · '+clean(t.name)+'</strong><p>'+clean(t.holder)+' · '+clean(t.status)+'</p></div><span class="chip '+(found?"greenish":"")+'">'+(found?"Instalado":"Não incluído")+'</span></div>';}).join("")+'</div>'+
- '<p class="feature-note">NVI, NTLH, NAA e ACF não são fornecidas nem baixadas automaticamente pelo aplicativo. A King James de 1611 também exige verificação dos direitos aplicáveis à edição e ao território. A instalação depende de arquivo compatível obtido com autorização.</p></section>'+
- '<section class="card card-pad" style="margin-top:18px"><h2 class="section-heading">Como instalar</h2><p class="feature-note">1. Obtenha legalmente o módulo e salve o arquivo ZIP ou SQLite3 no dispositivo. 2. Toque em “Escolher arquivos” e selecione o documento no aplicativo Arquivos. 3. Confirme o direito de utilização e a importação será iniciada. 4. Ative uma Bíblia instalada pelo botão “Ler agora” ou pelo seletor de traduções. 5. Ative Comentários no leitor e toque no número Strong para consultar os dicionários instalados.</p><p class="feature-note">Os módulos ficam no IndexedDB deste endereço e navegador. Atualizações normais não devem apagá-los, mas iOS pode remover dados locais em situações de falta de espaço. Use Fazer backup dos módulos e guarde o arquivo no iCloud. Endereços diferentes têm bibliotecas separadas.</p></section></div>';
+ '<div class="eyebrow">PÚLPITO BIBLE / CENTRAL DE MÓDULOS</div><h1 class="page-title">Módulos</h1><p class="subtitle">Gerencie repositórios, baixe módulos individualmente ou em conjunto, acompanhe atualizações e mantenha os arquivos no dispositivo para estudar sem internet.</p>'+
+ '<section class="card card-pad pb-module-manager">'+
+ '<div class="panel-heading"><h2 class="section-heading">Catálogo de módulos</h2><div class="row"><span class="chip greenish" id="pb-module-count">Consultando…</span><button class="btn slim" id="pb-module-refresh" type="button">↻ Verificar atualizações</button></div></div>'+
+ '<div class="pb-module-tabs"><button type="button" data-pb-module-view="catalog" class="'+(pbModuleView==="catalog"?"active":"")+'">Disponíveis</button><button type="button" data-pb-module-view="my" class="'+(pbModuleView==="my"?"active":"")+'">Meus módulos</button><button type="button" data-pb-module-view="updates" class="'+(pbModuleView==="updates"?"active":"")+'">Atualizações</button></div>'+
+ '<div class="pb-module-filters"><input class="field" id="pb-module-search" placeholder="Pesquisar nome, autor, abreviação ou arquivo" value="'+clean(pbModuleFilters.search)+'"><select class="field" id="pb-module-type"><option value="all">Todos os tipos</option><option value="bible">Bíblias</option><option value="commentary">Comentários</option><option value="dictionary">Dicionários / Strong</option><option value="cross_reference">Referências cruzadas</option><option value="subheading">Títulos e subtítulos</option><option value="reading_plan">Planos de leitura</option><option value="devotion">Devocionais</option><option value="bundle">Conjuntos</option><option value="other">Outros</option></select><select class="field" id="pb-module-language"><option value="all">Todos os idiomas</option><option value="pt">Português</option><option value="en">Inglês</option><option value="es">Espanhol</option><option value="he">Hebraico</option><option value="el">Grego</option></select><select class="field" id="pb-module-status-filter"><option value="all">Todas as situações</option><option value="available">Disponíveis</option><option value="downloaded">Baixados</option><option value="updated">Atualizados</option><option value="local-only">Somente local</option></select></div>'+
+ '<div class="pb-module-quickfilters"><span>Idioma:</span><button type="button" data-pb-language-set="all" class="'+(pbLanguageSet==="all"?"active":"")+'">Todos</button><button type="button" data-pb-language-set="pt" class="'+(pbLanguageSet==="pt"?"active":"")+'">Meu idioma</button><button type="button" data-pb-language-set="myset" class="'+(pbLanguageSet==="myset"?"active":"")+'">Meu conjunto</button><label>Idiomas do conjunto <input id="pb-language-set" value="'+clean(pbLanguageSet==="myset"?"pt,en,he,el":pbLanguageSet)+'" placeholder="pt,en,he,el"></label></div>'+
+ '<div class="pb-module-selection"><label><input type="checkbox" id="pb-select-all"> Selecionar todos os resultados</label><div id="pb-bulk-actions" hidden></div></div>'+
+ '<div id="pb-module-list" class="pb-module-list" aria-live="polite"><div class="pb-module-empty">Carregando catálogo de módulos…</div></div><p id="pb-module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p>'+
+ '</section>'+
+ '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Repositórios adicionais</h2><span class="chip">Compatível com MyBible</span></div><p class="feature-note">Adicione o endereço HTTPS de um arquivo de registro de módulos MyBible (.json). Os módulos desse repositório aparecerão no catálogo junto com os demais e poderão receber atualizações.</p><div class="pb-registry-add"><input class="field" id="pb-registry-url" type="url" placeholder="https://servidor.com/registry.json"><button class="btn primary" id="pb-registry-add" type="button">＋ Adicionar repositório</button></div><div id="pb-registry-list" class="pb-registry-list"></div><div class="pb-module-settings"><label><input type="checkbox" id="pb-auto-update" '+(localStorage.getItem(PB_AUTO_UPDATE_KEY)==="true"?"checked":"")+'> Atualizar automaticamente os módulos quando houver novas versões</label><span class="feature-note">A verificação automática ocorre quando a central de módulos é aberta e há conexão com a internet.</span></div></section>'+
+ '<div class="grid-2" style="margin-top:18px"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivo do dispositivo</h2><span class="chip greenish">ZIP / SQLite3</span></div><label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher arquivos ZIP, SQLite3 ou JSON</strong><span>Importe módulos MyBible ou Púlpito Bible que você já possui.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.json"></label><label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label><div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,application/json" style="display:none"></label></div><p class="feature-note">Os módulos e arquivos originais ficam no armazenamento local deste aplicativo. O backup inclui os módulos importados e os arquivos MyBible guardados offline.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button></section><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div><div class="pb-installed-list">'+installedMarkup+'</div></section></div>'+
+ '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Consultar dicionário Strong</h2><span class="chip greenish">Léxicos instalados</span></div><div class="search-bar"><input id="dictionary-query" class="field" placeholder="Ex.: H7563 ou G3306"><button id="dictionary-search" class="btn primary" type="button">Consultar</button></div><div id="dictionary-results" class="feature-note" role="status" aria-live="polite">Após instalar um léxico Strong, consulte aqui ou toque no número Strong dentro da Bíblia.</div></section>'+
+ '<p class="feature-note" style="margin-top:16px">O Púlpito Bible usa o formato aberto de módulos MyBible. A compatibilidade de leitura já está implementada para Bíblias, comentários e dicionários Strong; outros tipos são preservados como arquivos originais para uso offline enquanto a integração específica ao leitor é desenvolvida.</p>'+
+ '</div>';
 }
 
 async function searchDictionaryUi(){
@@ -579,7 +795,7 @@ async function searchDictionaryUi(){
  }catch(err){box.textContent=err.message||"Erro na pesquisa";}
 }
 
-function renderPage(){var root=document.getElementById("app-main");if(root)root.innerHTML=getUiMarkup();loadPbAcervo();}
+function renderPage(){var root=document.getElementById("app-main");if(root)root.innerHTML=getUiMarkup();renderPbModuleList();renderPbRegistryList();if(!pbCatalogLoaded)loadPbAcervo(false);}
 async function downloadSample(){
  if(!window.JSZip){notify("Biblioteca ZIP indisponível");return;}
  var zip=new JSZip();
@@ -596,7 +812,37 @@ document.addEventListener("click",function(e){
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
 });
-window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
+document.addEventListener("input",function(e){
+ if(!e.target)return;
+ if(e.target.id==="pb-module-search"){pbModuleFilters.search=e.target.value||"";renderPbModuleList();}
+ if(e.target.id==="pb-language-set"){pbLanguageSet=e.target.value||"pt,en";try{localStorage.setItem("pb-module-language-set",pbLanguageSet);}catch(err){}}
+});
+document.addEventListener("change",function(e){
+ if(!e.target)return;
+ if(e.target.id==="pb-module-type"){pbModuleFilters.type=e.target.value;renderPbModuleList();}
+ if(e.target.id==="pb-module-language"){pbModuleFilters.language=e.target.value;renderPbModuleList();}
+ if(e.target.id==="pb-module-status-filter"){pbModuleFilters.status=e.target.value;renderPbModuleList();}
+ if(e.target.id==="pb-auto-update"){try{localStorage.setItem(PB_AUTO_UPDATE_KEY,e.target.checked?"true":"false");}catch(err){}if(e.target.checked){pbAutoUpdateRun=false;if(pbCatalogLoaded)autoUpdateRegistryModules();}}
+ if(e.target.id==="pb-select-all"){var visible=currentRegistryItems();if(e.target.checked)visible.forEach(function(item){pbSelectedModuleKeys.add(item.key);});else visible.forEach(function(item){pbSelectedModuleKeys.delete(item.key);});renderPbModuleList();}
+ if(e.target.matches&&e.target.matches("[data-pb-module-select]")){var key=e.target.getAttribute("data-pb-module-select");if(e.target.checked)pbSelectedModuleKeys.add(key);else pbSelectedModuleKeys.delete(key);renderPbModuleList();}
+});
+document.addEventListener("click",function(e){
+ var act=e.target&&e.target.closest&&e.target.closest("[data-pb-module-view],[data-pb-language-set],[data-pb-module-download],[data-pb-module-remove],[data-pb-registry-remove],#pb-module-refresh,#pb-registry-add,#pb-bulk-download,#pb-bulk-update,#pb-bulk-remove,#pb-bulk-clear");
+ if(!act)return;
+ if(act.hasAttribute("data-pb-module-view")){pbModuleView=act.getAttribute("data-pb-module-view");pbSelectedModuleKeys.clear();renderPage();return;}
+ if(act.hasAttribute("data-pb-language-set")){pbModuleFilters.language=act.getAttribute("data-pb-language-set")==="pt"?"pt":"all";pbLanguageSet=act.getAttribute("data-pb-language-set");renderPage();return;}
+ if(act.hasAttribute("data-pb-module-download")){downloadRegistryModule(act.getAttribute("data-pb-module-download"),act);return;}
+ if(act.hasAttribute("data-pb-module-remove")){removeModule(act.getAttribute("data-pb-module-remove"));return;}
+ if(act.hasAttribute("data-pb-registry-remove")){removeRegistry(act.getAttribute("data-pb-registry-remove"));return;}
+ if(act.id==="pb-module-refresh"){checkModuleUpdates();return;}
+ if(act.id==="pb-registry-add"){addRegistry();return;}
+ if(act.id==="pb-bulk-download"){downloadSelected(false);return;}
+ if(act.id==="pb-bulk-update"){downloadSelected(true);return;}
+ if(act.id==="pb-bulk-remove"){removeSelected();return;}
+ if(act.id==="pb-bulk-clear"){pbSelectedModuleKeys.clear();renderPbModuleList();return;}
+});
+
+window.PBModules={ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,getRegistryModules:function(){return pbRegistryModules.slice();},refreshRegistry:function(){pbCatalogLoaded=false;return loadPbAcervo(true);},init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
 })();
 ;
 (function (global) {
