@@ -119,4 +119,42 @@
  setInterval(check,3600000);
 })();
 </script>
+<script>
+/* Ajuste de leitura por gesto de dois dedos, separado da seleção de versículos. */
+(function(){
+ var zones=[
+  {selector:"#chapter-body",name:"bible",content:".verse-list"},
+  {selector:".pb-split-scroll",name:"commentary",content:".pb-split-entry-text"},
+  {selector:".pb-dictionary-scroll",name:"dictionary",content:".pb-dictionary-focused, .pb-dictionary-entry, .pb-dictionary-definition, .pb-dictionary-scroll p, .pb-dictionary-scroll li"}
+ ];
+ var sizes={};
+ zones.forEach(function(z){var n=Number(localStorage.getItem("pb-text-zoom-"+z.name));sizes[z.name]=Number.isFinite(n)&&n>=0.75&&n<=1.8?n:1;});
+ var style=document.createElement("style");style.id="pb-responsive-text-zoom";document.head.appendChild(style);
+ function paint(){
+  style.textContent=zones.map(function(z){return z.content.split(",").map(function(sel){return sel.trim()+"{zoom:"+sizes[z.name].toFixed(3)+";}";}).join("\n");}).join("\n");
+ }
+ paint();
+ var active=null;
+ function zoneFor(el){if(!el||!el.closest)return null;return zones.find(function(z){return el.closest(z.selector);})||null;}
+ function dist(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
+ document.addEventListener("touchstart",function(e){
+  if(e.touches.length!==2){active=null;return;}
+  var z=zoneFor(e.target);
+  if(!z)return;
+  var d=dist(e.touches[0],e.touches[1]);
+  if(d<10)return;
+  active={name:z.name,start:d,base:sizes[z.name]};
+ },{passive:true});
+ document.addEventListener("touchmove",function(e){
+  if(!active||e.touches.length!==2)return;
+  var d=dist(e.touches[0],e.touches[1]);
+  sizes[active.name]=Math.max(.75,Math.min(1.8,Math.round(active.base*d/active.start*100)/100));
+  paint();
+  if(e.cancelable)e.preventDefault();
+ },{passive:false});
+ function finish(){if(!active)return;try{localStorage.setItem("pb-text-zoom-"+active.name,String(sizes[active.name]));}catch(e){}active=null;}
+ document.addEventListener("touchend",function(e){if(active&&e.touches.length<2)finish();},{passive:true});
+ document.addEventListener("touchcancel",finish,{passive:true});
+})();
+</script>
 </body></html>
