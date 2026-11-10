@@ -1,6 +1,127 @@
 {
-  "schema": 1,
+  "schema": 2,
   "title": "Púlpito Acervo",
-  "description": "Catálogo de módulos autorizados para instalação offline",
-  "modules": []
+  "description": "Inventário privado do Supabase. Downloads exigem licença e URL assinada.",
+  "modules": [
+    {
+      "name": "ARA+",
+      "type": "bible",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos biblia/ARA+.zip",
+      "sizeMB": 2.92,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "NVI-TM",
+      "type": "bible",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos biblia/NVI-TM.zip",
+      "sizeMB": 2.13,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "NAA-TM",
+      "type": "bible",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos biblia/NAA-TM.zip",
+      "sizeMB": 2.15,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "Wicliffe",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Wicliffe.dictionary.zip",
+      "sizeMB": 30.12,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "Houaiss",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Houaiss.dictionary.zip",
+      "sizeMB": 24.11,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "CWSD",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/CWSD.dictionary.zip",
+      "sizeMB": 5.23,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "Strong-PT",
+      "type": "strong",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Strong-PT.dictionary.zip",
+      "sizeMB": 1.63,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "Universal",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Universal.dictionary.zip",
+      "sizeMB": 1.17,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "Almeida",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Almeida.dictionary.zip",
+      "sizeMB": 0.48,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    },
+    {
+      "name": "MBAP",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/MBAP.dictionary.zip",
+      "sizeMB": 0.87,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null
+    }
+  ]
 }
