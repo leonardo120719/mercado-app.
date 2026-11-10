@@ -108,7 +108,7 @@ jobs:
             }
           }
           NODE
-      # Compilação release assinada solicitada após configuração dos quatro segredos no GitHub.
+      # Nova tentativa de assinatura após correção da senha do keystore (2026-11-10).
       - name: Configure stable release signing and version
         env:
           PULPITO_KEYSTORE_BASE64: ${{ secrets.PULPITO_KEYSTORE_BASE64 }}
