@@ -367,7 +367,7 @@ function pickJson(json,filename){
 }
 async function parseZip(file){
  if(!window.JSZip)throw Error("O leitor ZIP não carregou. Verifique a conexão e tente novamente.");
- var zip=await JSZip.loadAsync(file,{checkCRC32:false}),entries=Object.values(zip.files).filter(function(e){return !e.dir&&!/(^|\/)(__MACOSX|\.DS_Store)/i.test(e.name);});
+ var zip=await JSZip.loadAsync(file,{checkCRC32:true}),entries=Object.values(zip.files).filter(function(e){return !e.dir&&!/(^|\/)(__MACOSX|\.DS_Store)/i.test(e.name);});
 
  var manifest=entries.find(function(e){return /(?:^|\/)(?:module|manifest)\.json$/i.test(e.name);});
  var metadata=null;
@@ -519,8 +519,8 @@ async function loadPbAcervo(){
  if(!navigator.onLine){target.textContent="Sem internet. Seus módulos instalados continuam disponíveis offline.";return;}
  target.textContent="Consultando catálogo...";
  try{
-  var response=await fetch("/pulpito-acervo.json",{cache:"no-store"});
-  if(!response.ok){response=await fetch("https://raw.githubusercontent.com/leonardo120719/mercado-app./pulpito-bible-pwa/pulpito-acervo.json",{cache:"no-store"});}
+  var response=await fetch("https://raw.githubusercontent.com/leonardo120719/mercado-app./pulpito-bible-pwa/pulpito-acervo.json",{cache:"no-store"});
+  if(!response.ok){response=await fetch("/pulpito-acervo.json",{cache:"no-store"});}
   if(!response.ok)throw Error("Catálogo indisponível");
   var data=await response.json();
   pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.path&&m.bucket==="pulpito-modulos";}):[];
