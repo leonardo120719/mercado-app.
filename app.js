@@ -520,6 +520,7 @@ async function loadPbAcervo(){
  target.textContent="Consultando catálogo...";
  try{
   var response=await fetch("/pulpito-acervo.json",{cache:"no-store"});
+  if(!response.ok){response=await fetch("https://raw.githubusercontent.com/leonardo120719/mercado-app./pulpito-bible-pwa/pulpito-acervo.json",{cache:"no-store"});}
   if(!response.ok)throw Error("Catálogo indisponível");
   var data=await response.json();
   pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.path&&m.bucket==="pulpito-modulos";}):[];
