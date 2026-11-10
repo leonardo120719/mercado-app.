@@ -46,7 +46,24 @@ jobs:
           {"appId":"com.pulpitobible.app","appName":"Púlpito Bible","webDir":"www","server":{"androidScheme":"https"}}
           EOF
           npm install --no-audit --no-fund
-          npm install --no-save --no-audit --no-fund sharp
+          npm install --no-save --no-audit --no-fund sharp jszip@3.10.1 sql.js@1.13.0
+          # Importadores ZIP/SQLite locais: funcionam no APK mesmo sem internet.
+          mkdir -p www/vendor
+          cp node_modules/jszip/dist/jszip.min.js www/vendor/jszip.min.js
+          cp node_modules/sql.js/dist/sql-wasm.js www/vendor/sql-wasm.js
+          cp node_modules/sql.js/dist/sql-wasm.wasm www/vendor/sql-wasm.wasm
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("www/index.html")
+          html=p.read_text()
+          html=html.replace("https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js","./vendor/jszip.min.js")
+          html=html.replace("https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js","./vendor/sql-wasm.js")
+          p.write_text(html)
+          Path("www/pulpito.html").write_text(html)
+          p=Path("www/app.js")
+          app=p.read_text().replace('return "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/"+f;', 'return "./vendor/"+f;')
+          p.write_text(app)
+          PY
           npx cap add android
           node --input-type=module <<'NODE'
           import sharp from "sharp";
