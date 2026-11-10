@@ -108,7 +108,7 @@ jobs:
             }
           }
           NODE
-      # Atualização solicitada: seletor compacto de traduções, Strong por dois toques e ícone adaptável corrigido.
+      # Compilação release assinada solicitada após configuração dos quatro segredos no GitHub.
       - name: Configure stable release signing and version
         env:
           PULPITO_KEYSTORE_BASE64: ${{ secrets.PULPITO_KEYSTORE_BASE64 }}
