@@ -60,6 +60,7 @@ jobs:
             }
           }
           NODE
+      # Recompilação solicitada: barra superior simplificada e correções recentes.
       - name: Build installable debug APK
         run: |
           cd android
