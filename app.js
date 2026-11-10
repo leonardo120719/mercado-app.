@@ -1024,14 +1024,18 @@ function open(kind,verse,word,anchor,moduleId){
  selectedContext={kind:kind,query:query,reference:context,comments:[],moduleId:selectedModule};
  var installed=global.PBModules.getInstalled();
  var selectedModuleInfo=installed.find(function(m){return m.type==="commentary"&&m.id===selectedModule;});
+ var commentaryOnly=kind==="commentary",dictionaryOnly=kind==="word"||kind==="strong";
+ var moduleChoices=installed.filter(function(m){return m.type===(commentaryOnly?"commentary":"dictionary");});
+ if(commentaryOnly&&!selectedModule&&moduleChoices.length)selectedModule=moduleChoices[0].id;
+ var moduleSelectHtml='<label class="pb-connection-module-label" for="pb-connection-module">Alternar '+(commentaryOnly?"comentário":"dicionário")+'</label><select id="pb-connection-module" aria-label="Alternar módulo">'+moduleChoices.map(function(m){return '<option value="'+escapeHtml(m.id)+'" '+(m.id===selectedModule?"selected":"")+'>'+escapeHtml(m.name)+'</option>';}).join("")+'</select>';
  var modal=document.createElement("div");modal.id="pb-connected-panel";modal.className="pb-connected-backdrop myb-window-backdrop";
- modal.innerHTML='<section class="pb-connected-sheet myb-window" role="dialog" aria-label="Estudo conectado" aria-modal="false">'+
- '<header class="myb-titlebar" data-pb-win-titlebar><div class="myb-titlebar-icon">▤</div><div class="myb-titlebar-info"><strong>ESTUDO CONECTADO</strong><small>'+escapeHtml(kind==="word"?query:(context.name+" "+context.chapter+":"+context.verse))+' · '+escapeHtml(context.name+" "+context.chapter+(context.verse?":"+context.verse:""))+'</small></div>'+
+ modal.innerHTML='<section class="pb-connected-sheet myb-window" role="dialog" aria-label="'+(commentaryOnly?"Comentários":"Dicionário")+'" aria-modal="false">'+
+ '<header class="myb-titlebar" data-pb-win-titlebar><div class="myb-titlebar-icon">▤</div><div class="myb-titlebar-info"><strong>'+(commentaryOnly?"COMENTÁRIOS":"DICIONÁRIO")+'</strong><small>'+escapeHtml(kind==="word"?query:(context.name+" "+context.chapter+":"+context.verse))+' · '+escapeHtml(context.name+" "+context.chapter+(context.verse?":"+context.verse:""))+'</small></div>'+
  '<div class="myb-window-controls"><button type="button" data-pb-win-action="minimize" aria-label="Recolher janela" title="Recolher">—</button><button type="button" data-pb-win-action="maximize" aria-label="Ampliar janela" title="Ampliar">▣</button><button type="button" data-pb-win-action="close" aria-label="Fechar janela" title="Fechar">×</button></div></header>'+
- '<nav class="myb-window-tabs" aria-label="Conteúdo da janela" role="tablist"><button type="button" data-pb-win-tab="dictionary" role="tab">α Dicionário</button><button type="button" data-pb-win-tab="commentaries" role="tab">▤ Comentários</button></nav>'+
- '<div class="myb-window-main"><div class="myb-quick-reference"><span class="myb-reference-label">'+escapeHtml(context.name+" "+context.chapter+":"+context.verse)+'</span><span class="myb-reference-info">'+(kind==="word"?"Pesquisa pela palavra portuguesa, sem atribuir Strong automaticamente.":kind==="commentary"?"Comentário selecionado: "+escapeHtml(selectedModuleInfo?selectedModuleInfo.name:"módulo instalado"):"Referência selecionada · módulos instalados")+'</span></div>'+
- '<section data-pb-win-panel="dictionary" class="myb-window-panel"><div id="pb-connected-dictionary"><p class="feature-note">Consultando os léxicos instalados…</p></div></section>'+
- '<section data-pb-win-panel="commentaries" class="myb-window-panel"><div id="pb-connected-commentaries"><p class="feature-note">Consultando os comentários vinculados à passagem…</p></div></section></div>'+
+ ''+
+ '<div class="myb-window-main"><div class="pb-connection-module-bar">'+moduleSelectHtml+'</div><div class="myb-quick-reference"><span class="myb-reference-label">'+escapeHtml(context.name+" "+context.chapter+":"+context.verse)+'</span><span class="myb-reference-info">'+(kind==="word"?"Pesquisa pela palavra portuguesa, sem atribuir Strong automaticamente.":kind==="commentary"?"Comentário selecionado: "+escapeHtml(selectedModuleInfo?selectedModuleInfo.name:"módulo instalado"):"Referência selecionada · módulos instalados")+'</span></div>'+
+ '<section data-pb-win-panel="dictionary" class="myb-window-panel" '+(commentaryOnly?"hidden":"")+' ><div id="pb-connected-dictionary"><p class="feature-note">Consultando os léxicos instalados…</p></div></section>'+
+ '<section data-pb-win-panel="commentaries" class="myb-window-panel" '+(!commentaryOnly?"hidden":"")+' ><div id="pb-connected-commentaries"><p class="feature-note">Consultando os comentários vinculados à passagem…</p></div></section></div>'+
  '<footer class="myb-window-footer"><button class="btn slim" type="button" data-pb-note>✎ Nota</button><button class="btn slim" type="button" data-pb-sermon>▤ Sermão</button><button class="btn primary slim" type="button" data-page="modulos">⇩ Módulos</button></footer>'+
  '</section>';
  document.body.appendChild(modal);
@@ -1039,9 +1043,12 @@ function open(kind,verse,word,anchor,moduleId){
  /* Estudo conectado abre em tela inteira; o botão de maximizar continua permitindo restaurar. */
  var connectedWindow=modal.querySelector(".pb-connected-sheet.myb-window");
  if(connectedWindow){connectedWindow.classList.add("myb-is-maximized");var maximize=connectedWindow.querySelector('[data-pb-win-action="maximize"]');if(maximize){maximize.setAttribute("aria-label","Restaurar tamanho");maximize.textContent="❐";}}
+ var modulePicker=modal.querySelector("#pb-connection-module");
+ if(modulePicker)modulePicker.addEventListener("change",function(){var id=modulePicker.value;if(commentaryOnly){open("commentary",context.verse,"",null,id);}else{open("word",context.verse,query,null,id);}});
  var linkedStrong=kind==="word"&&anchor&&anchor.dataset?String(anchor.dataset.pbStrongList||anchor.dataset.pbStrong||anchor.dataset.strong||"").split(",").map(function(v){return v.trim();}).filter(Boolean):[];
  var list=kind==="word"?Array.from(new Set([query].concat(linkedStrong))):verseCodes(context.verse);
- if(!list.length){
+ if(commentaryOnly){ /* Comentários não consultam dicionários. */ }
+ else if(!list.length){
   drawResults("pb-connected-dictionary",'<p class="feature-note">Nenhum Strong confirmado para esse versículo. Toque diretamente numa palavra para pesquisar verbetes em português.</p>',seq);
  }else{
   Promise.all(list.map(function(entry){return global.PBModules.getDictionaryEntry(entry).then(function(rows){return {query:entry,rows:rows};});})).then(function(groups){
@@ -1054,8 +1061,10 @@ function open(kind,verse,word,anchor,moduleId){
    }).join(""),seq);
   }).catch(function(e){drawResults("pb-connected-dictionary",'<p class="feature-note">Não foi possível pesquisar os dicionários: '+escapeHtml(e.message||String(e))+'</p>',seq);});
  }
- global.PBModules.getCommentaries(context.book,context.chapter,context.verse,selectedModule).then(function(rows){
+ (commentaryOnly?global.PBModules.getCommentaries(context.book,context.chapter,0,selectedModule):Promise.resolve([])).then(function(rows){
   if(seq!==requestId)return;
+  if(!commentaryOnly)return;
+  rows=rows.filter(function(row){return !selectedModule||row.moduleId===selectedModule;}).sort(function(a,b){return (Number(a.fromChapter)||0)-(Number(b.fromChapter)||0)||(Number(a.fromVerse)||0)-(Number(b.fromVerse)||0);});
   selectedContext.comments=rows;
   if(!rows.length){
    var message=selectedModuleInfo?"O comentário "+selectedModuleInfo.name+" não possui conteúdo vinculado a esta referência.":"Nenhum comentário instalado cobre esta referência. Você pode importar módulos na seção Módulos.";
@@ -1063,10 +1072,10 @@ function open(kind,verse,word,anchor,moduleId){
    return;
   }
   drawResults("pb-connected-commentaries",'<p class="pb-connections-count">'+rows.length+' comentário(s) encontrado(s)</p>'+rows.slice(0,30).map(function(row,i){
-   var raw=String(row.text||""),short=raw.slice(0,2800);
+   var raw=String(row.text||""),short=raw;
    return '<article class="pb-connection-entry"><div><strong>'+escapeHtml(row.moduleName)+'</strong><small>'+escapeHtml(context.name+" "+(row.fromChapter||context.chapter)+(row.fromVerse?":"+row.fromVerse:""))+'</small></div>'+
-    '<p>'+explicitStrongLinks(short)+(raw.length>2800?"…":"")+'</p>'+
-    (raw.length>2800?'<details><summary>Ver comentário completo</summary><p>'+explicitStrongLinks(raw)+'</p></details>':"")+
+    '<p>'+explicitStrongLinks(short)+'</p>'+
+
     '<button class="btn slim" type="button" data-pb-comment="'+i+'">Adicionar comentário ao sermão</button></article>';
   }).join(""),seq);
  }).catch(function(e){drawResults("pb-connected-commentaries",'<p class="feature-note">Falha ao consultar comentários: '+escapeHtml(e.message||String(e))+'</p>',seq);});
