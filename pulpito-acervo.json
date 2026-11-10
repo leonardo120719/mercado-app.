@@ -1,20 +1,8 @@
 {
   "schema": 2,
   "title": "Púlpito Acervo",
-  "description": "Catálogo de módulos sem redistribuição não autorizada. NVI e NAA não são listadas.",
+  "description": "Catálogo de dicionários para futura distribuição autorizada. Traduções bíblicas permanecem privadas.",
   "modules": [
-    {
-      "name": "ARA+",
-      "type": "bible",
-      "bucket": "pulpito-modulos",
-      "path": "Modulos biblia/ARA+.zip",
-      "sizeMB": 2.92,
-      "format": "zip",
-      "formatVerified": false,
-      "distributionAuthorized": false,
-      "license": null,
-      "signedUrl": null
-    },
     {
       "name": "Wicliffe",
       "type": "dictionary",
@@ -25,7 +13,8 @@
       "formatVerified": false,
       "distributionAuthorized": false,
       "license": null,
-      "signedUrl": null
+      "signedUrl": null,
+      "licenseStatus": "declared_free_by_uploader_pending_verification"
     },
     {
       "name": "Houaiss",
@@ -37,7 +26,8 @@
       "formatVerified": false,
       "distributionAuthorized": false,
       "license": null,
-      "signedUrl": null
+      "signedUrl": null,
+      "licenseStatus": "declared_free_by_uploader_pending_verification"
     },
     {
       "name": "CWSD",
@@ -49,7 +39,8 @@
       "formatVerified": false,
       "distributionAuthorized": false,
       "license": null,
-      "signedUrl": null
+      "signedUrl": null,
+      "licenseStatus": "declared_free_by_uploader_pending_verification"
     },
     {
       "name": "Strong-PT",
@@ -61,7 +52,8 @@
       "formatVerified": false,
       "distributionAuthorized": false,
       "license": null,
-      "signedUrl": null
+      "signedUrl": null,
+      "licenseStatus": "declared_free_by_uploader_pending_verification"
     },
     {
       "name": "Universal",
@@ -73,7 +65,8 @@
       "formatVerified": false,
       "distributionAuthorized": false,
       "license": null,
-      "signedUrl": null
+      "signedUrl": null,
+      "licenseStatus": "declared_free_by_uploader_pending_verification"
     },
     {
       "name": "Almeida",
@@ -85,7 +78,8 @@
       "formatVerified": false,
       "distributionAuthorized": false,
       "license": null,
-      "signedUrl": null
+      "signedUrl": null,
+      "licenseStatus": "declared_free_by_uploader_pending_verification"
     },
     {
       "name": "MBAP",
@@ -97,7 +91,8 @@
       "formatVerified": false,
       "distributionAuthorized": false,
       "license": null,
-      "signedUrl": null
+      "signedUrl": null,
+      "licenseStatus": "declared_free_by_uploader_pending_verification"
     }
   ]
 }
