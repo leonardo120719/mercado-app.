@@ -523,7 +523,7 @@ async function loadPbAcervo(){
   if(!response.ok){response=await fetch("/pulpito-acervo.json",{cache:"no-store"});}
   if(!response.ok)throw Error("Catálogo indisponível");
   var data=await response.json();
-  pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.path&&m.bucket==="pulpito-modulos";}):[];
+  pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.path&&m.bucket==="pulpito-modulos"&&!/^(?:NVI-TM|NAA-TM)$/i.test(m.name)&&!/\/\s*(?:NVI-TM|NAA-TM)\.zip$/i.test(m.path);}):[];
   if(!pbAcervoItems.length){target.textContent="Nenhum módulo cadastrado. Use Instalar ZIP do dispositivo.";return;}
   target.innerHTML=pbAcervoItems.map(function(m,i){
    var ready=m.distributionAuthorized===true&&!!m.license&&!!m.signedUrl;
@@ -535,6 +535,7 @@ async function installPbAcervo(index,button){
  var m=pbAcervoItems[index];if(!m||busy)return;
  var rights=document.getElementById("module-rights");
  if(!rights||!rights.checked){notify("Confirme a permissão de uso dos módulos antes de instalar.");return;}
+ if(/^(?:NVI-TM|NAA-TM)$/i.test(m.name)||/\/(?:NVI-TM|NAA-TM)\.zip$/i.test(m.path)){notify("Esta tradução não está disponível para distribuição.");return;}
  if(m.distributionAuthorized!==true||!m.license||!m.signedUrl){notify("Download ainda não autorizado.");return;}
  var url;
  try{url=new URL(m.signedUrl);}catch(e){notify("Link temporário inválido.");return;}
