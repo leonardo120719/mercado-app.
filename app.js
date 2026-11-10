@@ -348,7 +348,7 @@ async function parseSQLite(buffer,filename){
   if(type==="commentary")return await streamSqliteCommentaries(db,filename,info);
   var rows=recordSet(db.exec("SELECT * FROM "+(type==="bible"?"verses":"dictionary")));
   var normalized=type==="bible"?normalizeBible(rows):normalizeDictionary(rows);
-  return {type:type,name:info.description||info.name||filename.replace(/\.((?:commentaries\.)?sqlite3|sqlite|db)$/i,""),abbreviation:filename.split(".")[0].slice(0,30),language:info.language||"não informada",license:info.license||info.copyright||"não informada",description:info.detailed_info||"",format:"MyBible SQLite3",groups:normalized.groups,count:normalized.count};
+  return {type:type,name:info.description||info.name||filename.replace(/\.((?:commentaries\.)?sqlite3|sqlite|db|bbm)$/i,""),abbreviation:filename.split(".")[0].slice(0,30),language:info.language||"não informada",license:info.license||info.copyright||"não informada",description:info.detailed_info||"",format:"MyBible SQLite3",groups:normalized.groups,count:normalized.count};
  }finally{if(db)db.close();}
 }
 function pickJson(json,filename){
@@ -384,12 +384,12 @@ async function parseZip(file){
   if(!chunks.length)throw Error("Pacote de comentários sem capítulos JSON.");
   return [await streamPackedComments(chunks,metadata,file.name)];
  }
- var sqlite=entries.filter(function(e){return /\.(sqlite3?|db)$/i.test(e.name);});
+ var sqlite=entries.filter(function(e){return /\.(sqlite3?|db|bbm)$/i.test(e.name);});
  if(sqlite.length){
   var all=[];
   for(var e of sqlite){
    var size=e._data&&e._data.uncompressedSize||0;
-   if(size>160*1024*1024)throw Error("Este SQLite ultrapassa 160 MB. Divida o módulo para importação.");
+   if(size>160*1024*1024)throw Error("Este módulo ultrapassa 160 MB. Divida o módulo para importação.");
    importStatus("Preparando "+e.name.split("/").pop()+" ("+Math.ceil(size/1024/1024)+" MB descompactados)…");
    var bin=await e.async("uint8array");
    try{all.push(await parseSQLite(bin,e.name.split("/").pop()));}finally{bin=null;}
@@ -413,15 +413,17 @@ async function parseFile(file){
   if(file.size>70*1024*1024)throw Error("O ZIP excede 70 MB compactados.");
   return parseZip(file);
  }
- if(/\.(sqlite3?|db)$/.test(name)){
+ if(/\.(sqlite3?|db|bbm)$/.test(name)){
   if(file.size>160*1024*1024)throw Error("O SQLite excede 160 MB.");
-  return [await parseSQLite(await file.arrayBuffer(),file.name)];
+  var bytes=await file.arrayBuffer();
+  if(name.endsWith(".bbm")&&new TextDecoder("utf-8").decode(bytes.slice(0,16))!=="SQLite format 3\u0000")throw Error("Este BBM não é um banco SQLite compatível. É necessário identificar e converter o formato antes da instalação.");
+  return [await parseSQLite(bytes,file.name)];
  }
  if(name.endsWith(".json")){
   if(file.size>70*1024*1024)throw Error("O arquivo JSON excede 70 MB.");
   return [pickJson(JSON.parse(await file.text()),file.name)];
  }
- throw Error("Formato incompatível. Escolha um ZIP, SQLite3 ou JSON.");
+ throw Error("Formato incompatível. Escolha ZIP, SQLite3, BBM ou JSON.");
 }
 async function deleteRelated(store,id){
  return new Promise(function(resolve,reject){var idx=store.index("moduleId"),range=IDBKeyRange.only(id),req=idx.openCursor();req.onsuccess=function(){var cur=req.result;if(cur){cur.delete();cur.continue();}else resolve();};req.onerror=function(){reject(req.error);};});
@@ -542,7 +544,7 @@ async function installPbAcervo(index,button){
  var expectedHost="wblpgmhxdjuztmlozwam.supabase.co";
  var expectedPath="/storage/v1/object/sign/pulpito-modulos/"+m.path.split("/").map(encodeURIComponent).join("/");
  if(url.protocol!=="https:"||url.hostname!==expectedHost||url.pathname!==expectedPath||!url.searchParams.has("token")){notify("Link de acesso não autorizado.");return;}
- if(![".zip",".sqlite3",".sqlite",".db",".json"].some(function(ext){return m.path.toLowerCase().endsWith(ext);})){notify("Formato de módulo não suportado.");return;}
+ if(![".zip",".sqlite3",".sqlite",".db",".bbm",".json"].some(function(ext){return m.path.toLowerCase().endsWith(ext);})){notify("Formato de módulo não suportado.");return;}
  button.disabled=true;button.textContent="Baixando...";
  try{
   var response=await fetch(url.href,{cache:"no-store"});
@@ -561,7 +563,7 @@ function getUiMarkup(){
  '<div class="eyebrow">PÚLPITO BIBLE / MÓDULOS EXTERNOS</div><h1 class="page-title">Biblioteca de módulos</h1><p class="subtitle">Instale Bíblias, comentários e dicionários Strong armazenados em ZIP ou SQLite3. Os arquivos ficam neste aparelho e os comentários acompanham a passagem escolhida.</p>'+
  '<section class="card card-pad" style="margin:12px 0"><div class="panel-heading"><h2 class="section-heading">✦ Púlpito Acervo — baixar módulos</h2><span class="chip greenish">Downloads autorizados</span></div><p class="feature-note">Catálogo próprio de Bíblias, comentários e dicionários com licença de distribuição. Os módulos baixados ficam neste aparelho e funcionam offline. Para arquivos pessoais, use a instalação ZIP abaixo.</p><div id="pb-acervo-list" aria-live="polite">Carregando catálogo...</div><button class="btn" type="button" id="pb-acervo-refresh">↻ Atualizar catálogo</button></section>'+
  '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
- '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher arquivos ZIP, SQLite3 ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.json"></label>'+
+ '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher ZIP, SQLite3, BBM ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.bbm,.json"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
  '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
  '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,application/json" style="display:none"></label></div><p class="feature-note">Proteja seus módulos antes de trocar de endereço, navegador ou aparelho. A restauração acrescenta os registros sem apagar os existentes. No iPhone, salve o backup no app Arquivos ou iCloud Drive.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
