@@ -2306,19 +2306,27 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  '</div>'+
  '<footer class="myb-window-footer strong-actions"><button class="btn slim" data-act="strong-copy">▣ Copiar</button><button class="btn slim" data-act="strong-study">α Estudar</button><button class="btn primary slim" data-act="strong-sermon">▤ Sermão</button></footer></section>';
  document.body.appendChild(frame);
- if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:(preferredTerm||(w.meaning==="Entrada Strong sem dicionário conectado"&&window.PBModules.getInstalled().some(function(m){return m.type==="dictionary";})))?"dictionary":"strong",onClose:function(){frame.remove();},anchor:anchor});
+ if(window.PBWindowUI)window.PBWindowUI.mount(frame,{defaultTab:"strong",onClose:function(){frame.remove();},anchor:anchor});
  var codes=Array.from(new Set([w.code].concat(extraStrongIds||[]).map(function(x){var id=String(x||"").toUpperCase(),found=words.find(function(item){return String(item.id).toUpperCase()===id;});var resolved=found?String(found.code||found.id):id;return resolved.replace(/^([GH][0-9]{1,5})[A-Z]+$/,"$1");}).filter(function(x){return /^[GH][0-9]{1,5}$/.test(x);})));
  var translated=preferredTerm;
- var lookups=codes.map(function(code){return {term:code,label:"Léxico Strong "+code};});
- if(translated)lookups.push({term:translated,label:"Dicionários · "+translated});
- Promise.all(lookups.map(function(item){return window.PBModules.getDictionaryEntry(item.term).then(function(entries){return {label:item.label,entries:entries};});})).then(function(groups){
+ var lookups=codes.map(function(code){return {term:code,label:"Léxico Strong "+code,kind:"strong"};});
+ if(translated)lookups.push({term:translated,label:"Dicionários · "+translated,kind:"word"});
+ Promise.all(lookups.map(function(item){return window.PBModules.getDictionaryEntry(item.term).then(function(entries){return {label:item.label,kind:item.kind,entries:entries};});})).then(function(groups){
   var holder=frame.querySelector("#installed-strong-entry");if(!holder)return;
-  var html=groups.filter(function(group){return group.entries.length;}).map(function(group){
+  var strongGroups=groups.filter(function(group){return group.kind==="strong"&&group.entries.length;});
+  var wordGroups=groups.filter(function(group){return group.kind==="word"&&group.entries.length;});
+  function renderGroups(items){return items.map(function(group){
    return '<div class="caps">'+esc(group.label)+'</div>'+group.entries.map(function(entry){
     return '<article class="module-comment"><strong>'+esc(entry.moduleName)+'</strong><small>'+esc(entry.topic)+'</small><p>'+window.PBConnections.linkifyText(entry.definition)+'</p></article>';
    }).join("");
-  }).join("");
-  holder.innerHTML=html||(w.meaning&&w.meaning!=="Entrada Strong sem dicionário conectado"?'<article class="module-comment"><strong>Strong '+esc(w.code)+'</strong><small>'+esc(w.lemma)+' · '+esc(w.reading)+'</small><p>'+esc(w.meaning)+'</p><p>'+esc(w.note)+'</p></article>':'<p class="feature-note">Nenhuma entrada Strong ou dicionário correspondente foi encontrada. Verifique se os módulos lexicais estão instalados.</p>');
+  }).join("");}
+  var strongPanel=frame.querySelector('[data-pb-win-panel="strong"]');
+  if(strongPanel){
+   var strongEntries=document.createElement("div");strongEntries.className="module-comment-list";strongEntries.setAttribute("aria-live","polite");
+   strongEntries.innerHTML=renderGroups(strongGroups)||'<p class="feature-note">Não há definição instalada para Strong '+esc(w.code)+'. Instale um léxico Strong (grego/hebraico) em Biblioteca de Módulos. Os dicionários comuns ficam na aba Dicionários.</p>';
+   strongPanel.appendChild(strongEntries);
+  }
+  holder.innerHTML=renderGroups(wordGroups)||(translated?'<p class="feature-note">Nenhum verbete em português encontrado nos dicionários instalados para '+esc(translated)+'.</p>':'<p class="feature-note">Dicionários comuns: toque duas vezes numa palavra para pesquisar. Os códigos Strong são consultados exclusivamente na aba Strong.</p>');
  }).catch(function(err){
   var holder=frame.querySelector("#installed-strong-entry");
   if(holder)holder.textContent="Não foi possível consultar os léxicos: "+(err.message||String(err));
