@@ -1133,7 +1133,7 @@ function init(opts){
   if(!key){pbTouchTap=null;return;}
   if(pbTouchTap&&pbTouchTap.key===key&&now-pbTouchTap.at<550){
    pbTouchTap=null;
-   if(word){lastBibleActivation={node:word,at:now};activateBibleLink(word);}
+   if(word&&!word.matches(".strong-badge,button[data-strong]")){lastBibleActivation={node:word,at:now};activateBibleLink(word);}
    else comment.dispatchEvent(new MouseEvent("dblclick",{bubbles:true,cancelable:true}));
   }else pbTouchTap={key:key,at:now};
  },{capture:true,passive:true});
@@ -1145,6 +1145,12 @@ function init(opts){
   var comment=e.target.closest("[data-pb-comment]");if(comment){e.preventDefault();var row=selectedContext&&selectedContext.comments&&selectedContext.comments[Number(comment.dataset.pbComment)];if(row&&config.onComment)config.onComment(row,selectedContext);return;}
   var studyLink=e.target.closest("[data-pb-study-link]");if(studyLink){e.preventDefault();e.stopImmediatePropagation();activateStudyLink(studyLink);return;}
   var bibleLink=e.target.closest("#chapter-body .pb-linked-word, #chapter-body .strong-word, #chapter-body .strong-badge, #chapter-body [data-strong]");
+  if(bibleLink&&bibleLink.matches(".strong-badge,button[data-strong]")){
+   e.preventDefault();e.stopImmediatePropagation();lastBibleTap=null;
+   lastBibleActivation={node:bibleLink,at:Date.now()};
+   activateBibleLink(bibleLink);
+   return;
+  }
   if(bibleLink){
    e.stopImmediatePropagation();
    var now=Date.now();
