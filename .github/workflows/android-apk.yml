@@ -46,7 +46,20 @@ jobs:
           {"appId":"com.pulpitobible.app","appName":"Púlpito Bible","webDir":"www","server":{"androidScheme":"https"}}
           EOF
           npm install --no-audit --no-fund
+          npm install --no-save --no-audit --no-fund sharp
           npx cap add android
+          node --input-type=module <<'NODE'
+          import sharp from "sharp";
+          import fs from "node:fs";
+          const sizes={mdpi:48,hdpi:72,xhdpi:96,xxhdpi:144,xxxhdpi:192};
+          for(const [density,size] of Object.entries(sizes)){
+            const dir="android/app/src/main/res/mipmap-"+density;
+            fs.mkdirSync(dir,{recursive:true});
+            for(const name of ["ic_launcher.png","ic_launcher_round.png","ic_launcher_foreground.png"]){
+              await sharp("pulpito-icon-official.svg",{density:384}).resize(size,size).png().toFile(dir+"/"+name);
+            }
+          }
+          NODE
       - name: Build installable debug APK
         run: |
           cd android
