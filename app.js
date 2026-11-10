@@ -384,7 +384,7 @@ async function parseZip(file){
   if(!chunks.length)throw Error("Pacote de comentários sem capítulos JSON.");
   return [await streamPackedComments(chunks,metadata,file.name)];
  }
- var sqlite=entries.filter(function(e){return /\.(sqlite3?|db|bbm)$/i.test(e.name);});
+ var sqlite=entries.filter(function(e){return /\.(sqlite3?|db|bbm|dictionary|commentaries)$/i.test(e.name);});
  if(sqlite.length){
   var all=[];
   for(var e of sqlite){
@@ -407,7 +407,7 @@ async function parseZip(file){
   return [pickJson(Object.assign({},meta,kind==="commentary"?{commentaries:records}:kind==="dictionary"?{dictionary:records}:{verses:records}),file.name)];
  }
  var first=entries.find(function(e){return /\.json$/i.test(e.name);});
- if(!first)throw Error("ZIP incompatível. Use SQLite3 do MyBible ou pacote ZIP/JSON válido do Púlpito Bible.");
+ if(!first)throw Error("ZIP sem banco de dados reconhecido. Arquivos encontrados: "+entries.slice(0,12).map(function(e){return e.name;}).join(", ")+". Use um módulo SQLite3/DB/BBM compatível ou pacote JSON.");
  return [pickJson(JSON.parse(await first.async("string")),file.name)];
 }
 async function parseFile(file){
@@ -1528,6 +1528,8 @@ function attach(config){
  var term=normalizeTerm(config.readTerm());
  if(term)lookup(term);else{
   var title=panel.querySelector("#pb-dictionary-title");if(title)title.textContent="Toque numa palavra";
+  var target=panel.querySelector("#pb-dictionary-definition"),installed=dictionaryModules();
+  if(target)target.innerHTML=installed.length?'<div class="pb-dict-empty"><strong>'+installed.length+' dicionário(s) instalado(s)</strong><p>Escolha um dicionário pelo nome acima e pesquise uma palavra para ver seus verbetes.</p><p>'+installed.map(function(m){return esc(m.name)+" ("+Number(m.count||0)+" verbetes)";}).join(" · ")+'</p></div>':'<div class="pb-dict-empty"><strong>Nenhum dicionário instalado neste dispositivo.</strong><p>Baixar um ZIP não significa instalá-lo. Abra Módulos, importe o arquivo e confirme a mensagem de instalação.</p><button class="btn slim primary" data-page="modulos">⇩ Abrir módulos</button></div>';
  }
 }
 function destroy(){
