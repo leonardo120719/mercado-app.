@@ -1112,3 +1112,16 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 .pb-split-entry-text img,.pb-dictionary-scroll img,#chapter-body img{max-width:100%;height:auto;}
 .pb-split-entry-text table,.pb-dictionary-scroll table{display:block;max-width:100%;overflow-x:auto;}
 .pb-split-entry-text pre,.pb-dictionary-scroll pre{max-width:100%;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;}
+
+/* Estudo Conectado: ocupar toda a área lateral e inferior, inclusive em tablets. */
+#pb-connected-panel .pb-connected-sheet.myb-window.myb-is-maximized{
+ position:fixed!important;inset:0!important;left:0!important;right:0!important;top:0!important;bottom:0!important;
+ width:100vw!important;width:100dvw!important;height:100vh!important;height:100dvh!important;
+ min-width:0!important;min-height:0!important;max-width:none!important;max-height:none!important;
+ margin:0!important;border-radius:0!important;box-sizing:border-box!important;
+}
+#pb-connected-panel .myb-window-main{min-width:0;min-height:0;overflow-x:hidden;overflow-y:auto;touch-action:pan-y;}
+#pb-connected-panel .myb-window-main .myb-window-panel{min-width:0;max-width:100%;}
+#pb-connected-panel .myb-window-main .pb-connection-entry,
+#pb-connected-panel .myb-window-main .module-comment{min-width:0;max-width:100%;overflow-wrap:anywhere;white-space:normal;}
+#pb-connected-panel .myb-window-main img{max-width:100%;height:auto;}
