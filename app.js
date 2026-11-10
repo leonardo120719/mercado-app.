@@ -392,7 +392,10 @@ async function parseZip(file){
    if(size>160*1024*1024)throw Error("Este módulo ultrapassa 160 MB. Divida o módulo para importação.");
    importStatus("Preparando "+e.name.split("/").pop()+" ("+Math.ceil(size/1024/1024)+" MB descompactados)…");
    var bin=await e.async("uint8array");
-   try{all.push(await parseSQLite(bin,e.name.split("/").pop()));}finally{bin=null;}
+   try{
+    if(/\.bbm$/i.test(e.name)&&new TextDecoder("utf-8").decode(bin.slice(0,16))!=="SQLite format 3\u0000")throw Error("BBM dentro do ZIP não é SQLite compatível: "+e.name);
+    all.push(await parseSQLite(bin,e.name.split("/").pop()));
+   }finally{bin=null;}
   }
   return all;
  }
