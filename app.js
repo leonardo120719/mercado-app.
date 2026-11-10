@@ -535,8 +535,8 @@ async function installPbAcervo(index,button){
  if(!rights||!rights.checked){notify("Confirme a permissão de uso dos módulos antes de instalar.");return;}
  var url;
  try{url=new URL(m.url,location.origin);}catch(e){notify("Endereço de módulo inválido.");return;}
- if(url.origin!==location.origin||!/^\\/(?!\\/)/.test(url.pathname)){notify("Por segurança, o download deve estar hospedado no Púlpito Bible.");return;}
- if(!/\\.(zip|sqlite3|sqlite|db|json)$/i.test(url.pathname)){notify("Formato de módulo não suportado.");return;}
+ if(url.origin!==location.origin||!url.pathname.startsWith("/")){notify("Por segurança, o download deve estar hospedado no Púlpito Bible.");return;}
+ if(![".zip",".sqlite3",".sqlite",".db",".json"].some(function(ext){return url.pathname.toLowerCase().endsWith(ext);})){notify("Formato de módulo não suportado.");return;}
  button.disabled=true;button.textContent="Baixando...";
  try{
   var response=await fetch(url.href,{cache:"no-store"});
@@ -591,6 +591,7 @@ document.addEventListener("change",function(e){if(e.target&&e.target.id==="modul
 document.addEventListener("click",function(e){
  var act=e.target&&e.target.closest&&e.target.closest("[data-pb-acervo-download],#pb-acervo-refresh,[data-module-remove],[data-module-activate],#module-sample,#module-backup,#dictionary-search");
  if(!act)return;
+ if(act.id==="pb-acervo-refresh"){loadPbAcervo();return;}if(act.hasAttribute("data-pb-acervo-download")){installPbAcervo(Number(act.dataset.pbAcervoDownload),act);return;}
  if(act.id==="module-backup"){backupModules().catch(function(err){notify("Falha no backup: "+err.message);});return;}if(act.id==="module-sample"){downloadSample();return;}if(act.id==="dictionary-search"){searchDictionaryUi();return;}
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
