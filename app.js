@@ -522,10 +522,11 @@ async function loadPbAcervo(){
   var response=await fetch("/pulpito-acervo.json",{cache:"no-store"});
   if(!response.ok)throw Error("Catálogo indisponível");
   var data=await response.json();
-  pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.url&&m.license&&m.distributionAuthorized===true;}):[];
-  if(!pbAcervoItems.length){target.textContent="O catálogo de downloads está sendo preparado. Enquanto isso, use Instalar ZIP do dispositivo.";return;}
+  pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.path&&m.bucket==="pulpito-modulos";}):[];
+  if(!pbAcervoItems.length){target.textContent="Nenhum módulo cadastrado. Use Instalar ZIP do dispositivo.";return;}
   target.innerHTML=pbAcervoItems.map(function(m,i){
-   return '<article class="module-comment"><strong>'+clean(m.name)+'</strong><small>'+clean(m.type||"Módulo")+' • '+clean(m.license)+'</small><p>'+clean(m.description||"Disponível para instalação offline")+'</p><button type="button" class="btn" data-pb-acervo-download="'+i+'">↓ Baixar e instalar</button></article>';
+   var ready=m.distributionAuthorized===true&&!!m.license&&!!m.signedUrl;
+   return '<article class="module-comment"><strong>'+clean(m.name)+'</strong><small>'+clean(m.type||"Módulo")+' • '+clean(m.sizeMB?m.sizeMB+" MB":"ZIP")+'</small><p>'+clean(ready?"Download autorizado por tempo limitado":"Arquivo identificado no Supabase. Aguardando autorização de distribuição e link temporário de acesso.")+'</p>'+ (ready?'<button type="button" class="btn" data-pb-acervo-download="'+i+'">↓ Baixar e instalar</button>':'<small>Disponível apenas para instalação manual até a autorização.</small>')+'</article>';
   }).join("");
  }catch(err){target.textContent="Não foi possível consultar o catálogo. Você ainda pode instalar seus próprios arquivos ZIP.";}
 }
@@ -533,10 +534,13 @@ async function installPbAcervo(index,button){
  var m=pbAcervoItems[index];if(!m||busy)return;
  var rights=document.getElementById("module-rights");
  if(!rights||!rights.checked){notify("Confirme a permissão de uso dos módulos antes de instalar.");return;}
+ if(m.distributionAuthorized!==true||!m.license||!m.signedUrl){notify("Download ainda não autorizado.");return;}
  var url;
- try{url=new URL(m.url,location.origin);}catch(e){notify("Endereço de módulo inválido.");return;}
- if(url.origin!==location.origin||!url.pathname.startsWith("/")){notify("Por segurança, o download deve estar hospedado no Púlpito Bible.");return;}
- if(![".zip",".sqlite3",".sqlite",".db",".json"].some(function(ext){return url.pathname.toLowerCase().endsWith(ext);})){notify("Formato de módulo não suportado.");return;}
+ try{url=new URL(m.signedUrl);}catch(e){notify("Link temporário inválido.");return;}
+ var expectedHost="wblpgmhxdjuztmlozwam.supabase.co";
+ var expectedPath="/storage/v1/object/sign/pulpito-modulos/"+m.path.split("/").map(encodeURIComponent).join("/");
+ if(url.protocol!=="https:"||url.hostname!==expectedHost||url.pathname!==expectedPath||!url.searchParams.has("token")){notify("Link de acesso não autorizado.");return;}
+ if(![".zip",".sqlite3",".sqlite",".db",".json"].some(function(ext){return m.path.toLowerCase().endsWith(ext);})){notify("Formato de módulo não suportado.");return;}
  button.disabled=true;button.textContent="Baixando...";
  try{
   var response=await fetch(url.href,{cache:"no-store"});
@@ -545,7 +549,7 @@ async function installPbAcervo(index,button){
   if(length>70*1024*1024)throw Error("Arquivo excede 70 MB");
   var blob=await response.blob();
   if(blob.size>70*1024*1024)throw Error("Arquivo excede 70 MB");
-  var file=new File([blob],url.pathname.split("/").pop(),{type:blob.type});
+  var file=new File([blob],m.path.split("/").pop(),{type:blob.type});
   await importFiles([file]);
  }catch(err){notify("Não foi possível instalar: "+err.message);}
  finally{button.disabled=false;button.textContent="↓ Baixar e instalar";}
