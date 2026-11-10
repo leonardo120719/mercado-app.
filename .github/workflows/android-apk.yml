@@ -69,11 +69,42 @@ jobs:
           import sharp from "sharp";
           import fs from "node:fs";
           const sizes={mdpi:48,hdpi:72,xhdpi:96,xxhdpi:144,xxxhdpi:192};
+          const icon=await sharp("pulpito-icon-official.svg",{density:384}).png().toBuffer();
+          // Legacy launcher: full icon; no additional Android foreground scaling.
+          // Adaptive launcher: Android masks the outer 18dp on each side of a 108dp canvas.
+          // Keep the entire artwork inside the central 66dp safe area to avoid cropping.
           for(const [density,size] of Object.entries(sizes)){
             const dir="android/app/src/main/res/mipmap-"+density;
             fs.mkdirSync(dir,{recursive:true});
-            for(const name of ["ic_launcher.png","ic_launcher_round.png","ic_launcher_foreground.png"]){
-              await sharp("pulpito-icon-official.svg",{density:384}).resize(size,size).png().toFile(dir+"/"+name);
+            const legacy=await sharp(icon).resize(size,size).png().toBuffer();
+            fs.writeFileSync(dir+"/ic_launcher.png",legacy);
+            fs.writeFileSync(dir+"/ic_launcher_round.png",legacy);
+            const canvas=Math.round(size*108/48);
+            const safe=Math.round(canvas*0.61);
+            await sharp(icon).resize(safe,safe).extend({
+              top:Math.floor((canvas-safe)/2),
+              bottom:Math.ceil((canvas-safe)/2),
+              left:Math.floor((canvas-safe)/2),
+              right:Math.ceil((canvas-safe)/2),
+              background:{r:0,g:0,b:0,alpha:0}
+            }).png().toFile(dir+"/ic_launcher_foreground.png");
+          }
+          // Remove generated adaptive icon XML and replace with a solid blue
+          // background plus the padded foreground; prevents doubled zoom.
+          const bgDir="android/app/src/main/res/values";
+          fs.mkdirSync(bgDir,{recursive:true});
+          fs.writeFileSync(bgDir+"/pulpito_icon_background.xml",
+            '<?xml version="1.0" encoding="utf-8"?><resources><color name="pulpito_icon_background">#08214e</color></resources>');
+          for(const folder of ["mipmap-anydpi-v26","mipmap-anydpi"]){
+            const dir="android/app/src/main/res/"+folder;
+            fs.mkdirSync(dir,{recursive:true});
+            for(const name of ["ic_launcher.xml","ic_launcher_round.xml"]){
+              fs.writeFileSync(dir+"/"+name,
+                '<?xml version="1.0" encoding="utf-8"?>\n'+
+                '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n'+
+                '  <background android:drawable="@color/pulpito_icon_background"/>\n'+
+                '  <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n'+
+                '</adaptive-icon>\n');
             }
           }
           NODE
