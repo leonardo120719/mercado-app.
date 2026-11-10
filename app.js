@@ -1026,7 +1026,7 @@ function open(kind,verse,word,anchor,moduleId){
  var selectedModuleInfo=installed.find(function(m){return m.type==="commentary"&&m.id===selectedModule;});
  var commentaryOnly=kind==="commentary",dictionaryOnly=kind==="word"||kind==="strong";
  var moduleChoices=installed.filter(function(m){return m.type===(commentaryOnly?"commentary":"dictionary");});
- if(commentaryOnly&&!selectedModule&&moduleChoices.length)selectedModule=moduleChoices[0].id;
+ if(!selectedModule&&moduleChoices.length)selectedModule=moduleChoices[0].id;
  var moduleSelectHtml='<label class="pb-connection-module-label" for="pb-connection-module">Alternar '+(commentaryOnly?"comentário":"dicionário")+'</label><select id="pb-connection-module" aria-label="Alternar módulo">'+moduleChoices.map(function(m){return '<option value="'+escapeHtml(m.id)+'" '+(m.id===selectedModule?"selected":"")+'>'+escapeHtml(m.name)+'</option>';}).join("")+'</select>';
  var modal=document.createElement("div");modal.id="pb-connected-panel";modal.className="pb-connected-backdrop myb-window-backdrop";
  modal.innerHTML='<section class="pb-connected-sheet myb-window" role="dialog" aria-label="'+(commentaryOnly?"Comentários":"Dicionário")+'" aria-modal="false">'+
@@ -1053,7 +1053,7 @@ function open(kind,verse,word,anchor,moduleId){
  }else{
   Promise.all(list.map(function(entry){return global.PBModules.getDictionaryEntry(entry).then(function(rows){return {query:entry,rows:rows};});})).then(function(groups){
    if(seq!==requestId)return;
-   var items=groups.flatMap(function(g){return g.rows.map(function(row){return {query:g.query,row:row};});});
+   var items=groups.flatMap(function(g){return g.rows.filter(function(row){return !selectedModule||row.moduleId===selectedModule;}).map(function(row){return {query:g.query,row:row};});});
    if(!items.length){drawResults("pb-connected-dictionary",'<p class="feature-note">Nenhum verbete correspondente nos léxicos instalados. '+(kind==="word"?"A pesquisa foi pela palavra em português, sem inferir Strong.":"Instale o léxico Strong correspondente para ver as definições.")+'</p>',seq);return;}
    drawResults("pb-connected-dictionary",items.slice(0,30).map(function(item){
     var row=item.row;
@@ -1071,7 +1071,7 @@ function open(kind,verse,word,anchor,moduleId){
    drawResults("pb-connected-commentaries",'<p class="feature-note">'+escapeHtml(message)+'</p>',seq);
    return;
   }
-  drawResults("pb-connected-commentaries",'<p class="pb-connections-count">'+rows.length+' comentário(s) encontrado(s)</p>'+rows.slice(0,30).map(function(row,i){
+  drawResults("pb-connected-commentaries",'<p class="pb-connections-count">'+rows.length+' comentário(s) encontrado(s)</p>'+rows.map(function(row,i){
    var raw=String(row.text||""),short=raw;
    return '<article class="pb-connection-entry"><div><strong>'+escapeHtml(row.moduleName)+'</strong><small>'+escapeHtml(context.name+" "+(row.fromChapter||context.chapter)+(row.fromVerse?":"+row.fromVerse:""))+'</small></div>'+
     '<p>'+explicitStrongLinks(short)+'</p>'+
