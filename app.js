@@ -1036,6 +1036,9 @@ function open(kind,verse,word,anchor,moduleId){
  '</section>';
  document.body.appendChild(modal);
  if(global.PBWindowUI)global.PBWindowUI.mount(modal,{defaultTab:kind==="word"?"dictionary":"commentaries",onClose:close,anchor:anchor});
+ /* Estudo conectado abre em tela inteira; o botão de maximizar continua permitindo restaurar. */
+ var connectedWindow=modal.querySelector(".pb-connected-sheet.myb-window");
+ if(connectedWindow){connectedWindow.classList.add("myb-is-maximized");var maximize=connectedWindow.querySelector('[data-pb-win-action="maximize"]');if(maximize){maximize.setAttribute("aria-label","Restaurar tamanho");maximize.textContent="❐";}}
  var linkedStrong=kind==="word"&&anchor&&anchor.dataset?String(anchor.dataset.pbStrongList||anchor.dataset.pbStrong||anchor.dataset.strong||"").split(",").map(function(v){return v.trim();}).filter(Boolean):[];
  var list=kind==="word"?Array.from(new Set([query].concat(linkedStrong))):verseCodes(context.verse);
  if(!list.length){
