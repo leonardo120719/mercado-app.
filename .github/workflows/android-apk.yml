@@ -108,7 +108,7 @@ jobs:
             }
           }
           NODE
-      # Recompilação solicitada: suporte BBM e catálogo atualizado (2026-11-10).
+      # Atualização solicitada: seletor compacto de traduções, Strong por dois toques e ícone adaptável corrigido.
       - name: Build installable debug APK
         run: |
           cd android
