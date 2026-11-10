@@ -109,14 +109,52 @@ jobs:
           }
           NODE
       # Atualização solicitada: seletor compacto de traduções, Strong por dois toques e ícone adaptável corrigido.
-      - name: Build installable debug APK
+      - name: Configure stable release signing and version
+        env:
+          PULPITO_KEYSTORE_BASE64: ${{ secrets.PULPITO_KEYSTORE_BASE64 }}
+          PULPITO_KEYSTORE_PASSWORD: ${{ secrets.PULPITO_KEYSTORE_PASSWORD }}
+          PULPITO_KEY_ALIAS: ${{ secrets.PULPITO_KEY_ALIAS }}
+          PULPITO_KEY_PASSWORD: ${{ secrets.PULPITO_KEY_PASSWORD }}
+          PULPITO_VERSION_CODE: ${{ github.run_number }}
+        run: |
+          python3 - <<'PY'
+          import os,base64,pathlib,re
+          required=["PULPITO_KEYSTORE_BASE64","PULPITO_KEYSTORE_PASSWORD","PULPITO_KEY_ALIAS","PULPITO_KEY_PASSWORD"]
+          missing=[k for k in required if not os.environ.get(k)]
+          if missing:
+              raise SystemExit("Assinatura permanente não configurada. Adicione os quatro GitHub Actions secrets: "+", ".join(missing))
+          root=pathlib.Path("android/app")
+          (root/"pulpito-release.jks").write_bytes(base64.b64decode(os.environ["PULPITO_KEYSTORE_BASE64"],validate=True))
+          gradle=root/"build.gradle"
+          content=gradle.read_text()
+          # Capacitor Android uses Groovy Gradle. The release signing is configured only
+          # after reading the persistent GitHub Actions secrets, never in the repository.
+          content=content.replace("android {", """android {
+              signingConfigs {
+                  pulpitoRelease {
+                      storeFile file("pulpito-release.jks")
+                      storePassword System.getenv("PULPITO_KEYSTORE_PASSWORD")
+                      keyAlias System.getenv("PULPITO_KEY_ALIAS")
+                      keyPassword System.getenv("PULPITO_KEY_PASSWORD")
+                  }
+              }
+          """,1)
+          content=re.sub(r'versionCode\s+\d+', 'versionCode '+str(int(os.environ["PULPITO_VERSION_CODE"])),content,count=1)
+          content=content.replace("release {", "release {\n            signingConfig signingConfigs.pulpitoRelease",1)
+          gradle.write_text(content)
+          PY
+      - name: Build signed updateable release APK
+        env:
+          PULPITO_KEYSTORE_PASSWORD: ${{ secrets.PULPITO_KEYSTORE_PASSWORD }}
+          PULPITO_KEY_ALIAS: ${{ secrets.PULPITO_KEY_ALIAS }}
+          PULPITO_KEY_PASSWORD: ${{ secrets.PULPITO_KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
-      - name: Upload Android APK
+          ./gradlew assembleRelease --no-daemon
+      - name: Upload signed Android APK
         uses: actions/upload-artifact@v4
         with:
-          name: pulpito-bible-android-debug-apk
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: pulpito-bible-android-release-apk
+          path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
