@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "title": "Púlpito Acervo",
-  "description": "Inventário privado do Supabase. Downloads exigem licença e URL assinada.",
+  "description": "Catálogo de módulos sem redistribuição não autorizada. NVI e NAA não são listadas.",
   "modules": [
     {
       "name": "ARA+",
@@ -9,30 +9,6 @@
       "bucket": "pulpito-modulos",
       "path": "Modulos biblia/ARA+.zip",
       "sizeMB": 2.92,
-      "format": "zip",
-      "formatVerified": false,
-      "distributionAuthorized": false,
-      "license": null,
-      "signedUrl": null
-    },
-    {
-      "name": "NVI-TM",
-      "type": "bible",
-      "bucket": "pulpito-modulos",
-      "path": "Modulos biblia/NVI-TM.zip",
-      "sizeMB": 2.13,
-      "format": "zip",
-      "formatVerified": false,
-      "distributionAuthorized": false,
-      "license": null,
-      "signedUrl": null
-    },
-    {
-      "name": "NAA-TM",
-      "type": "bible",
-      "bucket": "pulpito-modulos",
-      "path": "Modulos biblia/NAA-TM.zip",
-      "sizeMB": 2.15,
       "format": "zip",
       "formatVerified": false,
       "distributionAuthorized": false,
