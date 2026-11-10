@@ -2286,6 +2286,7 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  currentWord=w;
  var refLabel=ref(),preferredTerm=String(wordTerm||"").trim();
  if(/^[GH][0-9]{1,5}[A-Z]?$/.test(preferredTerm.toUpperCase()))preferredTerm="";
+ var portugueseWord=preferredTerm.replace(/<[^>]*>/g,"").replace(/\s+/g," ").trim().slice(0,100);
  document.getElementById("strong-window")?.remove();
  var frame=document.createElement("div");frame.id="strong-window";frame.className="strong-overlay myb-window-backdrop";
  frame.innerHTML='<section class="strong-balloon myb-window" role="dialog" aria-label="Léxico Strong '+esc(w.code)+'" aria-modal="false">'+
@@ -2294,7 +2295,8 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
  '<nav class="myb-window-tabs" role="tablist" aria-label="Painéis de estudo"><button type="button" role="tab" data-pb-win-tab="strong">α Strong</button><button type="button" role="tab" data-pb-win-tab="dictionary">▣ Dicionários</button></nav>'+
  '<div class="myb-window-main">'+
  '<section class="myb-window-panel" data-pb-win-panel="strong">'+
- '<div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div>'+
+ '<div class="strong-term"><span class="strong-code">'+esc(w.code)+'</span><span class="strong-original">'+esc(w.label)+'</span></div>'+ 
+ '<p class="feature-note"><strong>Palavra no texto bíblico (português):</strong> <span id="pb-strong-portuguese">'+(portugueseWord?esc(portugueseWord):'Não identificada nesta consulta')+'</span></p>'+
  '<p class="strong-roman">'+esc(w.reading)+' · Lema: '+esc(w.lemma)+'</p><div class="caps">SIGNIFICADO E MORFOLOGIA</div><h3>'+esc(w.meaning)+'</h3>'+
  '<div class="strong-morph"><span>'+esc(w.type)+'</span><span>'+esc(w.tense)+'</span><span>'+esc(w.voice)+'</span><span>'+esc(w.mood)+'</span><span>'+esc(w.person)+'</span></div>'+
  '<p class="feature-note">'+esc(w.note)+'</p>'+
@@ -2325,6 +2327,7 @@ function openStrongPopup(wordId,anchor,wordTerm,extraStrongIds){
    var strongEntries=document.createElement("div");strongEntries.className="module-comment-list";strongEntries.setAttribute("aria-live","polite");
    strongEntries.innerHTML=renderGroups(strongGroups)||'<p class="feature-note">Não há definição instalada para Strong '+esc(w.code)+'. Instale um léxico Strong (grego/hebraico) em Biblioteca de Módulos. Os dicionários comuns ficam na aba Dicionários.</p>';
    strongPanel.appendChild(strongEntries);
+   if(!portugueseWord&&strongGroups.length){var pt=frame.querySelector("#pb-strong-portuguese");if(pt)pt.textContent="Consulte o significado nos léxicos abaixo; a palavra portuguesa exata depende do versículo selecionado.";}
   }
   holder.innerHTML=renderGroups(wordGroups)||(translated?'<p class="feature-note">Nenhum verbete em português encontrado nos dicionários instalados para '+esc(translated)+'.</p>':'<p class="feature-note">Dicionários comuns: toque duas vezes numa palavra para pesquisar. Os códigos Strong são consultados exclusivamente na aba Strong.</p>');
  }).catch(function(err){
