@@ -95,7 +95,7 @@ jobs:
           fs.mkdirSync(bgDir,{recursive:true});
           fs.writeFileSync(bgDir+"/pulpito_icon_background.xml",
             '<?xml version="1.0" encoding="utf-8"?><resources><color name="pulpito_icon_background">#08214e</color></resources>');
-          for(const folder of ["mipmap-anydpi-v26","mipmap-anydpi"]){
+          for(const folder of ["mipmap-anydpi-v26"]){
             const dir="android/app/src/main/res/"+folder;
             fs.mkdirSync(dir,{recursive:true});
             for(const name of ["ic_launcher.xml","ic_launcher_round.xml"]){
