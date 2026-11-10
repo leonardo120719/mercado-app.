@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261109-acervo-v33";
+window.PB_BUILD_ID = "pb-20261109-toolbar-v34";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){

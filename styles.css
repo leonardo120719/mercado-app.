@@ -1091,3 +1091,17 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
  touch-action:manipulation;
  -webkit-tap-highlight-color:transparent;
 }
+
+/* Compact navigation matching the reader toolbar. */
+.pb-top-shell{--pb-header-size:95px}
+.pb-top-shell .topbar,.reader-active .pb-top-shell .topbar{background:#2e3237;border-bottom:2px solid #15577a;box-shadow:0 4px 18px #0b1e2b2b}
+.pb-top-shell .topbar-main{border-bottom:1px solid #50575b}
+.pb-top-shell .topnav{height:43px;min-height:43px;padding:1px 5px;gap:1px;scrollbar-width:none}
+.pb-top-shell .topnav .nav-item{height:40px;min-height:40px;min-width:60px;padding:4px 9px;gap:1px;flex-direction:column;border:1px solid #50575b;border-radius:0;background:#41464b;color:#f7f8fa;font-size:9px;line-height:12px;box-shadow:none}
+.pb-top-shell .topnav .nav-icon{font-size:18px;line-height:20px;height:20px;color:inherit}
+.pb-top-shell .topnav .nav-item.active{background:#155172;border-color:#718491;color:#fff;box-shadow:none}
+.pb-top-shell .topnav .nav-item:hover,.pb-top-shell .topnav .nav-item:focus-visible{background:#155172;color:#fff}
+.pb-top-shell .top-menu-toggle,.pb-top-shell .top-menu-grid .nav-item{border:1px solid #50575b;background:#41464b;border-radius:0;color:#f7f8fa}
+.pb-top-shell .top-menu{background:#2e3237;border-color:#50575b;border-radius:0}
+.pb-top-shell .top-menu-grid .nav-item.active,.pb-top-shell .top-menu-grid .nav-item:hover,.pb-top-shell .top-menu-toggle:hover{background:#155172;color:#fff}
+@media(max-width:720px){.pb-top-shell{--pb-header-size:94px}}
