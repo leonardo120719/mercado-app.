@@ -1105,3 +1105,10 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 .pb-top-shell .top-menu{background:#2e3237;border-color:#50575b;border-radius:0}
 .pb-top-shell .top-menu-grid .nav-item.active,.pb-top-shell .top-menu-grid .nav-item:hover,.pb-top-shell .top-menu-toggle:hover{background:#155172;color:#fff}
 @media(max-width:720px){.pb-top-shell{--pb-header-size:94px}}
+
+/* Textos fluidos: Bíblia, comentários e dicionários refluem dentro da largura disponível. */
+#chapter-body,.pb-split-scroll,.pb-dictionary-scroll{min-width:0;max-width:100%;overflow-wrap:anywhere;word-break:normal;}
+#chapter-body .verse-list,.pb-split-entry-text,.pb-dictionary-scroll p,.pb-dictionary-scroll li,.pb-dictionary-scroll .pb-dictionary-focused{max-width:100%;min-width:0;white-space:normal;overflow-wrap:anywhere;word-break:normal;}
+.pb-split-entry-text img,.pb-dictionary-scroll img,#chapter-body img{max-width:100%;height:auto;}
+.pb-split-entry-text table,.pb-dictionary-scroll table{display:block;max-width:100%;overflow-x:auto;}
+.pb-split-entry-text pre,.pb-dictionary-scroll pre{max-width:100%;overflow-x:auto;white-space:pre-wrap;overflow-wrap:anywhere;}
