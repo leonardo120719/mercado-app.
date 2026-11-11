@@ -1802,7 +1802,7 @@ global.PBVerseComments={init:init,decorate:decorate,invalidate:invalidate,select
 "use strict";
 var API="https://api.midvash.com/v1";
 var MAIN=document.getElementById("app-main");
-var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",historico:"Diário de Estudo Histórico",pesquisa:"Pesquisa inteligente",planos:"Planos adaptativos",paineis:"Janelas sincronizadas","biblioteca-sermoes":"Biblioteca de sermões",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
+var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",historico:"Diário de Estudo Histórico",pesquisa:"Pesquisa inteligente",mapa:"Mapa inteligente da Bíblia",voz:"Assistente bíblico por voz",instrutor:"Instrutor profissional de sermões",planos:"Planos adaptativos",paineis:"Janelas sincronizadas","biblioteca-sermoes":"Biblioteca de sermões",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
 var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:56,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},historicalDiary:{},history:[],parallelVersion:"bpm"};
@@ -2584,6 +2584,50 @@ function pb2RenderPanels(){
  var db=pb2Read(),panels=db.panels||{lock:false};
  MAIN.innerHTML='<div class="content">'+title("paineis")+'<p class="subtitle">Área de estudo com painel bíblico e painéis de comentários/dicionário sincronizados. A opção de fixar mantém a referência escolhida.</p><div class="card card-pad"><label><input type="checkbox" id="pb2-panel-lock"'+(panels.lock?' checked':'')+'> Fixar referência atual</label><p>Referência: '+esc(panels.lock&&panels.reference||activeBook.name+" "+state.chapter)+'</p><div class="btn-row"><button class="btn primary" data-act="pb2-panel-open">Abrir leitura com painéis</button><button class="btn" data-act="pb2-panel-lock">Aplicar fixação</button></div></div></div>';
 }
+
+/* Advanced integrated study: source-linked graph, speech commands and sermon coaching. */
+var pbGraphCache=null,pbVoiceRecognizer=null;
+function pbGraphBook(number){return books[number-1]||booksFallback[number-1];}
+function pbGraphReference(node){var b=pbGraphBook(node[0]);return b?b.name+" "+node[1]+":"+node[2]+(node[3]&&node[3]!==node[2]?"–"+node[3]:""):"";}
+function pbRenderGraph(){
+ MAIN.innerHTML='<div class="content">'+title("mapa")+'<p class="subtitle">Mapa de conexões bíblicas baseado em referências cruzadas licenciadas (Midvash, CC BY 4.0). Cada ligação tem passagem de origem e destino; interpretações devem ser conferidas no contexto.</p><div class="card card-pad"><label>Buscar tema, palavra ou passagem<input id="pb-graph-query" class="field" placeholder="Ex.: aliança, Rute, Abraão" value="'+esc((pb2Read().graphQuery)||"")+'"></label><button class="btn primary" data-act="pb-graph-search">Explorar conexões</button><div id="pb-graph-results" aria-live="polite"><p>Carregando referências...</p></div></div></div>';
+ fetch("./pulpito-crossrefs.json").then(function(r){if(!r.ok)throw Error("Base indisponível");return r.json();}).then(function(data){pbGraphCache=data;pbShowGraphResults();}).catch(function(e){var el=document.getElementById("pb-graph-results");if(el)el.textContent="Não foi possível carregar o mapa offline: "+e.message;});
+}
+function pbShowGraphResults(){
+ var el=document.getElementById("pb-graph-results");if(!el||!pbGraphCache)return;
+ var q=String(pb2Read().graphQuery||"").toLocaleLowerCase("pt-BR");
+ var rows=pbGraphCache.references.filter(function(x){return !q||[x.d,pbGraphReference(x.s)].join(" ").toLocaleLowerCase("pt-BR").includes(q);}).slice(0,90);
+ el.innerHTML='<p class="subtitle">'+rows.length+' conexões exibidas. Toque em uma referência para abrir a Bíblia.</p>'+rows.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.d)+'</strong><p><button class="btn slim" data-pb-graph-ref="'+esc(pbGraphReference(x.s))+'">'+esc(pbGraphReference(x.s))+'</button> '+x.t.map(function(t){return '<button class="btn slim" style="margin:3px" data-pb-graph-ref="'+esc(pbGraphReference(t))+'">'+esc(pbGraphReference(t))+'</button>';}).join("")+'</p></div>';}).join("")+(rows.length?'':'<p>Nenhuma conexão encontrada. Experimente outro termo.</p>');
+}
+function pbRenderVoice(){
+ var supported=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
+ MAIN.innerHTML='<div class="content">'+title("voz")+'<div class="card card-pad"><h2>Assistente bíblico por voz</h2><p>Comandos: “abrir João 15”, “pesquisar graça”, “abrir mapa”, “abrir sermão”, “abrir planos”. A disponibilidade de reconhecimento offline depende do aparelho e do serviço de voz instalado.</p><button class="btn primary" data-act="pb-voice-start"'+(supported?'':' disabled')+'>🎙 Iniciar escuta</button><p id="pb-voice-status" role="status">'+(supported?"Aguardando comando.":"Reconhecimento de voz não disponível neste dispositivo.")+'</p><label>Ou digite o comando<input id="pb-voice-text" class="field" placeholder="Abrir Rute 1"></label><button class="btn" data-act="pb-voice-text">Executar comando</button></div></div>';
+}
+function pbVoiceCommand(command){
+ var raw=String(command||"").trim(),q=raw.toLocaleLowerCase("pt-BR");
+ if(/^(abrir|ler|ir para|vá para)\s+/.test(q)){
+  var passage=raw.replace(/^(abrir|ler|ir para|vá para)\s+/i,"");
+  if(/^(mapa|conexões)/i.test(passage)){page("mapa");return;}
+  if(/^(sermão|sermao)/i.test(passage)){page("sermao");return;}
+  if(/^(planos)/i.test(passage)){page("planos");return;}
+  lookupReference(passage);return;
+ }
+ if(/^(pesquisar|buscar|procurar)\s+/.test(q)){var d=pb2Read();d.query=raw.replace(/^(pesquisar|buscar|procurar)\s+/i,"");pb2Write(d);page("pesquisa");return;}
+ var el=document.getElementById("pb-voice-status");if(el)el.textContent="Comando não reconhecido. Experimente: abrir Rute 1.";
+}
+function pbVoiceStart(){
+ var Recognition=window.SpeechRecognition||window.webkitSpeechRecognition,el=document.getElementById("pb-voice-status");
+ if(!Recognition)return;
+ try{if(pbVoiceRecognizer)pbVoiceRecognizer.stop();pbVoiceRecognizer=new Recognition();pbVoiceRecognizer.lang="pt-BR";pbVoiceRecognizer.interimResults=false;pbVoiceRecognizer.onresult=function(e){var command=e.results[0][0].transcript;if(el)el.textContent="Ouvido: "+command;pbVoiceCommand(command);};pbVoiceRecognizer.onerror=function(e){if(el)el.textContent="Falha no reconhecimento: "+e.error;};pbVoiceRecognizer.start();if(el)el.textContent="Ouvindo...";}catch(e){if(el)el.textContent="Microfone indisponível: "+e.message;}
+}
+function pbRenderCoach(){
+ var db=pb2Read(),notes=db.coach||"",sermon=state.sermon||{};
+ var fields=["title","reference","context","introduction","point1","point2","application","conclusion"];
+ var completed=fields.filter(function(k){return String(sermon[k]||"").trim().length>=12;});
+ var score=Math.round(completed.length/fields.length*100);
+ MAIN.innerHTML='<div class="content">'+title("instrutor")+'<p class="subtitle">Instrutor de preparação homilética: verificação estrutural do rascunho, não avaliação teológica automática.</p><div class="card card-pad"><h2>'+esc(sermon.title||"Sermão sem título")+'</h2><p>Estrutura preenchida: '+score+'% ('+completed.length+'/'+fields.length+' campos).</p>'+fields.map(function(k){return '<p>'+(completed.includes(k)?"✓":"○")+' '+esc(k)+'</p>';}).join("")+'<label>Observações do ensaio<textarea id="pb-coach-notes" class="editor" style="width:100%;min-height:150px">'+esc(notes)+'</textarea></label><div class="btn-row"><button class="btn primary" data-act="pb-coach-save">Salvar avaliação</button><button class="btn" data-act="pb-coach-sermon">Editar sermão</button></div><p class="subtitle">Confira contexto, exegese e referências nas fontes bíblicas antes de pregar.</p></div></div>';
+}
+
 function render(){
  document.querySelectorAll(".nav-item").forEach(function(el){var active=el.dataset.page===state.page;el.classList.toggle("active",active);el.setAttribute("aria-current",active?"page":"false");});
  document.getElementById("page-location").textContent=TITLES[state.page]||"Púlpito Bible";
@@ -2598,6 +2642,9 @@ function render(){
  if(state.page==="planos")pb2RenderPlans();
  if(state.page==="biblioteca-sermoes")pb2RenderSermonLibrary();
  if(state.page==="paineis")pb2RenderPanels();
+ if(state.page==="mapa")pbRenderGraph();
+ if(state.page==="voz")pbRenderVoice();
+ if(state.page==="instrutor")pbRenderCoach();
  if(state.page==="caderno")renderNotebook();
  if(state.page==="mercado")renderMarket();
  if(state.page==="projeto")renderRoadmap();
@@ -2873,6 +2920,7 @@ document.addEventListener("click",function(ev){
  /* As consultas do texto bíblico usam os handlers do leitor. */
  if(ev.target.closest("#chapter-body"))return;
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
+ var graphRef=ev.target.closest("[data-pb-graph-ref]");if(graphRef){lookupReference(graphRef.dataset.pbGraphRef);return;}
  var sermonOpen=ev.target.closest("[data-pb2-sermon-open]");if(sermonOpen){var d=pb2Read(),x=(d.sermons||[]).find(function(z){return z.id===sermonOpen.dataset.pb2SermonOpen;});if(x){state.sermon=Object.assign({},x);persist();page("sermao");}return;}
  var activity=ev.target.closest("[data-study-activity]");if(activity){var term=(historicalFilters.term||"").toLocaleLowerCase("pt-BR");var rows=studyActivity().filter(function(r){var b=books.find(function(x){return x.slug===r.book;})||booksFallback.find(function(x){return x.slug===r.book;});return (!term||[r.label,r.detail,r.type,r.chapter,b&&b.name].join(" ").toLocaleLowerCase("pt-BR").includes(term))&&(!historicalFilters.book||historicalFilters.book===r.book);});var record=rows[Number(activity.dataset.studyActivity)];if(record){state.book=record.book;state.chapter=record.chapter;state.selectedVerse=record.verse;
  if(record.type==="Comentário"){state.commentModuleId=(record.extra&&record.extra.moduleId)||state.commentModuleId;state.splitStudy=true;state.dictionaryOpen=false;}
@@ -2891,6 +2939,11 @@ document.addEventListener("click",function(ev){
 
  if(a==="historico-go-reading"){page("leitura");return;}
  if(a==="historico-clear"){historicalFilters={term:"",book:"",period:"",theme:"",type:""};renderHistoricalDiary();return;}
+ if(a==="pb-graph-search"){var d=pb2Read();d.graphQuery=document.getElementById("pb-graph-query").value;pb2Write(d);pbShowGraphResults();return;}
+ if(a==="pb-voice-start"){pbVoiceStart();return;}
+ if(a==="pb-voice-text"){pbVoiceCommand(document.getElementById("pb-voice-text").value);return;}
+ if(a==="pb-coach-save"){var d=pb2Read();d.coach=document.getElementById("pb-coach-notes").value;pb2Write(d);notify("Avaliação salva");return;}
+ if(a==="pb-coach-sermon"){page("sermao");return;}
  if(a==="pb2-backup"){pb2Backup();return;}
  if(a==="pb2-search"){var d=pb2Read();d.query=document.getElementById("pb2-query").value;d.filter=document.getElementById("pb2-filter").value;pb2Write(d);pb2RenderSearch();return;}
  if(a==="pb2-plan-add"){var d=pb2Read(),book=books.find(function(b){return b.slug===document.getElementById("pb2-plan-book").value;});if(!book)return;d.plans=d.plans||[];d.plans.push({id:String(Date.now()),title:document.getElementById("pb2-plan-title").value||book.name,pace:Math.max(1,Number(document.getElementById("pb2-plan-pace").value)||2),references:Array.from({length:book.chapters},function(_,i){return book.name+" "+(i+1);}),done:{}});pb2Write(d);pb2RenderPlans();return;}
