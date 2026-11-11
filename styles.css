@@ -898,5 +898,5 @@ button.mtb-version{text-align:left;overflow:hidden;text-overflow:ellipsis;white-
 }
 
 /* Botão discreto integrado à barra original, entre navegação e Aa. */
-#dynamic-toolbar .mtb-navigate .pb-toolbar-window-add{position:static;transform:none;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:44px;height:40px;padding:0 8px;margin:0;border:1px solid #59616f;border-radius:3px;background:transparent;color:inherit;font:700 18px system-ui;box-shadow:none;cursor:pointer}
+#dynamic-toolbar .mtb-navigate .pb-toolbar-window-add{position:static;transform:none;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:36px;height:36px;padding:0 5px;margin:0;border:1px solid #59616f;border-radius:3px;background:transparent;color:inherit;font:700 15px system-ui;box-shadow:none;cursor:pointer}
 #dynamic-toolbar .mtb-navigate .pb-toolbar-window-add:focus-visible{outline:2px solid #e8c67d;outline-offset:-2px}
