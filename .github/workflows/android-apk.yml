@@ -48,7 +48,7 @@ jobs:
           cp app.js styles.css pulpito-sw.js pulpito-manifest.webmanifest pulpito-acervo.json pulpito-crossrefs.json www/
           cp pulpito-icon-*.svg www/
           cat > package.json <<'EOF'
-          {"name":"pulpito-bible-android","version":"1.0.0","private":true,"type":"module","dependencies":{"@capacitor/core":"^7.4.0","@capacitor/android":"^7.4.0"},"devDependencies":{"@capacitor/cli":"^7.4.0"}}
+          {"name":"pulpito-bible-android","version":"1.0.0","private":true,"type":"module","dependencies":{"@capacitor/core":"^7.4.0","@capacitor/android":"^7.4.0","@capacitor-community/speech-recognition":"^7.0.0"},"devDependencies":{"@capacitor/cli":"^7.4.0"}}
           EOF
           cat > capacitor.config.json <<'EOF'
           {"appId":"com.pulpitobible.app","appName":"Púlpito Bible","webDir":"www","server":{"androidScheme":"https"}}
@@ -73,6 +73,16 @@ jobs:
           p.write_text(app)
           PY
           npx cap add android
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("android/app/src/main/AndroidManifest.xml")
+          text=p.read_text()
+          permission='<uses-permission android:name="android.permission.RECORD_AUDIO" />'
+          if permission not in text:
+              text=text.replace("<application",permission+"\n    <application",1)
+          p.write_text(text)
+          PY
+          npx cap sync android
           node --input-type=module <<'NODE'
           import sharp from "sharp";
           import fs from "node:fs";
