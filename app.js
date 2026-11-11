@@ -1871,10 +1871,10 @@ var studyActivityKey="pulpito-bible-study-activity-v1";
 function studyActivity(){
  try{return JSON.parse(localStorage.getItem(studyActivityKey)||"[]")||[];}catch(e){return [];}
 }
-function trackStudyActivity(type,label,detail){
+function trackStudyActivity(type,label,detail,extra){
  try{
   var rows=studyActivity(),now=new Date().toISOString();
-  var entry={at:now,type:type,label:String(label||"").slice(0,220),detail:String(detail||"").slice(0,500),book:state.book,chapter:state.chapter,verse:state.selectedVerse||0,version:state.version};
+  var entry={at:now,type:type,label:String(label||"").slice(0,220),detail:String(detail||"").slice(0,500),book:state.book,chapter:state.chapter,verse:state.selectedVerse||0,version:state.version,extra:extra||null};
   var last=rows[0];
   if(last&&last.type===entry.type&&last.label===entry.label&&last.book===entry.book&&last.chapter===entry.chapter&&Date.now()-Date.parse(last.at)<120000)return;
   rows.unshift(entry);localStorage.setItem(studyActivityKey,JSON.stringify(rows.slice(0,1200)));
@@ -2303,6 +2303,7 @@ function showCommentaryPanel(verse,moduleId){
  var needsSplit=!state.splitStudy||!document.getElementById("pb-study-split");
  if(Number(verse)>0)state.selectedVerse=Number(verse);
  if(moduleId)state.commentModuleId=moduleId;
+ trackStudyActivity("Comentário",activeBook.name+" "+state.chapter+":"+state.selectedVerse+" · "+(state.commentModuleId||"Comentário"),"Módulo: "+(state.commentModuleId||""),{moduleId:state.commentModuleId||"",verse:state.selectedVerse});
  state.splitStudy=true;
  hideDictionaryPanel();
  if(needsSplit){focusCommentVerse=state.selectedVerse;renderReader();}
@@ -2311,6 +2312,7 @@ function showCommentaryPanel(verse,moduleId){
 function openDictionaryTerm(term,verse,codes){
  var token=String(term||"").trim();
  if(!token)return;
+ trackStudyActivity("Palavra pesquisada",token,"Dicionário / Strong · "+(codes||[]).toString(),{term:token,verse:Number(verse)||state.selectedVerse||0});
  if(verse!==null&&verse!==undefined&&Number(verse)>0){
   state.selectedVerse=Number(verse);
   window.PBSplitStudy.refresh();
@@ -2836,7 +2838,9 @@ document.addEventListener("click",function(ev){
  /* As consultas do texto bíblico usam os handlers do leitor. */
  if(ev.target.closest("#chapter-body"))return;
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
- var activity=ev.target.closest("[data-study-activity]");if(activity){var term=(historicalFilters.term||"").toLocaleLowerCase("pt-BR");var rows=studyActivity().filter(function(r){var b=books.find(function(x){return x.slug===r.book;})||booksFallback.find(function(x){return x.slug===r.book;});return (!term||[r.label,r.detail,r.type,r.chapter,b&&b.name].join(" ").toLocaleLowerCase("pt-BR").includes(term))&&(!historicalFilters.book||historicalFilters.book===r.book);});var record=rows[Number(activity.dataset.studyActivity)];if(record){state.book=record.book;state.chapter=record.chapter;state.selectedVerse=record.verse;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;page("leitura");}return;}
+ var activity=ev.target.closest("[data-study-activity]");if(activity){var term=(historicalFilters.term||"").toLocaleLowerCase("pt-BR");var rows=studyActivity().filter(function(r){var b=books.find(function(x){return x.slug===r.book;})||booksFallback.find(function(x){return x.slug===r.book;});return (!term||[r.label,r.detail,r.type,r.chapter,b&&b.name].join(" ").toLocaleLowerCase("pt-BR").includes(term))&&(!historicalFilters.book||historicalFilters.book===r.book);});var record=rows[Number(activity.dataset.studyActivity)];if(record){state.book=record.book;state.chapter=record.chapter;state.selectedVerse=record.verse;
+ if(record.type==="Comentário"){state.commentModuleId=(record.extra&&record.extra.moduleId)||state.commentModuleId;state.splitStudy=true;state.dictionaryOpen=false;}
+ if(record.type==="Dicionário"||record.type==="Palavra pesquisada"){state.dictionaryOpen=true;state.splitStudy=true;}activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;page("leitura");}return;}
  var histTab=ev.target.closest("[data-historical-tab]");if(histTab){historicalActiveTab=histTab.dataset.historicalTab;renderHistoricalDiary();return;}
  var histOpen=ev.target.closest("[data-historical-open]");if(histOpen){var parts=histOpen.dataset.historicalOpen.split(":");state.book=parts[0];state.chapter=Number(parts[1]);activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();renderHistoricalDiary();return;}
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
