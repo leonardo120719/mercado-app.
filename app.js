@@ -1802,10 +1802,10 @@ global.PBVerseComments={init:init,decorate:decorate,invalidate:invalidate,select
 "use strict";
 var API="https://api.midvash.com/v1";
 var MAIN=document.getElementById("app-main");
-var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
+var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Criador de sermões",historico:"Diário de Estudo Histórico",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
-var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:56,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},history:[],parallelVersion:"bpm"};
+var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:56,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"Permanecendo em Cristo",reference:"João 15:1–8",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},historicalDiary:{},history:[],parallelVersion:"bpm"};
 var saved={};try{saved=JSON.parse(localStorage.getItem(STORE_KEY)||"{}");}catch(e){}
 var state=Object.assign({},defaults,saved);
 state.sermon=Object.assign({},defaults.sermon,state.sermon||{});
@@ -2435,6 +2435,18 @@ function renderSermon(){
  '<div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meu esboço expositivo</h2><span class="chip greenish">Salvamento local</span></div><div class="sermon-grid">'+
  [["title","Tema"],["reference","Texto bíblico"],["context","Contexto histórico e literário"],["introduction","Introdução"],["point1","Tópico 1 · Exposição"],["point2","Tópico 2 · Exposição"],["application","Aplicação"],["conclusion","Conclusão"]].map(function(a,i){return '<label class="'+(i>=2?"full":"")+'">'+esc(a[1])+(i>=2?'<textarea class="editor" data-sermon="'+a[0]+'" placeholder="Escreva aqui…">'+esc(s[a[0]]||"")+'</textarea>':'<input class="field" data-sermon="'+a[0]+'" value="'+esc(s[a[0]]||"")+'">')+'</label>';}).join("")+'</div><div class="btn-row"><button class="btn" data-act="sermon-from-ref">Usar passagem atual</button><div class="row"><button class="btn" data-act="sermon-copy">Copiar esboço</button><button class="btn primary" data-act="sermon-export">Exportar .txt</button></div></div></div><div class="tip">Os comentários e PDFs pessoais poderão alimentar o Criador de Sermões após a integração da Biblioteca Teológica, com fontes e páginas identificadas.</div></div>';
 }
+function renderHistoricalDiary(){
+ var key=state.book+":"+state.chapter;
+ var all=state.historicalDiary||{};
+ var entry=all[key]||{};
+ var fields=[["contexto","Contexto histórico"],["cronologia","Cronologia"],["cultura","Cenário e cultura"],["sociedade","Povo e sociedade"],["costumes","Costumes e práticas"],["notas","Minhas anotações"]];
+ MAIN.innerHTML='<div class="content">'+title("historico")+
+ '<p class="subtitle">Diário pessoal de pesquisa histórica, salvo neste dispositivo e organizado por capítulo. Não apresenta fatos históricos sem fonte verificada.</p>'+
+ '<div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">'+esc(activeBook.name+" "+state.chapter)+'</h2><button class="btn slim" type="button" data-act="historico-go-reading">◫ Voltar à leitura</button></div>'+
+ '<p class="subtitle">Selecione outro capítulo na leitura bíblica para criar ou consultar seu registro histórico correspondente.</p>'+
+ fields.map(function(f){return '<label style="display:block;margin:14px 0"><strong>'+esc(f[1])+'</strong><textarea class="editor" style="display:block;width:100%;min-height:100px;margin-top:8px" data-historical-field="'+f[0]+'" placeholder="Registre suas pesquisas e fontes aqui…">'+esc(entry[f[0]]||"")+'</textarea></label>';}).join("")+
+ '<div class="tip">Salvamento automático local. Para estudos históricos, registre as fontes consultadas e diferencie fatos documentados de interpretações.</div></div></div>';
+}
 function renderNotebook(){
  var notes=state.notes||[],marks=state.bookmarks||[],filter=state.noteFilter||"";
  var filtered=notes.filter(function(n){return (n.ref+" "+n.text).toLowerCase().includes(filter.toLowerCase());});
@@ -2487,6 +2499,7 @@ function render(){
  if(state.page==="tutor")renderTutor();
  if(state.page==="exercicios")renderExercises();
  if(state.page==="sermao")renderSermon();
+ if(state.page==="historico")renderHistoricalDiary();
  if(state.page==="caderno")renderNotebook();
  if(state.page==="mercado")renderMarket();
  if(state.page==="projeto")renderRoadmap();
@@ -2772,6 +2785,7 @@ document.addEventListener("click",function(ev){
  var el=ev.target.closest("[data-act]");if(!el)return;
  var a=el.dataset.act;
 
+ if(a==="historico-go-reading"){page("leitura");return;}
  if(a==="toggle-strong"){toggleStrongNumbers();return;}
  if(a==="reference-back"){returnToReference();return;}
  if(a==="toggle-comments"){toolbarAction("comments");return;}
@@ -2811,6 +2825,7 @@ document.addEventListener("input",function(ev){
  var t=ev.target;
  if(t.id==="tutor-answer"){var st=getStudy();st.answers[state.tutorStep]=t.value;state.studies[studyKey()]=st;persist();}
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
+ if(t.dataset.historicalField){var diaryKey=state.book+":"+state.chapter;state.historicalDiary=state.historicalDiary||{};var diaryEntry=state.historicalDiary[diaryKey]||{};diaryEntry[t.dataset.historicalField]=t.value;state.historicalDiary[diaryKey]=diaryEntry;persist();}
  if(t.id==="note-filter"){state.noteFilter=t.value;persist();var p=t.selectionStart;renderNotebook();var n=document.getElementById("note-filter");n.focus();n.setSelectionRange(p,p);}
 });
 document.addEventListener("keydown",function(ev){if(ev.key==="Escape"){TS.actions.clearSelection();refreshVerseDecorations();}if(ev.key==="Enter"&&ev.target.id==="reference-search"){ev.preventDefault();lookupReference(ev.target.value);}if(ev.key==="Enter"&&ev.target.id==="word-search"){ev.preventDefault();wordFilter=ev.target.value;renderOriginal();}});
