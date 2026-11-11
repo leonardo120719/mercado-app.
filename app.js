@@ -1867,6 +1867,30 @@ function closeTopMenu(){
  if(menu)menu.hidden=true;
  if(trigger)trigger.setAttribute("aria-expanded","false");
 }
+var studyActivityKey="pulpito-bible-study-activity-v1";
+function studyActivity(){
+ try{return JSON.parse(localStorage.getItem(studyActivityKey)||"[]")||[];}catch(e){return [];}
+}
+function trackStudyActivity(type,label,detail){
+ try{
+  var rows=studyActivity(),now=new Date().toISOString();
+  var entry={at:now,type:type,label:String(label||"").slice(0,220),detail:String(detail||"").slice(0,500),book:state.book,chapter:state.chapter,verse:state.selectedVerse||0,version:state.version};
+  var last=rows[0];
+  if(last&&last.type===entry.type&&last.label===entry.label&&last.book===entry.book&&last.chapter===entry.chapter&&Date.now()-Date.parse(last.at)<120000)return;
+  rows.unshift(entry);localStorage.setItem(studyActivityKey,JSON.stringify(rows.slice(0,1200)));
+ }catch(e){}
+}
+function renderStudyActivity(){
+ var query=(historicalFilters.term||"").toLocaleLowerCase("pt-BR");
+ var rows=studyActivity().filter(function(r){
+  var book=books.find(function(b){return b.slug===r.book;})||booksFallback.find(function(b){return b.slug===r.book;});
+  var text=[r.label,r.detail,r.type,r.chapter,book&&book.name].join(" ").toLocaleLowerCase("pt-BR");
+  return (!query||text.includes(query))&&(!historicalFilters.book||historicalFilters.book===r.book);
+ });
+ var now=Date.now(),weekly=rows.filter(function(r){return now-Date.parse(r.at)<7*86400000;});
+ return '<section class="card card-pad" style="margin-top:16px"><h2 class="section-heading">Meu histórico automático de estudos</h2><p class="subtitle">Últimos 7 dias: '+weekly.length+' acessos registrados. Pesquise acima para localizar leituras e pesquisas anteriores.</p>'+
+ (rows.length?rows.slice(0,120).map(function(r,i){var d=new Date(r.at),book=books.find(function(b){return b.slug===r.book;})||booksFallback.find(function(b){return b.slug===r.book;});return '<button type="button" class="btn" style="display:block;width:100%;text-align:left;margin:8px 0;white-space:normal" data-study-activity="'+i+'"><strong>'+esc(r.label)+'</strong><small style="display:block">'+esc(d.toLocaleString("pt-BR"))+' · '+esc(r.type)+' · '+esc((book&&book.name||r.book)+" "+r.chapter+(r.verse?":"+r.verse:""))+'</small></button>';}).join(""):'<p class="subtitle">O histórico começa a ser registrado a partir desta versão.</p>')+'</section>';
+}
 function page(s){clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="leitura")window.PBVerseComments.invalidate();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
@@ -1881,6 +1905,7 @@ function readBooks(){
  fetch(API+"/books").then(function(r){if(!r.ok)throw Error("API");return r.json();}).then(function(j){var list=Array.isArray(j.data)?j.data:(j.data&&j.data.books)||[];if(!Array.isArray(list)||list.length<60)return;books=list.map(function(b){var name=typeof b.name==="string"?b.name:(b.name&&b.name["pt-br"])||b.name.en||"";var slug=typeof b.slug==="string"?b.slug:(b.slug&&b.slug.en)||"";return {name:name,slug:slug,chapters:Number(b.chapters)||1,testament:b.testament};}).filter(function(b){return b.name&&b.slug;});activeBook=books.find(function(b){return b.slug===state.book;})||activeBook;if(state.page==="leitura")render();}).catch(function(){});
 }
 function loadChapter(){
+ trackStudyActivity("Leitura bíblica",activeBook.name+" "+state.chapter,"Tradução: "+state.version);
  var key=cacheKey(),seq=++loadSeq;
  if(!state.version.startsWith("local:")&&chaptersCache[key]){latestChapter=chaptersCache[key];renderReaderContent();return;}
  latestChapter=null;var el=document.getElementById("chapter-body");if(el)el.innerHTML='<div class="loader">Carregando a passagem bíblica…</div>';
@@ -2256,6 +2281,7 @@ function attachDictionaryStudy(){
  });
 }
 function showDictionaryPanel(){
+ trackStudyActivity("Dicionário",activeBook.name+" "+state.chapter+(state.selectedVerse?":"+state.selectedVerse:""),"Consulta ao painel de dicionário");
  var needsSplit=!state.splitStudy||!document.getElementById("pb-study-split");
  state.splitStudy=true;
  state.dictionaryOpen=true;
@@ -2390,6 +2416,7 @@ var words=[
 words.push({id:"H7563",label:"רְשָׁעִים",reading:"reshá'im",lemma:"רָשָׁע",code:"H7563",book:"Salmos 73:3",type:"Adjetivo usado como substantivo",tense:"Não se aplica",voice:"Não se aplica",mood:"Não se aplica",person:"Masculino plural",meaning:"Ímpios; pessoas perversas",note:"Na observação do salmista, רְשָׁעִים designa os ímpios cuja aparente prosperidade o perturba. O sentido do salmo exige acompanhar a mudança de perspectiva no santuário, em Salmos 73:17.",source:"https://biblehub.com/text/psalms/73-3.htm"});
 var currentWord=words[0],wordFilter="";
 function renderOriginal(){
+ if(currentWord)trackStudyActivity("Palavra original",currentWord.label||currentWord.lemma||currentWord.code,[currentWord.reading,currentWord.meaning,currentWord.code].join(" "));
  var results=words.filter(function(w){return !wordFilter||[w.label,w.reading,w.lemma,w.code,w.book,w.meaning].join(" ").toLowerCase().includes(wordFilter.toLowerCase());});
  MAIN.innerHTML='<div class="content">'+title("original")+'<p class="subtitle">Investigue a forma original, o número Strong, a função gramatical e o sentido no contexto. Abaixo há análises verificadas como demonstração — a importação integral da base morfológica ainda será uma expansão.</p>'+
  '<div class="search-bar"><input id="word-search" class="field" placeholder="Pesquisar G3306, H1254, palavra ou passagem" value="'+esc(wordFilter)+'"><button class="btn" data-act="word-search">Pesquisar</button></div>'+
@@ -2430,6 +2457,7 @@ function renderExercises(){
  questions.map(function(q,i){var a=ans[i];return '<div class="card question-card"><span class="eyebrow">QUESTÃO '+(i+1)+' / '+questions.length+'</span><h3 style="font-size:15px;line-height:1.6">'+esc(q.q)+'</h3>'+q.opts.map(function(o,j){return '<button class="option'+(a===j?" selected":"")+(a!==undefined&&j===q.correct?" correct":"")+(a===j&&a!==q.correct?" incorrect":"")+'" data-answer="'+i+":"+j+'">'+String.fromCharCode(65+j)+'. '+esc(o)+'</button>';}).join("")+(a!==undefined?'<div class="feedback"><strong>'+(a===q.correct?"✓ Resposta correta.":"Veja a explicação:")+'</strong> '+esc(q.why)+'</div>':"")+'</div>';}).join("")+'</div>';
 }
 function renderSermon(){
+ trackStudyActivity("Sermão",state.sermon.title||activeBook.name+" "+state.chapter,"Criador de sermões");
  var s=state.sermon;
  MAIN.innerHTML='<div class="content">'+title("sermao")+'<p class="subtitle">Transforme a investigação da passagem em uma mensagem organizada. Seu rascunho é salvo automaticamente no dispositivo.</p>'+
  '<div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meu esboço expositivo</h2><span class="chip greenish">Salvamento local</span></div><div class="sermon-grid">'+
@@ -2470,7 +2498,7 @@ function renderHistoricalDiary(){
  '<div class="row" style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0"><label>Tema<input class="field" data-historical-field="tema" placeholder="Ex.: Criação, aliança..." value="'+esc(entry.tema||"")+'"></label><label>Período<select class="field" data-historical-field="periodo"><option value="">Não definido</option>'+periodOptions+'</select></label></div>'+
  '<div class="row" style="display:flex;flex-wrap:wrap;gap:7px;margin:14px 0">'+tabs+'</div>'+
  '<label style="display:block"><strong>'+esc((historicalTabs.find(function(t){return t[0]===historicalActiveTab;})||historicalTabs[0])[1])+'</strong><textarea class="editor" style="display:block;width:100%;min-height:240px;margin-top:10px" data-historical-field="'+historicalActiveTab+'" placeholder="Escreva suas descobertas, datas, fontes e referências aqui…">'+esc(entry[historicalActiveTab]||"")+'</textarea></label>'+
- '<div class="tip" style="margin-top:14px">Salvamento automático. Registre as fontes consultadas; este diário não gera afirmações históricas automaticamente.</div></section>'+
+ '<div class="tip" style="margin-top:14px">Salvamento automático. Registre as fontes consultadas; este diário não gera afirmações históricas automaticamente.</div>'+renderStudyActivity()+'</section>'+
  '<aside class="card card-pad"><h2 class="section-heading">⌕ Pesquisa histórica</h2>'+
  '<label>Pesquisar palavra ou assunto<input class="field" id="historical-search" placeholder="Termo, tema ou passagem..." value="'+esc(historicalFilters.term)+'"></label>'+
  '<label style="display:block;margin-top:10px">Livro bíblico<select class="field" data-historical-filter="book"><option value="">Todos os livros</option>'+bookOptions+'</select></label>'+
@@ -2808,6 +2836,7 @@ document.addEventListener("click",function(ev){
  /* As consultas do texto bíblico usam os handlers do leitor. */
  if(ev.target.closest("#chapter-body"))return;
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
+ var activity=ev.target.closest("[data-study-activity]");if(activity){var term=(historicalFilters.term||"").toLocaleLowerCase("pt-BR");var rows=studyActivity().filter(function(r){var b=books.find(function(x){return x.slug===r.book;})||booksFallback.find(function(x){return x.slug===r.book;});return (!term||[r.label,r.detail,r.type,r.chapter,b&&b.name].join(" ").toLocaleLowerCase("pt-BR").includes(term))&&(!historicalFilters.book||historicalFilters.book===r.book);});var record=rows[Number(activity.dataset.studyActivity)];if(record){state.book=record.book;state.chapter=record.chapter;state.selectedVerse=record.verse;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;page("leitura");}return;}
  var histTab=ev.target.closest("[data-historical-tab]");if(histTab){historicalActiveTab=histTab.dataset.historicalTab;renderHistoricalDiary();return;}
  var histOpen=ev.target.closest("[data-historical-open]");if(histOpen){var parts=histOpen.dataset.historicalOpen.split(":");state.book=parts[0];state.chapter=Number(parts[1]);activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();renderHistoricalDiary();return;}
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
