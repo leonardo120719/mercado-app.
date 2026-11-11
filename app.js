@@ -2938,18 +2938,36 @@ function pbRenderVoice(){
  var supported=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
  MAIN.innerHTML='<div class="content">'+title("voz")+'<div class="card card-pad"><h2>Assistente bíblico por voz</h2><p>Comandos: “abrir João 15”, “pesquisar graça”, “abrir mapa”, “abrir sermão”, “abrir planos”. A disponibilidade de reconhecimento offline depende do aparelho e do serviço de voz instalado.</p><button class="btn primary" data-act="pb-voice-start"'+(supported?'':' disabled')+'>🎙 Iniciar escuta</button><p id="pb-voice-status" role="status">'+(supported?"Aguardando comando.":"Reconhecimento de voz não disponível neste dispositivo.")+'</p><label>Ou digite o comando<input id="pb-voice-text" class="field" placeholder="Abrir Rute 1"></label><button class="btn" data-act="pb-voice-text">Executar comando</button></div></div>';
 }
-function pbVoiceCommand(command){
- var raw=String(command||"").trim(),q=raw.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
- if(/^(abrir|ler|ir para|va para)\s+/.test(q)){
-  var passage=raw.replace(/^(abrir|ler|ir para|vá para)\s+/i,"").replace(/\s+cap[ií]tulo\s+/i," ");
-  if(/^(mapa|conexões)/i.test(passage)){page("mapa");return;}
-  if(/^(sermão|sermao)/i.test(passage)){page("sermao");return;}
-  if(/^(planos)/i.test(passage)){page("planos");return;}
-  lookupReference(passage);return;
- }
- if(/^(pesquisar|buscar|procurar)\s+/.test(q)){var d=pb2Read();d.query=raw.replace(/^(pesquisar|buscar|procurar)\s+/i,"");pb2Write(d);page("pesquisa");return;}
- var el=document.getElementById("pb-voice-status");if(el)el.textContent="Comando não reconhecido. Experimente: abrir Rute 1.";
+function pbVoiceNormalize(s){return String(s||"").toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[.,!?]/g," ").replace(/\s+/g," ").trim();}
+function pbVoiceNumber(s){
+ var words={um:1,uma:1,primeiro:1,primeira:1,dois:2,duas:2,segundo:2,segunda:2,tres:3,terceiro:3,terceira:3,quatro:4,quarto:4,quarta:4,cinco:5,quinto:5,quinta:5,seis:6,sete:7,oito:8,nove:9,dez:10,onze:11,doze:12,treze:13,quatorze:14,catorze:14,quinze:15,dezesseis:16,dezessete:17,dezoito:18,dezenove:19,vinte:20,trinta:30,quarenta:40,cinquenta:50,sessenta:60,setenta:70,oitenta:80,noventa:90,cento:100};
+ if(/^\d+$/.test(s))return Number(s);
+ var total=0,parts=s.split(/\s+e\s+|\s+/).filter(Boolean);
+ for(var p of parts){if(words[p]===undefined)return NaN;total+=words[p];}
+ return total||NaN;
 }
+function pbVoiceCommand(command){
+ var q=pbVoiceNormalize(command);
+ if(/^(pesquisar|buscar|procurar)\s+/.test(q)){var d=pb2Read();d.query=String(command).replace(/^(pesquisar|buscar|procurar)\s+/i,"");pb2Write(d);page("pesquisa");return;}
+ if(!/^(abrir|abra|ler|leia|ir para|va para|mostrar|mostre)\s+/.test(q)){pbVoiceStatus("Comando não reconhecido. Diga: abrir Bíblia em João capítulo 15.");return;}
+ var passage=q.replace(/^(abrir|abra|ler|leia|ir para|va para|mostrar|mostre)\s+/,"").replace(/^(a |o )?(biblia|livro de|livro do|livro da)\s*(em |no |na |de )?/,"").trim();
+ if(/^(mapa|conexoes)/.test(passage)){page("mapa");return;}
+ if(/^sermao/.test(passage)){page("sermao");return;}
+ if(/^planos/.test(passage)){page("planos");return;}
+ passage=passage.replace(/\s+(?:no |na |do |da )?capitulo\s+/," ").replace(/\s+(?:no |na )?versiculo\s+/," : ").replace(/\s+/g," ").trim();
+ var match=/^(.+?)\s+(.+?)(?:\s*:\s*(.+))?$/.exec(passage);
+ if(!match){pbVoiceStatus("Informe livro e capítulo. Exemplo: abrir Bíblia em João capítulo quinze.");return;}
+ var alias=match[1],chapter=pbVoiceNumber(match[2]),verse=match[3]?pbVoiceNumber(match[3]):0;
+ var norm=function(x){return pbVoiceNormalize(x).replace(/\s+/g," ");};
+ var book=books.find(function(b){return norm(b.name)===alias||norm(b.slug)===alias;})||booksFallback.find(function(b){return norm(b.name)===alias||norm(b.slug)===alias;});
+ if(!book||!Number.isInteger(chapter)||chapter<1||chapter>book.chapters||!Number.isInteger(verse)||verse<0||verse>176){
+  pbVoiceStatus("Referência não reconhecida. Tente: abrir João capítulo 15, ou abrir Salmos capítulo 23.");return;
+ }
+ setRef(book.slug,chapter,verse);
+ if(state.page!=="leitura")page("leitura");
+ notify("Abrindo "+book.name+" "+chapter+(verse?":"+verse:""));
+}
+
 function pbVoiceStatus(message){var el=document.getElementById("pb-voice-status");if(el)el.textContent=message;}
 async function pbVoiceStart(){
  var native=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SpeechRecognition;
