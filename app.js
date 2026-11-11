@@ -2696,12 +2696,37 @@ function pbVoiceCommand(command){
  if(/^(pesquisar|buscar|procurar)\s+/.test(q)){var d=pb2Read();d.query=raw.replace(/^(pesquisar|buscar|procurar)\s+/i,"");pb2Write(d);page("pesquisa");return;}
  var el=document.getElementById("pb-voice-status");if(el)el.textContent="Comando não reconhecido. Experimente: abrir Rute 1.";
 }
-function pbVoiceStart(){
- var Recognition=window.SpeechRecognition||window.webkitSpeechRecognition,el=document.getElementById("pb-voice-status");
- if(!Recognition)return;
- if(!window.confirm("Permitir ativar o microfone para reconhecer um comando? O serviço de reconhecimento do dispositivo pode exigir internet."))return;
- try{if(pbVoiceRecognizer)pbVoiceRecognizer.stop();pbVoiceRecognizer=new Recognition();pbVoiceRecognizer.lang="pt-BR";pbVoiceRecognizer.interimResults=false;pbVoiceRecognizer.onresult=function(e){var command=e.results[0][0].transcript;if(el)el.textContent="Ouvido: "+command;pbVoiceCommand(command);};pbVoiceRecognizer.onerror=function(e){if(el)el.textContent="Falha no reconhecimento: "+e.error;};pbVoiceRecognizer.start();if(el)el.textContent="Ouvindo...";}catch(e){if(el)el.textContent="Microfone indisponível: "+e.message;}
+function pbVoiceStatus(message){var el=document.getElementById("pb-voice-status");if(el)el.textContent=message;}
+async function pbVoiceStart(){
+ var native=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.SpeechRecognition;
+ if(native){
+  try{
+   pbVoiceStatus("Verificando permissão do microfone...");
+   var available=await native.available();
+   if(!available||!available.available){pbVoiceStatus("O reconhecimento de voz do Android não está disponível neste aparelho. Use o comando digitado.");return;}
+   var permission=await native.checkPermissions();
+   if(!permission||permission.speechRecognition!=="granted")permission=await native.requestPermissions();
+   if(!permission||permission.speechRecognition!=="granted"){pbVoiceStatus("Permissão de microfone negada. Autorize nas configurações do Android ou digite o comando.");return;}
+   pbVoiceStatus("Ouvindo pelo reconhecimento de voz do Android...");
+   var result=await native.start({language:"pt-BR",maxResults:3,prompt:"Diga um comando bíblico",popup:true,partialResults:false});
+   var command=result&&Array.isArray(result.matches)?result.matches[0]:"";
+   if(command){pbVoiceStatus("Reconhecido: "+command);pbVoiceCommand(command);}
+   else pbVoiceStatus("Nenhuma fala reconhecida. Tente novamente ou digite o comando.");
+  }catch(error){pbVoiceStatus("Não foi possível reconhecer a fala no Android: "+(error&&error.message||"serviço indisponível")+". Você pode digitar o comando.");}
+  return;
+ }
+ var Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+ if(!Recognition){pbVoiceStatus("Reconhecimento de voz indisponível neste navegador. Use o comando digitado.");return;}
+ if(!window.confirm("Ativar o microfone? O serviço de voz do navegador pode usar internet."))return;
+ try{
+  if(pbVoiceRecognizer)pbVoiceRecognizer.stop();
+  pbVoiceRecognizer=new Recognition();pbVoiceRecognizer.lang="pt-BR";pbVoiceRecognizer.interimResults=false;
+  pbVoiceRecognizer.onresult=function(e){var command=e.results[0][0].transcript;pbVoiceStatus("Reconhecido: "+command);pbVoiceCommand(command);};
+  pbVoiceRecognizer.onerror=function(e){pbVoiceStatus(e.error==="not-allowed"?"Microfone bloqueado. Autorize nas permissões do navegador ou digite o comando.":"Falha no reconhecimento: "+e.error);};
+  pbVoiceRecognizer.start();pbVoiceStatus("Ouvindo...");
+ }catch(error){pbVoiceStatus("Microfone indisponível: "+error.message);}
 }
+
 function pbRenderCoach(){
  var db=pb2Read(),notes=db.coach||"",sermon=state.sermon||{};
  var fields=["title","reference","context","introduction","point1","point2","application","conclusion"];
