@@ -24,6 +24,7 @@ on:
 # APK build requested: Janelas, devotional modules, reading plans, search and history (2026-11-11).
 # APK build requested after search submission fix and three-feature integration, 2026-11-11.
 # Build requested 2026-11-11: devotional ZIP/JSON import via Modules and daily reading in Plans.
+# APK requested after synchronized inline study windows update (2026-11-11).
 permissions:
   contents: read
 jobs:
