@@ -2645,6 +2645,7 @@ function pbDevNormalize(raw){
  if(!raw||raw.format!=="pulpito-devotional-v1"||!Array.isArray(raw.entries)||!raw.title)throw Error("Formato inválido. Use pulpito-devotional-v1 com title e entries.");
  if(raw.entries.length>5000)throw Error("Módulo grande demais (limite de 5.000 devocionais).");
  var entries=raw.entries.map(function(x){
+  if(x.day!==undefined){var day=Number(x.day),dailyText=String(x.text||"").trim();if(!Number.isInteger(day)||day<1||day>366||!dailyText)throw Error("Devocional diário inválido.");return {day:day,title:String(x.title||"Dia "+day).slice(0,180),text:dailyText.slice(0,32000)};}
   var book=books.find(function(b){return b.slug===x.book||b.name.toLocaleLowerCase("pt-BR")===String(x.book||"").toLocaleLowerCase("pt-BR");});
   var chapter=Number(x.chapter),text=String(x.text||"").trim();
   if(!book||!Number.isInteger(chapter)||chapter<1||chapter>book.chapters||!text)throw Error("Devocional com livro, capítulo ou texto inválido.");
@@ -2667,7 +2668,8 @@ async function pbDevPaint(){
  var holder=document.getElementById("pb-dev-module-list");if(!holder)return;
  try{
   var modules=await pbDevAll();holder=document.getElementById("pb-dev-module-list");if(!holder)return;
-  holder.innerHTML=modules.length?modules.map(function(m){return '<div style="margin:8px 0"><strong>'+esc(m.title)+'</strong> · '+esc(m.author||"Autor não informado")+' · '+m.entries.length+' capítulos <button class="btn slim" data-act="pb-dev-remove" data-dev-id="'+esc(m.id)+'">Remover módulo</button></div>';}).join(""):'<p class="subtitle">Nenhum módulo devocional instalado.</p>';
+  holder.innerHTML=modules.length?modules.map(function(m){return '<div style="margin:8px 0"><strong>'+esc(m.title)+'</strong> · '+esc(m.author||"Autor não informado")+' · '+m.entries.length+(m.entries.some(function(e){return e.day;})?' dias':' capítulos')+' <button class="btn slim" data-act="pb-dev-remove" data-dev-id="'+esc(m.id)+'">Remover módulo</button></div>';}).join(""):'<p class="subtitle">Nenhum módulo devocional instalado.</p>';
+  var today=document.getElementById("pb-dev-today");if(today){var now=new Date(),day=Math.floor((Date.UTC(now.getFullYear(),now.getMonth(),now.getDate())-Date.UTC(now.getFullYear(),0,1))/86400000)+1;var daily=modules.flatMap(function(m){return m.entries.filter(function(e){return e.day===day;}).map(function(e){return {m:m,e:e};});});today.innerHTML=daily.length?daily.map(function(x){return '<details><summary>'+esc(x.m.title)+' · Dia '+day+'</summary><p style="white-space:pre-wrap">'+esc(x.e.text)+'</p></details>';}).join(""):'Nenhum devocional diário instalado para hoje.';}
   document.querySelectorAll("[data-pb-dev-content]").forEach(function(target){
    var book=target.dataset.book,chapter=Number(target.dataset.chapter);
    var found=modules.flatMap(function(m){return m.entries.filter(function(e){return e.book===book&&e.chapter===chapter;}).map(function(e){return {module:m,entry:e};});});
@@ -2679,7 +2681,8 @@ function pb2RenderPlans(){
  var db=pb2Read(),plans=Array.isArray(db.plans)?db.plans:[];
  MAIN.innerHTML='<div class="content">'+title("planos")+
  '<p class="subtitle">Organize suas leituras e escreva devocionais pessoais para cada capítulo. Tudo fica salvo localmente.</p>'+
- '<div class="card card-pad"><h3>Módulos de devocionais</h3><p>Importe seus próprios devocionais em JSON. Eles aparecerão junto aos capítulos dos planos, inclusive offline.</p><input class="field" type="file" id="pb-dev-import" accept=".json,application/json"><div id="pb-dev-module-list">Carregando módulos...</div></div>'+ 
+ '<div class="card card-pad"><h3>Módulos de devocionais</h3><p>Importe devocionais JSON por capítulo ou por dia do ano. Os devocionais diários aparecem abaixo, inclusive offline.</p><input class="field" type="file" id="pb-dev-import" accept=".json,application/json"><div id="pb-dev-module-list">Carregando módulos...</div></div>'+ 
+ '<div class="card card-pad"><h3>Devocional de hoje</h3><div id="pb-dev-today">Carregando...</div></div>'+ 
  '<div class="card card-pad"><label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Ex.: Evangelho de João"></label><label>Livro<select class="field" id="pb2-plan-book">'+books.map(function(b){return '<option value="'+esc(b.slug)+'">'+esc(b.name)+'</option>';}).join("")+'</select></label><label>Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label><button class="btn primary" data-act="pb2-plan-add">Criar plano</button></div>'+
  plans.map(function(p){var refs=p.references||[],done=Object.keys(p.done||{}).filter(function(k){return p.done[k];}).length;
  return '<div class="card card-pad" style="margin-top:12px"><h3>'+esc(p.title||"Plano sem título")+'</h3><p>'+done+' de '+refs.length+' capítulos concluídos ('+Math.round(done/Math.max(1,refs.length)*100)+'%)</p>'+
