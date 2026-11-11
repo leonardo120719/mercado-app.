@@ -2589,15 +2589,74 @@ function pb2RenderPanels(){
 var pbGraphCache=null,pbVoiceRecognizer=null;
 function pbGraphBook(number){return books[number-1]||booksFallback[number-1];}
 function pbGraphReference(node){var b=pbGraphBook(node[0]);return b?b.name+" "+node[1]+":"+node[2]+(node[3]&&node[3]!==node[2]?"–"+node[3]:""):"";}
-function pbRenderGraph(){
- MAIN.innerHTML='<div class="content">'+title("mapa")+'<p class="subtitle">Mapa de conexões bíblicas baseado em referências cruzadas licenciadas (Midvash, CC BY 4.0). Cada ligação tem passagem de origem e destino; interpretações devem ser conferidas no contexto.</p><div class="card card-pad"><label>Buscar tema, palavra ou passagem<input id="pb-graph-query" class="field" placeholder="Ex.: aliança, Rute, Abraão" value="'+esc((pb2Read().graphQuery)||"")+'"></label><button class="btn primary" data-act="pb-graph-search">Explorar conexões</button><div id="pb-graph-results" aria-live="polite"><p>Carregando referências...</p></div></div></div>';
- fetch("./pulpito-crossrefs.json").then(function(r){if(!r.ok)throw Error("Base indisponível");return r.json();}).then(function(data){pbGraphCache=data;pbShowGraphResults();}).catch(function(e){var el=document.getElementById("pb-graph-results");if(el)el.textContent="Não foi possível carregar o mapa offline: "+e.message;});
+var pbGraphIndex=null,pbGraphSession={center:"",depth:1,filter:"todos",maxNodes:48};
+function pbGraphId(n){return n.slice(0,3).join(":");}
+function pbGraphNode(id){var p=id.split(":").map(Number);return [p[0],p[1],p[2],0];}
+function pbGraphBuildIndex(data){
+ if(pbGraphIndex&&pbGraphIndex.data===data)return pbGraphIndex;
+ var adj=new Map(),descriptions=new Map();
+ function link(a,b,description){if(!adj.has(a))adj.set(a,[]);if(!adj.get(a).some(function(x){return x.to===b&&x.description===description;}))adj.get(a).push({to:b,description:description,kind:"referência temática catalogada",source:"Midvash · CC BY 4.0"});}
+ data.references.forEach(function(r){if(!r.s||!r.t)return;var a=pbGraphId(r.s);descriptions.set(a,r.d);r.t.forEach(function(t){var b=pbGraphId(t);link(a,b,r.d);link(b,a,r.d);});});
+ pbGraphIndex={data:data,adj:adj,descriptions:descriptions};return pbGraphIndex;
 }
+function pbGraphFind(query){
+ var q=String(query||"").trim().toLocaleLowerCase("pt-BR");
+ if(!q)return [];
+ return pbGraphCache.references.filter(function(r){return [r.d,pbGraphReference(r.s)].join(" ").toLocaleLowerCase("pt-BR").includes(q);}).slice(0,40);
+}
+function pbGraphTraverse(center,depth,limit){
+ var index=pbGraphBuildIndex(pbGraphCache),visited=new Set([center]),queue=[{id:center,depth:0}],nodes=[],edges=[];
+ while(queue.length&&nodes.length<limit){
+  var item=queue.shift();nodes.push(item);
+  if(item.depth>=depth)continue;
+  var list=index.adj.get(item.id)||[];
+  for(var i=0;i<list.length&&visited.size<limit;i++){var e=list[i];if(!visited.has(e.to)){visited.add(e.to);queue.push({id:e.to,depth:item.depth+1});edges.push({from:item.id,to:e.to,description:e.description,kind:e.kind,source:e.source});}}
+ }
+ return {nodes:nodes,edges:edges};
+}
+function pbRenderGraph(){
+ var d=pb2Read();pbGraphSession.center=d.graphCenter||"";pbGraphSession.depth=Math.max(1,Math.min(6,Number(d.graphDepth)||1));pbGraphSession.filter=d.graphFilter||"todos";
+ MAIN.innerHTML='<div class="content">'+title("mapa")+'<p class="subtitle">Investigue relações documentadas entre passagens. A base Midvash (CC BY 4.0) contém conexões temáticas catalogadas; elas não comprovam, por si só, citações explícitas ou interpretações de comentaristas.</p>'+
+ '<div class="card card-pad"><label>Investigar tema ou passagem<input id="pb-graph-query" class="field" placeholder="Ex.: Melquisedeque, Hebreus 7" value="'+esc(d.graphQuery||"")+'"></label>'+
+ '<div class="btn-row"><button class="btn primary" data-act="pb-graph-search">Investigar</button><button class="btn" data-act="pb-graph-current">Versículo selecionado</button><button class="btn" data-act="pb-graph-save">Salvar investigação</button><button class="btn" data-act="pb-graph-sermon">Enviar ao sermão</button></div>'+
+ '<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end"><label>Profundidade<select class="field" id="pb-graph-depth">'+[1,2,3,4,5,6].map(function(n){return '<option value="'+n+'"'+(pbGraphSession.depth===n?' selected':'')+'>'+n+' nível'+(n>1?'is':'')+'</option>';}).join("")+'</select></label>'+
+ '<label>Testamento<select class="field" id="pb-graph-filter"><option value="todos">Ambos</option><option value="at"'+(pbGraphSession.filter==="at"?' selected':'')+'>Antigo Testamento</option><option value="nt"'+(pbGraphSession.filter==="nt"?' selected':'')+'>Novo Testamento</option></select></label>'+
+ '<label>De uma passagem<input class="field" id="pb-graph-from" placeholder="Ex.: Gênesis 14:18"></label><label>Até outra<input class="field" id="pb-graph-to" placeholder="Ex.: Hebreus 7:1"></label><button class="btn" data-act="pb-graph-path">Encontrar caminho</button></div>'+
+ '<div class="btn-row"><button class="btn" data-act="pb-graph-zoom-in">Zoom +</button><button class="btn" data-act="pb-graph-zoom-out">Zoom −</button><button class="btn" data-act="pb-graph-reset">Centralizar</button></div>'+
+ '<div id="pb-graph-results" aria-live="polite">Carregando mapa...</div><div id="pb-graph-saved"></div></div></div>';
+ var promise=pbGraphCache?Promise.resolve(pbGraphCache):fetch("./pulpito-crossrefs.json").then(function(r){if(!r.ok)throw Error("Base indisponível");return r.json();});
+ promise.then(function(data){pbGraphCache=data;pbGraphBuildIndex(data);pbShowGraphResults();pbGraphSavedList();}).catch(function(e){var el=document.getElementById("pb-graph-results");if(el)el.textContent="Não foi possível carregar o índice local: "+e.message;});
+}
+function pbGraphSavedList(){
+ var el=document.getElementById("pb-graph-saved");if(!el)return;
+ var saved=pb2Read().graphSaved||[];
+ el.innerHTML='<h3>Investigações salvas</h3>'+(saved.length?saved.slice(0,30).map(function(x,i){return '<button class="btn slim" style="margin:4px" data-pb-graph-saved="'+i+'">'+esc(x.query||x.center||"Mapa")+' · '+esc(new Date(x.at).toLocaleDateString("pt-BR"))+'</button>';}).join(""):'<p class="subtitle">Nenhuma investigação salva.</p>');
+}
+function pbGraphFilterId(id){var n=Number(id.split(":")[0]);return pbGraphSession.filter==="todos"||(pbGraphSession.filter==="at"?n<=39:n>=40);}
 function pbShowGraphResults(){
  var el=document.getElementById("pb-graph-results");if(!el||!pbGraphCache)return;
- var q=String(pb2Read().graphQuery||"").toLocaleLowerCase("pt-BR");
- var rows=pbGraphCache.references.filter(function(x){return !q||[x.d,pbGraphReference(x.s)].join(" ").toLocaleLowerCase("pt-BR").includes(q);}).slice(0,90);
- el.innerHTML='<p class="subtitle">'+rows.length+' conexões exibidas. Toque em uma referência para abrir a Bíblia.</p>'+rows.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.d)+'</strong><p><button class="btn slim" data-pb-graph-ref="'+esc(pbGraphReference(x.s))+'">'+esc(pbGraphReference(x.s))+'</button> '+x.t.map(function(t){return '<button class="btn slim" style="margin:3px" data-pb-graph-ref="'+esc(pbGraphReference(t))+'">'+esc(pbGraphReference(t))+'</button>';}).join("")+'</p></div>';}).join("")+(rows.length?'':'<p>Nenhuma conexão encontrada. Experimente outro termo.</p>');
+ var d=pb2Read(),q=d.graphQuery||"",hits=pbGraphFind(q);
+ if(!pbGraphSession.center){pbGraphSession.center=hits.length?pbGraphId(hits[0].s):pbGraphId([books.findIndex(function(b){return b.slug===state.book;})+1,state.chapter,state.selectedVerse||1]);}
+ var graph=pbGraphTraverse(pbGraphSession.center,pbGraphSession.depth,pbGraphSession.maxNodes);
+ var nodes=graph.nodes.filter(function(n){return pbGraphFilterId(n.id);}),allowed=new Set(nodes.map(function(n){return n.id;}));
+ var edges=graph.edges.filter(function(e){return allowed.has(e.from)&&allowed.has(e.to);});
+ var W=840,H=520,cx=W/2,cy=H/2;
+ var positions={};nodes.forEach(function(n,i){var layer=n.depth,layerNodes=nodes.filter(function(x){return x.depth===layer;}),j=layerNodes.indexOf(n),angle=2*Math.PI*j/Math.max(1,layerNodes.length)-Math.PI/2,rad=layer===0?0:Math.min(220,85+layer*32);positions[n.id]={x:cx+Math.cos(angle)*rad,y:cy+Math.sin(angle)*rad};});
+ var svg='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" role="img" aria-label="Grafo interativo de passagens" style="width:100%;height:auto;min-width:550px;background:var(--reader-paper,#f8f7f1);border-radius:12px">';
+ edges.forEach(function(e){var p=positions[e.from],t=positions[e.to];svg+='<line x1="'+p.x+'" y1="'+p.y+'" x2="'+t.x+'" y2="'+t.y+'" stroke="#8796a0" stroke-width="1.5"><title>'+esc(e.description+" · "+e.source)+'</title></line>';});
+ nodes.forEach(function(n){var p=positions[n.id],label=pbGraphReference(pbGraphNode(n.id));svg+='<g data-pb-graph-node="'+esc(n.id)+'" tabindex="0" role="button" aria-label="Expandir '+esc(label)+'" style="cursor:pointer"><circle cx="'+p.x+'" cy="'+p.y+'" r="'+(n.depth===0?33:25)+'" fill="'+(n.depth===0?'#146c74':'#456a84')+'"/><text x="'+p.x+'" y="'+(p.y+40)+'" fill="#172b36" font-size="11" text-anchor="middle">'+esc(label)+'</text><title>'+esc(label)+'</title></g>';});
+ svg+='</svg>';
+ el.innerHTML='<p class="subtitle">Fonte: Midvash, CC BY 4.0 · '+nodes.length+' nós · '+edges.length+' ligações · limite de '+pbGraphSession.maxNodes+' nós por visualização. As relações são temáticas catalogadas, não inferências geradas por IA.</p>'+
+ '<div style="overflow:auto;max-height:550px" id="pb-graph-canvas">'+svg+'</div>'+
+ '<h3>Conexões da passagem central</h3><p><button class="btn slim" data-pb-graph-ref="'+esc(pbGraphReference(pbGraphNode(pbGraphSession.center)))+'">Abrir '+esc(pbGraphReference(pbGraphNode(pbGraphSession.center)))+'</button></p>'+
+ edges.slice(0,75).map(function(e){return '<div style="margin:8px 0"><button class="btn slim" data-pb-graph-center="'+esc(e.to)+'">'+esc(pbGraphReference(pbGraphNode(e.to)))+'</button> <small>'+esc(e.description)+' · '+esc(e.source)+'</small></div>';}).join("")+
+ (hits.length?'<h3>Resultados por assunto</h3>'+hits.slice(0,15).map(function(x){return '<button class="btn slim" style="margin:4px" data-pb-graph-center="'+esc(pbGraphId(x.s))+'">'+esc(x.d+" — "+pbGraphReference(x.s))+'</button>';}).join(""):'');
+}
+function pbGraphStore(){var d=pb2Read();d.graphCenter=pbGraphSession.center;d.graphDepth=pbGraphSession.depth;d.graphFilter=pbGraphSession.filter;pb2Write(d);}
+function pbGraphPath(a,b){
+ var idx=pbGraphBuildIndex(pbGraphCache),queue=[a],prev=new Map([[a,null]]),steps=0;
+ while(queue.length&&steps++<5000){var n=queue.shift();if(n===b)break;(idx.adj.get(n)||[]).forEach(function(e){if(!prev.has(e.to)){prev.set(e.to,{from:n,edge:e});queue.push(e.to);}});}
+ if(!prev.has(b))return null;var path=[];for(var at=b;at!==null;){path.unshift(at);var p=prev.get(at);at=p?p.from:null;}return path;
 }
 function pbRenderVoice(){
  var supported=!!(window.SpeechRecognition||window.webkitSpeechRecognition);
@@ -2920,6 +2979,8 @@ document.addEventListener("click",function(ev){
  /* As consultas do texto bíblico usam os handlers do leitor. */
  if(ev.target.closest("#chapter-body"))return;
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
+ var graphNode=ev.target.closest("[data-pb-graph-node],[data-pb-graph-center]");if(graphNode){pbGraphSession.center=graphNode.dataset.pbGraphNode||graphNode.dataset.pbGraphCenter;pbGraphStore();pbShowGraphResults();return;}
+ var savedGraph=ev.target.closest("[data-pb-graph-saved]");if(savedGraph){var x=(pb2Read().graphSaved||[])[Number(savedGraph.dataset.pbGraphSaved)];if(x){var d=pb2Read();d.graphQuery=x.query;pbGraphSession.center=x.center;pbGraphSession.depth=x.depth;pbGraphSession.filter=x.filter;pbGraphStore();pbRenderGraph();}return;}
  var graphRef=ev.target.closest("[data-pb-graph-ref]");if(graphRef){lookupReference(graphRef.dataset.pbGraphRef);return;}
  var sermonOpen=ev.target.closest("[data-pb2-sermon-open]");if(sermonOpen){var d=pb2Read(),x=(d.sermons||[]).find(function(z){return z.id===sermonOpen.dataset.pb2SermonOpen;});if(x){state.sermon=Object.assign({},x);persist();page("sermao");}return;}
  var activity=ev.target.closest("[data-study-activity]");if(activity){var term=(historicalFilters.term||"").toLocaleLowerCase("pt-BR");var rows=studyActivity().filter(function(r){var b=books.find(function(x){return x.slug===r.book;})||booksFallback.find(function(x){return x.slug===r.book;});return (!term||[r.label,r.detail,r.type,r.chapter,b&&b.name].join(" ").toLocaleLowerCase("pt-BR").includes(term))&&(!historicalFilters.book||historicalFilters.book===r.book);});var record=rows[Number(activity.dataset.studyActivity)];if(record){state.book=record.book;state.chapter=record.chapter;state.selectedVerse=record.verse;
@@ -2939,7 +3000,12 @@ document.addEventListener("click",function(ev){
 
  if(a==="historico-go-reading"){page("leitura");return;}
  if(a==="historico-clear"){historicalFilters={term:"",book:"",period:"",theme:"",type:""};renderHistoricalDiary();return;}
- if(a==="pb-graph-search"){var d=pb2Read();d.graphQuery=document.getElementById("pb-graph-query").value;pb2Write(d);pbShowGraphResults();return;}
+ if(a==="pb-graph-search"){var d=pb2Read();d.graphQuery=document.getElementById("pb-graph-query").value;pbGraphSession.center="";d.graphCenter="";pb2Write(d);pbShowGraphResults();return;}
+ if(a==="pb-graph-current"){var n=books.findIndex(function(b){return b.slug===state.book;})+1;pbGraphSession.center=pbGraphId([n,state.chapter,state.selectedVerse||1]);pbGraphStore();pbShowGraphResults();return;}
+ if(a==="pb-graph-save"){var d=pb2Read();d.graphSaved=d.graphSaved||[];d.graphSaved.unshift({at:new Date().toISOString(),query:d.graphQuery||"",center:pbGraphSession.center,depth:pbGraphSession.depth,filter:pbGraphSession.filter});d.graphSaved=d.graphSaved.slice(0,100);pb2Write(d);pbGraphSavedList();notify("Investigação salva");return;}
+ if(a==="pb-graph-sermon"){var r=pbGraphReference(pbGraphNode(pbGraphSession.center));state.sermon.context=(state.sermon.context||"")+"\nInvestigação bíblica: "+r+" — fonte: Midvash, CC BY 4.0. Verifique as relações no contexto.";persist();page("sermao");return;}
+ if(a==="pb-graph-zoom-in"||a==="pb-graph-zoom-out"||a==="pb-graph-reset"){var el=document.querySelector("#pb-graph-canvas svg");if(el){var z=Number(el.dataset.zoom||1);z=a==="pb-graph-reset"?1:Math.max(.7,Math.min(2.5,z*(a==="pb-graph-zoom-in"?1.2:.83)));el.dataset.zoom=z;el.style.width=(100*z)+"%";}return;}
+ if(a==="pb-graph-path"){var from=document.getElementById("pb-graph-from").value,to=document.getElementById("pb-graph-to").value;var parse=function(v){var p=parseRef(v);if(!p)return null;return pbGraphId([books.findIndex(function(b){return b.slug===p.book;})+1,p.ch,p.verse||1]);};var x=parse(from),y=parse(to);var path=x&&y&&pbGraphPath(x,y);var out=document.getElementById("pb-graph-results");if(out){var box=document.createElement("div");box.className="card card-pad";box.textContent=path?"Caminho documentado: "+path.map(function(id){return pbGraphReference(pbGraphNode(id));}).join(" → "):"Nenhum caminho encontrado na base local entre essas passagens.";out.prepend(box);}return;}
  if(a==="pb-voice-start"){pbVoiceStart();return;}
  if(a==="pb-voice-text"){pbVoiceCommand(document.getElementById("pb-voice-text").value);return;}
  if(a==="pb-coach-save"){var d=pb2Read();d.coach=document.getElementById("pb-coach-notes").value;pb2Write(d);notify("Avaliação salva");return;}
@@ -2977,6 +3043,7 @@ document.addEventListener("click",function(ev){
  if(a==="sermon-copy"){navigator.clipboard.writeText(sermonText()).then(function(){notify("Esboço copiado");}).catch(function(){notify("Cópia não permitida neste navegador");});return;}
  if(a==="sermon-export"){var blob=new Blob([sermonText()],{type:"text/plain;charset=utf-8"});var url=URL.createObjectURL(blob);var link=document.createElement("a");link.href=url;link.download="Pulpito-Bible-Sermao.txt";link.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);notify("Esboço exportado");return;}
 });
+document.addEventListener("change",function(ev){var t=ev.target;if(t.id==="pb-graph-depth"||t.id==="pb-graph-filter"){pbGraphSession.depth=Math.max(1,Math.min(6,Number(document.getElementById("pb-graph-depth").value)||1));pbGraphSession.filter=document.getElementById("pb-graph-filter").value;pbGraphStore();pbShowGraphResults();return;}});
 document.addEventListener("change",function(ev){var t=ev.target;if(t.dataset.pb2Done){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Done;});if(p){p.done=p.done||{};if(t.checked)p.done[t.dataset.ref]=true;else delete p.done[t.dataset.ref];pb2Write(d);pb2RenderPlans();}return;}if(t.dataset.pb2Pace){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Pace;});if(p){p.pace=Math.max(1,Number(t.value)||1);pb2Write(d);}return;}});
 document.addEventListener("change",function(ev){
  var t=ev.target;
