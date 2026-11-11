@@ -11,20 +11,61 @@ document.addEventListener("click",function(e){
 /* Referências cruzadas ao tocar duas vezes exclusivamente na numeração. */
 (function(){
  var lastTouch=null;
+ var crossrefCache=null,crossrefPromise=null;
+ var bookSlugs="genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|1-samuel|2-samuel|1-kings|2-kings|1-chronicles|2-chronicles|ezra|nehemiah|esther|job|psalms|proverbs|ecclesiastes|song-of-solomon|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|1-corinthians|2-corinthians|galatians|ephesians|philippians|colossians|1-thessalonians|2-thessalonians|1-timothy|2-timothy|titus|philemon|hebrews|james|1-peter|2-peter|1-john|2-john|3-john|jude|revelation".split("|");
+ function loadCrossrefs(){
+  if(crossrefCache)return Promise.resolve(crossrefCache);
+  if(!crossrefPromise)crossrefPromise=fetch("./pulpito-crossrefs.json").then(function(r){if(!r.ok)throw Error("Base indisponível");return r.json();}).then(function(data){crossrefCache=data;return data;}).catch(function(e){crossrefPromise=null;throw e;});
+  return crossrefPromise;
+ }
  function openRefs(num){
   var verse=document.querySelector('#chapter-body .verse-line[data-verse="'+num+'"]');
   if(!verse)return;
-  var old=document.getElementById("pb-crossrefs-dialog");if(old)old.remove();
-  var panel=document.createElement("div");
-  panel.id="pb-crossrefs-dialog";panel.setAttribute("role","dialog");
-  panel.setAttribute("aria-label","Referências cruzadas do versículo "+num);
-  panel.style.cssText="position:fixed;z-index:99999;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,420px);max-height:70vh;overflow:auto;background:var(--reader-paper,#fffdf7);color:#17212a;border:1px solid #b8ad96;border-radius:14px;padding:20px;box-shadow:0 16px 60px #0006;font:15px/1.5 system-ui";
-  var label=document.createElement("strong");label.textContent="Referências cruzadas — versículo "+num;
-  var close=document.createElement("button");close.type="button";close.textContent="Fechar";close.style.cssText="float:right;padding:5px 10px";close.addEventListener("click",function(){panel.remove();});
-  var info=document.createElement("p");info.textContent="As referências cruzadas deste versículo serão exibidas aqui quando houver uma base de referências disponível. Nenhuma referência foi inventada.";
-  panel.append(close,label,info);
-  document.body.appendChild(panel);
+  document.getElementById("pb-crossrefs-dialog")?.remove();
+  var panel=document.createElement("div");panel.id="pb-crossrefs-dialog";
+  panel.setAttribute("role","dialog");panel.setAttribute("aria-label","Referências cruzadas do versículo "+num);
+  panel.style.cssText="position:fixed;z-index:99999;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,440px);max-height:76vh;overflow:auto;background:var(--reader-paper,#fffdf7);color:#17212a;border:1px solid #b8ad96;border-radius:14px;padding:18px;box-shadow:0 16px 60px #0006;font:15px/1.5 system-ui";
+  var close=document.createElement("button");close.type="button";close.textContent="Fechar";close.style.cssText="float:right;padding:5px 10px";close.onclick=function(){panel.remove();};
+  var title=document.createElement("strong");title.textContent="Referências cruzadas — versículo "+num;
+  var info=document.createElement("div");info.textContent="Carregando referências offline…";
+  panel.append(close,title,info);document.body.appendChild(panel);
+  loadCrossrefs().then(function(data){
+   if(!panel.isConnected)return;
+   var usfm=verse.dataset.usfm||"";
+   var slug=usfm.replace(/\\.\\d+$/, "").toLowerCase();
+   var bookIndex=bookSlugs.indexOf(slug);
+   if(bookIndex<0){
+    var currentBook=document.querySelector('[data-book]')?.dataset.book;
+    bookIndex=bookSlugs.indexOf(currentBook||"");
+   }
+   var chapterMatch=usfm.match(/\\.(\\d+)\\.(\\d+)$/);
+   var chapter=chapterMatch?Number(chapterMatch[1]):Number(document.querySelector('[data-toolbar-chapter]')?.value||0);
+   var rows=data.references.filter(function(r){return r.s[0]===bookIndex+1&&r.s[1]===chapter&&r.s[2]===Number(num);});
+   info.replaceChildren();
+   if(!rows.length){info.textContent="Esta base temática não possui referências para este versículo.";return;}
+   rows.forEach(function(row){
+    var section=document.createElement("section");section.style.cssText="margin-top:12px;border-top:1px solid #ddd;padding-top:10px";
+    var heading=document.createElement("b");heading.textContent=row.d;section.appendChild(heading);
+    row.t.forEach(function(t){
+     var button=document.createElement("button");button.type="button";
+     button.textContent=(bookSlugs[t[0]-1]||"Livro")+" "+t[1]+":"+t[2]+(t[3]?"–"+t[3]:"");
+     button.style.cssText="display:block;border:0;background:transparent;color:#1164a2;text-decoration:underline;padding:7px 0;cursor:pointer;text-align:left";
+     button.onclick=function(){
+      panel.remove();
+      var ref=button.textContent;
+      var event=new CustomEvent("pb-crossref-navigate",{detail:{book:bookSlugs[t[0]-1],chapter:t[1],verse:t[2],reference:ref}});
+      document.dispatchEvent(event);
+     };
+     section.appendChild(button);
+    });
+    info.appendChild(section);
+   });
+   var credit=document.createElement("small");credit.style.cssText="display:block;margin-top:14px;color:#667";
+   credit.textContent="Fonte: Midvash — CC BY 4.0 (base temática adaptada). midvash.com";
+   info.appendChild(credit);
+  }).catch(function(){if(panel.isConnected)info.textContent="Não foi possível carregar a base de referências.";});
  }
+
  document.addEventListener("dblclick",function(e){
   var num=e.target.closest&&e.target.closest("#chapter-body .verse-line .verse-num");
   if(!num)return;
@@ -1830,6 +1871,10 @@ function page(s){clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
+document.addEventListener("pb-crossref-navigate",function(event){
+ var d=event.detail||{};
+ if(d.book&&Number.isInteger(d.chapter)&&Number.isInteger(d.verse))setRef(d.book,d.chapter,d.verse);
+});
 function setRef(book,ch,verse,passage){linkedPassage=passage||null;window.PBVerseComments.invalidate();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
 function chapterOptions(){var opts="";for(var i=1;i<=activeBook.chapters;i++) opts+='<option value="'+i+'"'+(i===state.chapter?" selected":"")+'>'+i+'</option>';return opts;}
 function readBooks(){
