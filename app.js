@@ -2593,7 +2593,7 @@ async function pb2SearchCommentaries(term,token){
   el.innerHTML='<h3>Comentários encontrados neste capítulo ('+found.length+')</h3>'+(found.length?found.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.module)+'</strong><p>'+esc((books.find(function(b){return b.slug===book;})||activeBook).name+" "+chapter+":"+x.verse)+'</p><p>'+esc(x.text.slice(0,360))+'</p></div>';}).join(""):'<p class="subtitle">Nenhum comentário correspondente neste capítulo. A pesquisa global em todos os comentários ainda não está disponível.</p>');
  }catch(error){if(token===pb2SearchToken){el=document.getElementById("pb2-commentary-results");if(el)el.textContent="Não foi possível consultar os comentários instalados: "+error.message;}}
 }
-document.addEventListener("submit",function(e){if(e.target&&e.target.id==="pb2-search-form"){e.preventDefault();var button=e.target.querySelector("button[type=submit]");if(button)button.click();}});
+document.addEventListener("submit",function(e){if(e.target&&e.target.id==="pb2-search-form"){e.preventDefault();var d=pb2Read();d.query=(document.getElementById("pb2-query").value||"").trim();d.filter=document.getElementById("pb2-filter").value;pb2Write(d);pb2SearchHistory(d.query);pb2RenderSearch();}});
 var pb2SearchToken=0;
 function pb2RenderSearch(){
  var db=pb2Read(),query=String(db.query||""),q=query.toLocaleLowerCase("pt-BR"),filter=db.filter||"todos";
