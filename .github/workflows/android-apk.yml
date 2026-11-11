@@ -12,6 +12,7 @@ on:
       - 'pulpito-acervo.json'
       - 'pulpito-icon-*.svg'
       - '.github/workflows/android-apk.yml'
+# Rebuild signed APK with module text decoding fix (2026-11-10).
 permissions:
   contents: read
 jobs:
