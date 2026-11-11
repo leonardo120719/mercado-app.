@@ -613,7 +613,7 @@ async function importFiles(files){
  busy=true;var status=document.getElementById("module-status");
  lastStatus="Importando arquivo(s)…";if(status)status.textContent=lastStatus;
  var ok=[],problems=[];
- for(var file of files){try{if(await pbDevIsModule(file)){var devotional=await pbDevInstallFile(file);if(devotional)ok.push(devotional.title+" ("+devotional.entries.length+" devocionais)");continue;}var parsed=await parseFile(file);for(var item of parsed){var meta=await saveModule(item,file.name+(parsed.length>1?"-"+item.abbreviation:""));ok.push(meta.name+" ("+meta.count+" itens)");}}catch(e){problems.push(file.name+": "+(e.message||String(e)));}}
+ for(var file of files){try{if(window.PBDevBridge&&await window.PBDevBridge.isModule(file)){var devotional=await window.PBDevBridge.installFile(file);if(devotional)ok.push(devotional.title+" ("+devotional.entries.length+" devocionais)");continue;}var parsed=await parseFile(file);for(var item of parsed){var meta=await saveModule(item,file.name+(parsed.length>1?"-"+item.abbreviation:""));ok.push(meta.name+" ("+meta.count+" itens)");}}catch(e){problems.push(file.name+": "+(e.message||String(e)));}}
  busy=false;
  lastStatus=(ok.length?"Instalados: "+ok.join("; ")+". ":"")+(problems.length?"Não instalados: "+problems.join("; "):"");if(status)status.textContent=lastStatus;
  if(ok.length)notify(ok.length+" módulo(s) instalado(s).");if(problems.length)notify("Alguns módulos não puderam ser importados.");
@@ -2724,6 +2724,7 @@ async function pbDevIsModule(file){
  return false;
 }
 
+window.PBDevBridge={isModule:pbDevIsModule,installFile:pbDevInstallFile,list:pbDevAll};
 async function pbDevImport(file){
  if(!file)return;
  try{
