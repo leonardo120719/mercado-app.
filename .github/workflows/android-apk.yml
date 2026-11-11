@@ -21,6 +21,7 @@ on:
 # Requested signed APK: integrated Bible map, sermon coach, voice assistant, synced panes and adaptive plans.
 # Manual test build requested 2026-11-11 after integration fixes; retain existing Android appId and signing.
 # Requested APK build after Janelas module window integration, commit cefa0e72.
+# APK build requested: Janelas, devotional modules, reading plans, search and history (2026-11-11).
 permissions:
   contents: read
 jobs:
