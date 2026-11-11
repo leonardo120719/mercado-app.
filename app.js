@@ -2565,17 +2565,17 @@ function pb2Backup(){
 function pb2RenderSearch(){
  var db=pb2Read(),q=String(db.query||"").toLocaleLowerCase("pt-BR"),filter=db.filter||"todos";
  var entries=[];
- (state.notes||[]).forEach(function(n){entries.push({type:"notas",title:n.ref||"Anotação",body:n.text||n.content||"",ref:n.ref});});
+ (Array.isArray(state.notes)?state.notes:Object.values(state.notes||{})).forEach(function(n){if(!n||typeof n!=="object")return;entries.push({type:"notas",title:n.ref||"Anotação",body:n.text||n.content||"",ref:n.ref});});
  Object.keys(state.historicalDiary||{}).forEach(function(k){var d=state.historicalDiary[k];entries.push({type:"historico",title:k,body:Object.values(d).join(" "),key:k});});
  (db.sermons||[]).forEach(function(x){entries.push({type:"sermoes",title:x.title||"Sermão",body:Object.values(x).join(" "),id:x.id});});
  (db.plans||[]).forEach(function(x){entries.push({type:"planos",title:x.title||"Plano",body:(x.references||[]).join(" "),id:x.id});});
- studyActivity().forEach(function(x){entries.push({type:"historico",title:x.label,body:x.detail||"",ref:x.book+":"+x.chapter});});
+ (Array.isArray(studyActivity())?studyActivity():[]).forEach(function(x){entries.push({type:"historico",title:x.label,body:x.detail||"",ref:x.book+":"+x.chapter});});
  var rows=entries.filter(function(x){return (!q||[x.title,x.body].join(" ").toLocaleLowerCase("pt-BR").includes(q))&&(filter==="todos"||x.type===filter);}).slice(0,150);
  MAIN.innerHTML='<div class="content">'+title("pesquisa")+'<p class="subtitle">Pesquisa unificada nos estudos, anotações, sermões, planos e histórico armazenados neste dispositivo. Para textos de módulos bíblicos, utilize a busca bíblica já disponível na leitura.</p><div class="card card-pad"><label>Pesquisar<input id="pb2-query" class="field" value="'+esc(db.query||"")+'" placeholder="Palavra, passagem ou tema"></label><label>Tipo<select id="pb2-filter" class="field">'+["todos","notas","historico","sermoes","planos"].map(function(x){return '<option value="'+x+'"'+(filter===x?' selected':'')+'>'+esc(x)+'</option>';}).join("")+'</select></label><div class="btn-row"><button class="btn primary" data-act="pb2-search">Pesquisar</button><button class="btn" data-act="pb2-backup">Exportar backup</button></div><h3>'+rows.length+' resultados</h3>'+rows.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.title)+'</strong><small> · '+esc(x.type)+'</small><p>'+esc(String(x.body).slice(0,220))+'</p></div>';}).join("")+'</div></div>';
 }
 function pb2RenderPlans(){
  var db=pb2Read(),plans=db.plans||[];
- MAIN.innerHTML='<div class="content">'+title("planos")+'<p class="subtitle">Planos com metas ajustáveis, progresso persistente e reagendamento sem perda de leituras concluídas.</p><div class="card card-pad"><label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Ex.: Evangelho de João"></label><label>Livro<select class="field" id="pb2-plan-book">'+books.map(function(b){return '<option value="'+esc(b.slug)+'">'+esc(b.name)+'</option>';}).join("")+'</select></label><label>Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label><button class="btn primary" data-act="pb2-plan-add">Criar plano</button></div>'+plans.map(function(p){var done=Object.keys(p.done||{}).length,total=p.references.length;return '<div class="card card-pad" style="margin-top:12px"><h3>'+esc(p.title)+'</h3><p>'+done+' de '+total+' capítulos concluídos ('+Math.round(done/Math.max(1,total)*100)+'%)</p><label>Ritmo diário<input class="field" type="number" min="1" max="20" data-pb2-pace="'+esc(p.id)+'" value="'+p.pace+'"></label><div style="max-height:260px;overflow:auto">'+p.references.map(function(ref){return '<label style="display:flex;gap:10px;align-items:center;margin:8px 0"><input type="checkbox" data-pb2-done="'+esc(p.id)+'" data-ref="'+esc(ref)+'"'+(p.done&&p.done[ref]?' checked':'')+'>'+esc(ref)+'</label>';}).join("")+'</div></div>';}).join("")+'</div>';
+ MAIN.innerHTML='<div class="content">'+title("planos")+'<p class="subtitle">Planos com metas ajustáveis, progresso persistente e reagendamento sem perda de leituras concluídas.</p><div class="card card-pad"><label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Ex.: Evangelho de João"></label><label>Livro<select class="field" id="pb2-plan-book">'+books.map(function(b){return '<option value="'+esc(b.slug)+'">'+esc(b.name)+'</option>';}).join("")+'</select></label><label>Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label><button class="btn primary" data-act="pb2-plan-add">Criar plano</button></div>'+plans.map(function(p){var done=Object.keys(p.done||{}).filter(function(k){return p.done[k];}).length,total=(p.references||[]).length;return '<div class="card card-pad" style="margin-top:12px"><h3>'+esc(p.title)+'</h3><p>'+done+' de '+total+' capítulos concluídos ('+Math.round(done/Math.max(1,total)*100)+'%)</p><label>Ritmo diário<input class="field" type="number" min="1" max="20" data-pb2-pace="'+esc(p.id)+'" value="'+p.pace+'"></label><div style="max-height:260px;overflow:auto">'+(p.references||[]).map(function(ref){return '<label style="display:flex;gap:10px;align-items:center;margin:8px 0"><input type="checkbox" data-pb2-done="'+esc(p.id)+'" data-ref="'+esc(ref)+'"'+(p.done&&p.done[ref]?' checked':'')+'>'+esc(ref)+'</label>';}).join("")+'</div></div>';}).join("")+'</div>';
 }
 function pb2RenderSermonLibrary(){
  var db=pb2Read(),list=db.sermons||[];
@@ -2606,8 +2606,8 @@ var PBStudyBridge=(function(){
 })();
 
 var pbGraphCache=null,pbVoiceRecognizer=null;
-function pbGraphBook(number){return booksFallback[number-1]||books[number-1];}
-function pbGraphReference(node){var b=pbGraphBook(node[0]);return b?b.name+" "+node[1]+":"+node[2]+(node[3]&&node[3]!==node[2]?"–"+node[3]:""):"";}
+function pbGraphBook(number){return booksFallback[number-1]||books[number-1]||null;}
+function pbGraphReference(node){var b=pbGraphBook(node[0]);return b?b.name+" "+node[1]+":"+node[2]+(node[3]&&node[3]!==node[2]?"–"+node[3]:""):"Passagem indisponível";}
 var pbGraphIndex=null,pbGraphSession={center:"",depth:1,filter:"todos",maxNodes:48};
 function pbGraphId(n){return n.slice(0,3).join(":");}
 function pbGraphNode(id){var p=id.split(":").map(Number);return [p[0],p[1],p[2],0];}
@@ -2646,7 +2646,7 @@ function pbRenderGraph(){
  '<div class="btn-row"><button class="btn" data-act="pb-graph-zoom-in">Zoom +</button><button class="btn" data-act="pb-graph-zoom-out">Zoom −</button><button class="btn" data-act="pb-graph-reset">Centralizar</button></div>'+
  '<div id="pb-graph-results" aria-live="polite">Carregando mapa...</div><div id="pb-graph-saved"></div></div></div>';
  var promise=pbGraphCache?Promise.resolve(pbGraphCache):fetch("./pulpito-crossrefs.json").then(function(r){if(!r.ok)throw Error("Base indisponível");return r.json();});
- promise.then(function(data){pbGraphCache=data;pbGraphBuildIndex(data);pbShowGraphResults();pbGraphSavedList();}).catch(function(e){var el=document.getElementById("pb-graph-results");if(el)el.textContent="Não foi possível carregar o índice local: "+e.message;});
+ promise.then(function(data){pbGraphBuildIndex(data);pbGraphCache=data;pbShowGraphResults();pbGraphSavedList();}).catch(function(e){var el=document.getElementById("pb-graph-results");if(el)el.textContent="Não foi possível carregar o índice local: "+e.message;});
 }
 function pbGraphSavedList(){
  var el=document.getElementById("pb-graph-saved");if(!el)return;
@@ -2685,9 +2685,9 @@ function pbRenderVoice(){
  MAIN.innerHTML='<div class="content">'+title("voz")+'<div class="card card-pad"><h2>Assistente bíblico por voz</h2><p>Comandos: “abrir João 15”, “pesquisar graça”, “abrir mapa”, “abrir sermão”, “abrir planos”. A disponibilidade de reconhecimento offline depende do aparelho e do serviço de voz instalado.</p><button class="btn primary" data-act="pb-voice-start"'+(supported?'':' disabled')+'>🎙 Iniciar escuta</button><p id="pb-voice-status" role="status">'+(supported?"Aguardando comando.":"Reconhecimento de voz não disponível neste dispositivo.")+'</p><label>Ou digite o comando<input id="pb-voice-text" class="field" placeholder="Abrir Rute 1"></label><button class="btn" data-act="pb-voice-text">Executar comando</button></div></div>';
 }
 function pbVoiceCommand(command){
- var raw=String(command||"").trim(),q=raw.toLocaleLowerCase("pt-BR");
- if(/^(abrir|ler|ir para|vá para)\s+/.test(q)){
-  var passage=raw.replace(/^(abrir|ler|ir para|vá para)\s+/i,"");
+ var raw=String(command||"").trim(),q=raw.toLocaleLowerCase("pt-BR").normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+ if(/^(abrir|ler|ir para|va para)\s+/.test(q)){
+  var passage=raw.replace(/^(abrir|ler|ir para|vá para)\s+/i,"").replace(/\s+cap[ií]tulo\s+/i," ");
   if(/^(mapa|conexões)/i.test(passage)){page("mapa");return;}
   if(/^(sermão|sermao)/i.test(passage)){page("sermao");return;}
   if(/^(planos)/i.test(passage)){page("planos");return;}
@@ -2699,6 +2699,7 @@ function pbVoiceCommand(command){
 function pbVoiceStart(){
  var Recognition=window.SpeechRecognition||window.webkitSpeechRecognition,el=document.getElementById("pb-voice-status");
  if(!Recognition)return;
+ if(!window.confirm("Permitir ativar o microfone para reconhecer um comando? O serviço de reconhecimento do dispositivo pode exigir internet."))return;
  try{if(pbVoiceRecognizer)pbVoiceRecognizer.stop();pbVoiceRecognizer=new Recognition();pbVoiceRecognizer.lang="pt-BR";pbVoiceRecognizer.interimResults=false;pbVoiceRecognizer.onresult=function(e){var command=e.results[0][0].transcript;if(el)el.textContent="Ouvido: "+command;pbVoiceCommand(command);};pbVoiceRecognizer.onerror=function(e){if(el)el.textContent="Falha no reconhecimento: "+e.error;};pbVoiceRecognizer.start();if(el)el.textContent="Ouvindo...";}catch(e){if(el)el.textContent="Microfone indisponível: "+e.message;}
 }
 function pbRenderCoach(){
