@@ -1,6 +1,7 @@
 name: Sincronizar publicações do Púlpito Bible
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - pulpito-bible-pwa
@@ -9,13 +10,21 @@ on:
       - "pulpito.html"
       - "styles.css"
       - "pulpito-sw.js"
+      - "pulpito-manifest.webmanifest"
+      - "pulpito-acervo.json"
+      - "pulpito-crossrefs.json"
+      - "pulpito-icon-*.svg"
+      - ".github/workflows/sync-pulpito-sites.yml"
 
 permissions:
   contents: write
 
+concurrency:
+  group: publish-pulpito-bible-site
+  cancel-in-progress: false
+
 jobs:
   sync-main-site:
-    if: ${{ !contains(github.event.head_commit.message, '[skip ci]') }}
     runs-on: ubuntu-latest
     steps:
       - name: Obter versão oficial do Púlpito Bible
@@ -29,24 +38,27 @@ jobs:
         with:
           ref: pulpito-bible
           path: target
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Sincronizar arquivos compartilhados
+      - name: Sincronizar arquivos do aplicativo e da publicação
         shell: bash
         run: |
           set -euo pipefail
-          cp source/app.js target/app.js
-          cp source/pulpito.html target/pulpito.html
-          cp source/styles.css target/styles.css
-          cp source/pulpito-sw.js target/pulpito-sw.js
-          cp source/pulpito-sw.js target/public/pulpito-sw.js
+          assets=(app.js pulpito.html styles.css pulpito-sw.js pulpito-manifest.webmanifest
+                  pulpito-acervo.json pulpito-crossrefs.json pulpito-icon-192.svg
+                  pulpito-icon-512.svg pulpito-icon-official.svg)
+          mkdir -p target/public
+          for asset in "${assets[@]}"; do
+            cp "source/$asset" "target/$asset"
+            cp "source/$asset" "target/public/$asset"
+          done
+          cp source/pulpito.html target/public/index.html
           cd target
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          if git diff --quiet -- app.js pulpito.html styles.css pulpito-sw.js public/pulpito-sw.js; then
-            echo "Os sites já estão sincronizados."
+          git add -- "${assets[@]}" "${assets[@]/#/public/}" public/index.html
+          if git diff --cached --quiet; then
+            echo "O site já está sincronizado."
             exit 0
           fi
-          git add app.js pulpito.html styles.css pulpito-sw.js public/pulpito-sw.js
-          git commit -m "Sincroniza Púlpito Bible a partir da versão PWA [skip ci]"
+          git commit -m "Publica o Púlpito Bible atualizado no site"
           git push origin HEAD:pulpito-bible
