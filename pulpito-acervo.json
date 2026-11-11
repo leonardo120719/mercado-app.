@@ -1,7 +1,7 @@
 {
   "schema": 2,
   "title": "Púlpito Acervo",
-  "description": "Catálogo de dicionários para futura distribuição autorizada. Traduções bíblicas permanecem privadas.",
+  "description": "Catálogo público com distribuição condicionada à verificação da licença do arquivo exato. Itens pendentes não oferecem download.",
   "modules": [
     {
       "name": "Wicliffe",
@@ -14,7 +14,8 @@
       "distributionAuthorized": false,
       "license": null,
       "signedUrl": null,
-      "licenseStatus": "declared_free_by_uploader_pending_verification"
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar edição, autor e licença do arquivo específico antes de publicar."
     },
     {
       "name": "Houaiss",
@@ -27,7 +28,8 @@
       "distributionAuthorized": false,
       "license": null,
       "signedUrl": null,
-      "licenseStatus": "declared_free_by_uploader_pending_verification"
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Dicionário moderno: não publicar sem autorização expressa do titular."
     },
     {
       "name": "CWSD",
@@ -40,7 +42,8 @@
       "distributionAuthorized": false,
       "license": null,
       "signedUrl": null,
-      "licenseStatus": "declared_free_by_uploader_pending_verification"
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
     },
     {
       "name": "Strong-PT",
@@ -53,7 +56,8 @@
       "distributionAuthorized": false,
       "license": null,
       "signedUrl": null,
-      "licenseStatus": "declared_free_by_uploader_pending_verification"
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Strong original é domínio público, mas a tradução portuguesa deste módulo precisa de licença própria comprovada."
     },
     {
       "name": "Universal",
@@ -66,7 +70,8 @@
       "distributionAuthorized": false,
       "license": null,
       "signedUrl": null,
-      "licenseStatus": "declared_free_by_uploader_pending_verification"
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
     },
     {
       "name": "Almeida",
@@ -79,7 +84,8 @@
       "distributionAuthorized": false,
       "license": null,
       "signedUrl": null,
-      "licenseStatus": "declared_free_by_uploader_pending_verification"
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
     },
     {
       "name": "MBAP",
@@ -92,7 +98,13 @@
       "distributionAuthorized": false,
       "license": null,
       "signedUrl": null,
-      "licenseStatus": "declared_free_by_uploader_pending_verification"
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
     }
-  ]
+  ],
+  "publicDistributionPolicy": {
+    "rule": "Apenas arquivos com licença de redistribuição comprovada, fonte e atribuição identificadas, e URL de download válida podem ser publicados.",
+    "reviewedAt": "2026-11-10",
+    "note": "Licença da obra original não comprova a licença de traduções, edições, digitalizações ou módulos derivados."
+  }
 }
