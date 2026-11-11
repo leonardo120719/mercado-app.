@@ -1146,10 +1146,32 @@ function renderRows(rows,ctx,selected,terms){
   var context={name:ctx.name,book:ctx.book,chapter:chapter};
   var links=global.PBConnections;
   return '<article class="pb-split-entry"><div class="pb-split-entry-heading">'+links.referenceButton(ref,ref)+'<small>'+links.linkifyText(r.marker,[],false,context)+'</small></div>'+
-   '<div class="pb-split-entry-text">'+links.linkifyText(r.text,terms,false,context)+'</div><div class="pb-split-entry-actions">'+
+   '<div class="pb-split-entry-text">'+highlightOriginalLanguage(links.linkifyText(r.text,terms,false,context))+'</div><div class="pb-split-entry-actions">'+
    '<button data-pbsplit="sermon" data-index="'+i+'" type="button">▤ Inserir no sermão</button>'+
    '<button data-pbsplit="copy" data-index="'+i+'" type="button">▣ Copiar</button></div></article>';
  }).join("");
+}
+// Highlight actual Greek and Hebrew script in commentary text without changing links.
+function highlightOriginalLanguage(html){
+ var template=document.createElement("template");template.innerHTML=html;
+ var walker=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
+ var nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ var pattern=/([\u0370-\u03ff\u1f00-\u1fff]+|[\u0590-\u05ff\uFB1D-\uFB4F]+)/gu;
+ nodes.forEach(function(node){
+  if(node.parentElement&&node.parentElement.closest("script,style,.pb-original-language"))return;
+  var value=node.nodeValue;if(!pattern.test(value)){pattern.lastIndex=0;return;}pattern.lastIndex=0;
+  var fragment=document.createDocumentFragment(),last=0,match;
+  while((match=pattern.exec(value))){
+   if(match.index>last)fragment.appendChild(document.createTextNode(value.slice(last,match.index)));
+   var span=document.createElement("span");
+   span.className="pb-original-language "+(/[\u0590-\u05ff\uFB1D-\uFB4F]/u.test(match[0])?"pb-hebrew":"pb-greek");
+   span.textContent=match[0];fragment.appendChild(span);
+   last=match.index+match[0].length;
+  }
+  if(last<value.length)fragment.appendChild(document.createTextNode(value.slice(last)));
+  node.replaceWith(fragment);
+ });
+ return template.innerHTML;
 }
 function refresh(force){
  if(!current||!current.root.isConnected)return;
