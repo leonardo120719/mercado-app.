@@ -33,6 +33,8 @@ permissions:
 jobs:
   android-apk:
     runs-on: ubuntu-latest
+    outputs:
+      version_code: ${{ steps.release.outputs.version_code }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -136,6 +138,7 @@ jobs:
           NODE
       # Nova tentativa de assinatura após correção da senha do keystore (2026-11-10).
       - name: Configure stable release signing and version
+        id: release
         env:
           PULPITO_KEYSTORE_BASE64: ${{ secrets.PULPITO_KEYSTORE_BASE64 }}
           PULPITO_KEYSTORE_PASSWORD: ${{ secrets.PULPITO_KEYSTORE_PASSWORD }}
@@ -167,6 +170,8 @@ jobs:
           """,1)
           # Keep CI versions ahead of the two signed APKs built outside Actions.
           version_code = int(os.environ["PULPITO_VERSION_CODE"]) + 2
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"version_code={version_code}\n")
           content=re.sub(r'versionCode\s+\d+', 'versionCode '+str(version_code),content,count=1)
           content=re.sub(r'versionName\s+"[^"]+"', 'versionName "1.0.'+str(version_code)+'"',content,count=1)
           content=content.replace("release {", "release {\n            signingConfig signingConfigs.pulpitoRelease",1)
@@ -187,3 +192,14 @@ jobs:
           name: pulpito-bible-android-release-apk
           path: android/app/build/outputs/apk/release/app-release.apk
           if-no-files-found: error
+
+  publish-site:
+    if: github.ref == 'refs/heads/pulpito-bible-pwa'
+    needs: android-apk
+    permissions:
+      contents: write
+    uses: ./.github/workflows/sync-pulpito-sites.yml
+    with:
+      version_code: ${{ needs.android-apk.outputs.version_code }}
+    secrets:
+      RENDER_DEPLOY_HOOK: ${{ secrets.PULPITO_RENDER_DEPLOY_HOOK }}

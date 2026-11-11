@@ -1,20 +1,14 @@
-name: Sincronizar publicações do Púlpito Bible
+name: Publicar site do Púlpito Bible
 
 on:
-  workflow_dispatch:
-  push:
-    branches:
-      - pulpito-bible-pwa
-    paths:
-      - "app.js"
-      - "pulpito.html"
-      - "styles.css"
-      - "pulpito-sw.js"
-      - "pulpito-manifest.webmanifest"
-      - "pulpito-acervo.json"
-      - "pulpito-crossrefs.json"
-      - "pulpito-icon-*.svg"
-      - ".github/workflows/sync-pulpito-sites.yml"
+  workflow_call:
+    inputs:
+      version_code:
+        required: true
+        type: string
+    secrets:
+      RENDER_DEPLOY_HOOK:
+        required: false
 
 permissions:
   contents: write
@@ -30,7 +24,7 @@ jobs:
       - name: Obter versão oficial do Púlpito Bible
         uses: actions/checkout@v4
         with:
-          ref: pulpito-bible-pwa
+          ref: ${{ github.sha }}
           path: source
 
       - name: Obter site principal
@@ -39,10 +33,20 @@ jobs:
           ref: pulpito-bible
           path: target
 
-      - name: Sincronizar arquivos do aplicativo e da publicação
+      - name: Sincronizar arquivos da versão assinada
+        id: sync
+        env:
+          VERSION_CODE: ${{ inputs.version_code }}
         shell: bash
         run: |
           set -euo pipefail
+          if [[ -f target/public/pulpito-release.json ]]; then
+            current_version=$(jq -er '.version_code' target/public/pulpito-release.json)
+            if (( current_version > VERSION_CODE )); then
+              echo "O site já tem uma versão mais recente."
+              exit 0
+            fi
+          fi
           assets=(app.js pulpito.html styles.css pulpito-sw.js pulpito-manifest.webmanifest
                   pulpito-acervo.json pulpito-crossrefs.json pulpito-icon-192.svg
                   pulpito-icon-512.svg pulpito-icon-official.svg)
@@ -56,13 +60,53 @@ jobs:
           cp target/pulpito.html target/public/index.html
           sed 's|"/pulpito-acervo.json"$|"/pulpito-acervo.json", "/pulpito-crossrefs.json"|' \
             source/pulpito-sw.js > target/public/pulpito-web-sw.js
+          jq -n --arg source_sha "$GITHUB_SHA" --argjson version_code "$VERSION_CODE" \
+            '{source_sha: $source_sha, version_code: $version_code}' > target/public/pulpito-release.json
           cd target
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "${assets[@]}" "${assets[@]/#/public/}" public/index.html public/pulpito-web-sw.js
-          if git diff --cached --quiet; then
-            echo "O site já está sincronizado."
+          git add -- "${assets[@]}" "${assets[@]/#/public/}" public/index.html public/pulpito-web-sw.js public/pulpito-release.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Publica Púlpito Bible 1.0.$VERSION_CODE no site"
+            git push origin HEAD:pulpito-bible
+          fi
+          echo "verify=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publicar e conferir a versão no Render
+        if: steps.sync.outputs.verify == 'true'
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+          VERSION_CODE: ${{ inputs.version_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          site='https://pulpito-bible.onrender.com'
+          release_is_live() {
+            curl --fail --silent --max-time 8 -H 'Cache-Control: no-cache' \
+              "$site/pulpito-release.json?build=$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT-$1" |
+              jq -e --arg sha "$GITHUB_SHA" --argjson version "$VERSION_CODE" \
+                '.source_sha == $sha and .version_code == $version' >/dev/null
+          }
+          if release_is_live initial; then
+            echo "A versão 1.0.$VERSION_CODE já está publicada."
             exit 0
           fi
-          git commit -m "Publica o Púlpito Bible atualizado no site"
-          git push origin HEAD:pulpito-bible
+          if [[ -n "$RENDER_DEPLOY_HOOK" ]]; then
+            if ! curl --fail --silent --max-time 15 --request POST --output /dev/null "$RENDER_DEPLOY_HOOK"; then
+              echo "::error::O Render recusou o deploy hook. Confira o segredo PULPITO_RENDER_DEPLOY_HOOK."
+              exit 1
+            fi
+          fi
+          for attempt in {1..12}; do
+            if release_is_live "$attempt"; then
+              echo "A versão 1.0.$VERSION_CODE está publicada no site."
+              exit 0
+            fi
+            sleep 8
+          done
+          if [[ -z "$RENDER_DEPLOY_HOOK" ]]; then
+            echo "::error::A publicação automática do Render não entregou esta versão. Configure o segredo PULPITO_RENDER_DEPLOY_HOOK."
+          else
+            echo "::error::O Render recebeu o pedido de publicação, mas a versão do APK ainda não está no site."
+          fi
+          exit 1
