@@ -15,6 +15,7 @@ on:
       - '.github/workflows/android-apk.yml'
 # Rebuild signed APK with module text decoding fix (2026-11-10).
 # Requested fresh signed APK build, including offline cross references.
+# Rebuild requested 2026-11-11: Historical Study Diary beside Sermão.
 permissions:
   contents: read
 jobs:
