@@ -1146,10 +1146,33 @@ function renderRows(rows,ctx,selected,terms){
   var context={name:ctx.name,book:ctx.book,chapter:chapter};
   var links=global.PBConnections;
   return '<article class="pb-split-entry"><div class="pb-split-entry-heading">'+links.referenceButton(ref,ref)+'<small>'+links.linkifyText(r.marker,[],false,context)+'</small></div>'+
-   '<div class="pb-split-entry-text">'+highlightOriginalLanguage(links.linkifyText(r.text,terms,false,context))+'</div><div class="pb-split-entry-actions">'+
+   '<div class="pb-split-entry-text">'+highlightCommentaryScripture(highlightOriginalLanguage(links.linkifyText(r.text,terms,false,context)))+'</div><div class="pb-split-entry-actions">'+
    '<button data-pbsplit="sermon" data-index="'+i+'" type="button">▤ Inserir no sermão</button>'+
    '<button data-pbsplit="copy" data-index="'+i+'" type="button">▣ Copiar</button></div></article>';
  }).join("");
+}
+// Highlight quoted Bible passages inside the fixed commentary pane, not the Bible reader.
+// Walk text nodes to preserve existing links and original-language spans.
+function highlightCommentaryScripture(html){
+ var template=document.createElement("template");template.innerHTML=html;
+ var walker=document.createTreeWalker(template.content,NodeFilter.SHOW_TEXT);
+ var nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+ // Covers the quotation formats used by imported commentary modules.
+ var quote=/(“[^”\n]{12,}”|«[^»\n]{12,}»|„[^“\n]{12,}“|"[^\"\n]{12,}")/g;
+ nodes.forEach(function(node){
+  if(node.parentElement&&node.parentElement.closest(".pb-original-language,.pb-scripture-quote,script,style"))return;
+  var value=node.nodeValue;
+  quote.lastIndex=0;if(!quote.test(value))return;quote.lastIndex=0;
+  var fragment=document.createDocumentFragment(),last=0,match;
+  while((match=quote.exec(value))){
+   if(match.index>last)fragment.appendChild(document.createTextNode(value.slice(last,match.index)));
+   var bold=document.createElement("strong");bold.className="pb-scripture-quote";bold.textContent=match[0];
+   fragment.appendChild(bold);last=match.index+match[0].length;
+  }
+  if(last<value.length)fragment.appendChild(document.createTextNode(value.slice(last)));
+  node.replaceWith(fragment);
+ });
+ return template.innerHTML;
 }
 // Highlight actual Greek and Hebrew script in commentary text without changing links.
 function highlightOriginalLanguage(html){
