@@ -882,14 +882,9 @@ button.mtb-version{text-align:left;overflow:hidden;text-overflow:ellipsis;white-
 
 
 /* Púlpito Bible: clearer verse emphasis and original-language study text. */
-.reader-scripture .verse-line .verse-num,
-#chapter-body .verse-line .verse-num{
-  color:#a67820 !important;
-  font-weight:800 !important;
-  opacity:1 !important;
-}
-#chapter-body .verse-line{
-  font-weight:550;
+.pb-split-entry-text .pb-scripture-quote{
+  font-weight:800;
+  color:inherit;
 }
 .pb-split-entry-text .pb-original-language{
   color:#087f69;
