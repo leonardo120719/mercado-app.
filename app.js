@@ -2375,6 +2375,7 @@ function renderReader(){
  if(state.dictionaryOpen)attachDictionaryStudy();
  mountAppToolbar();
  loadChapter();
+ pbReaderWindowsRender();
 }
 function loadParallelText(){
  if(!state.showParallel||state.page!=="leitura")return;
