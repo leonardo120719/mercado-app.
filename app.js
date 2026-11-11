@@ -914,6 +914,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
       '<select id="book-select" class="mtb-select mtb-book" aria-label="Livro bíblico">'+selectOptions(data.books,data.book)+'</select>'+
       '<select id="chapter-select" class="mtb-select mtb-chapter" aria-label="Capítulo">'+selectOptions(data.chapters,String(data.chapter))+'</select>'+
       item("prev","Capítulo anterior","‹","mtb-compact")+item("next","Próximo capítulo","›","mtb-compact")+
+      '<button type="button" class="pb-toolbar-window-add" data-act="pb-reader-windows" aria-label="Adicionar janela bíblica" title="Adicionar janela">⊞ +</button>'+
     '</div>';
   }
   function menuMarkup(s){
@@ -2119,11 +2120,6 @@ function toolbarNavigation(){
 }
 function mountAppToolbar(){
  TS.mount({root:"dynamic-toolbar",readNavigation:toolbarNavigation,onAction:toolbarAction});
- var toolbar=document.getElementById("dynamic-toolbar");
- if(toolbar){
-  var add=document.createElement("button");add.type="button";add.className="pb-toolbar-window-add";add.setAttribute("data-act","pb-reader-windows");add.setAttribute("aria-label","Adicionar janela de comentário, tradução ou dicionário");add.title="Adicionar janelas";add.textContent="⊞ +";
-  toolbar.appendChild(add);
- }
  refreshVerseDecorations();
 }
 function stopAudio(){
