@@ -3561,6 +3561,7 @@ var PBReaderMultiWindow=(function(){
   if(!host||!host.isConnected)return;
   var panes=visible();if(!panes.length){ensureCount(1);panes=visible();}
   primaryId=(panes.find(function(p){return p.type==="bible";})||{}).id||null;
+  if(!primaryId){panes[0].type="bible";primaryId=panes[0].id;}
   if(columns&&stash)stash.appendChild(columns);
   host.replaceChildren(stash);
   panes.forEach(function(pane,index){host.insertAdjacentHTML("beforeend",paneMarkup(pane,index));});
