@@ -613,7 +613,7 @@ async function importFiles(files){
  busy=true;var status=document.getElementById("module-status");
  lastStatus="Importando arquivo(s)…";if(status)status.textContent=lastStatus;
  var ok=[],problems=[];
- for(var file of files){try{var parsed=await parseFile(file);for(var item of parsed){var meta=await saveModule(item,file.name+(parsed.length>1?"-"+item.abbreviation:""));ok.push(meta.name+" ("+meta.count+" itens)");}}catch(e){problems.push(file.name+": "+(e.message||String(e)));}}
+ for(var file of files){try{if(await pbDevIsModule(file)){var devotional=await pbDevInstallFile(file);if(devotional)ok.push(devotional.title+" ("+devotional.entries.length+" devocionais)");continue;}var parsed=await parseFile(file);for(var item of parsed){var meta=await saveModule(item,file.name+(parsed.length>1?"-"+item.abbreviation:""));ok.push(meta.name+" ("+meta.count+" itens)");}}catch(e){problems.push(file.name+": "+(e.message||String(e)));}}
  busy=false;
  lastStatus=(ok.length?"Instalados: "+ok.join("; ")+". ":"")+(problems.length?"Não instalados: "+problems.join("; "):"");if(status)status.textContent=lastStatus;
  if(ok.length)notify(ok.length+" módulo(s) instalado(s).");if(problems.length)notify("Alguns módulos não puderam ser importados.");
@@ -731,7 +731,7 @@ function getUiMarkup(){
  '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher ZIP, SQLite3, BBM ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.bbm,.json"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
  '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
- '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,application/json" style="display:none"></label></div><p class="feature-note">Proteja seus módulos antes de trocar de endereço, navegador ou aparelho. A restauração acrescenta os registros sem apagar os existentes. No iPhone, salve o backup no app Arquivos ou iCloud Drive.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
+ '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,.zip,.sqlite3,.sqlite,.db,application/json" style="display:none"></label></div><p class="feature-note">Proteja seus módulos antes de trocar de endereço, navegador ou aparelho. A restauração acrescenta os registros sem apagar os existentes. No iPhone, salve o backup no app Arquivos ou iCloud Drive.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
  (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
  '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Consultar dicionário Strong</h2><span class="chip greenish">Léxicos instalados</span></div><div class="search-bar"><input id="dictionary-query" class="field" placeholder="Ex.: H7563 ou G3306"><button id="dictionary-search" class="btn primary" type="button">Consultar</button></div><div id="dictionary-results" class="feature-note" role="status" aria-live="polite">Após instalar um léxico, consulte aqui ou toque no número Strong dentro da Bíblia.</div></section><section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Traduções desejadas</h2><span class="chip">Disponíveis via importação autorizada</span></div>'+
@@ -2653,16 +2653,86 @@ function pbDevNormalize(raw){
  });
  return {id:String(raw.id||"dev-"+Date.now()).slice(0,100),title:String(raw.title).slice(0,160),author:String(raw.author||"").slice(0,160),license:String(raw.license||"Não informada").slice(0,200),entries:entries,installedAt:new Date().toISOString()};
 }
+
+/* Devotional format routing: ZIP/SQLite3 from MyBible and Pulpito JSON.
+ * Only installed on this device, not bundled or redistributed. */
+async function pbDevDecodeFile(file){
+ var name=String(file.name||"").toLowerCase();
+ if(name.endsWith(".json"))return pbDevNormalize(JSON.parse(await file.text()));
+ var binary,sourceName=file.name;
+ if(name.endsWith(".zip")){
+  if(file.size>70*1024*1024)throw Error("ZIP excede 70 MB.");
+  if(!window.JSZip)throw Error("Leitor ZIP indisponível. Verifique a conexão.");
+  var zip=await JSZip.loadAsync(file,{checkCRC32:true});
+  var entries=Object.values(zip.files).filter(function(e){return !e.dir;});
+  var embeddedJson=entries.find(function(e){return /\.json$/i.test(e.name)&&!/(?:^|\/)(?:manifest|module)\.json$/i.test(e.name);});
+  var sqlite=entries.find(function(e){return /\.(?:sqlite3?|db)$/i.test(e.name);});
+  if(sqlite){
+   if((sqlite._data&&sqlite._data.uncompressedSize||0)>30*1024*1024)throw Error("Devocional SQLite excede 30 MB.");
+   binary=await sqlite.async("uint8array");sourceName=sqlite.name;
+  }else if(embeddedJson){
+   return pbDevNormalize(JSON.parse(await embeddedJson.async("string")));
+  }else throw Error("ZIP sem SQLite de devocionais ou JSON compatível.");
+ }else if(/\.(?:sqlite3?|db)$/.test(name)){
+  if(file.size>30*1024*1024)throw Error("Devocional SQLite excede 30 MB.");
+  binary=new Uint8Array(await file.arrayBuffer());
+ }else throw Error("Formato de devocional não reconhecido.");
+ if(!window.initSqlJs)throw Error("Leitor SQLite indisponível. Verifique a conexão.");
+ var SQL=await window.initSqlJs({locateFile:function(f){return "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/"+f;}});
+ var db=new SQL.Database(binary);
+ try{
+  var tables=db.exec("SELECT name FROM sqlite_master WHERE type='table'"),names=(tables[0]&&tables[0].values||[]).map(function(r){return String(r[0]).toLowerCase();});
+  if(!names.includes("devotions"))throw Error("Este SQLite não contém a tabela devotions.");
+  var columns=db.exec("PRAGMA table_info(devotions)"),cols=(columns[0]&&columns[0].values||[]).map(function(r){return String(r[1]).toLowerCase();});
+  if(!cols.includes("day")||!cols.includes("devotion"))throw Error("A tabela devotions precisa das colunas day e devotion.");
+  var title=sourceName.split("/").pop().replace(/\.devotions\.sqlite3?$/i,"").replace(/\.sqlite3?$/i,"").replace(/\.db$/i,"");
+  if(names.includes("info")){
+   var info=db.exec("SELECT name,value FROM info");
+   (info[0]&&info[0].values||[]).forEach(function(row){if(String(row[0]).toLowerCase()==="description"&&row[1])title=String(row[1]);});
+  }
+  var rows=db.exec("SELECT day, devotion FROM devotions ORDER BY day");
+  var entries=(rows[0]&&rows[0].values||[]).map(function(row){
+   var day=Number(row[0]),markup=String(row[1]||"");
+   var doc=new DOMParser().parseFromString(markup,"text/html");
+   doc.querySelectorAll("script,style,iframe,object,embed").forEach(function(n){n.remove();});
+   var body=String(doc.body&&doc.body.textContent||"").replace(/\u00a0/g," ").replace(/[ \t]+/g," ").replace(/\n{3,}/g,"\n\n").trim();
+   return {day:day,title:"Dia "+day,text:body};
+  });
+  var module=pbDevNormalize({format:"pulpito-devotional-v1",id:"mybible-dev-"+title.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").slice(0,65),title:title,author:"",license:"Verifique os direitos do arquivo original",entries:entries});
+  return module;
+ }finally{db.close();}
+}
+async function pbDevInstallFile(file){
+ var module=await pbDevDecodeFile(file);
+ var existing=(await pbDevAll()).find(function(m){return m.id===module.id;});
+ if(existing&&!window.confirm('Substituir o devocional "'+module.title+'" já instalado?'))return null;
+ await pbDevSave(module);
+ return module;
+}
+async function pbDevIsModule(file){
+ var name=String(file.name||"").toLowerCase();
+ if(name.endsWith(".json")){
+  if(file.size>10*1024*1024)return false;
+  try{var j=JSON.parse(await file.text());return j&&j.format==="pulpito-devotional-v1";}catch(e){return false;}
+ }
+ if(name.endsWith(".zip")){
+  if(file.size>70*1024*1024||!window.JSZip)return false;
+  var zip=await JSZip.loadAsync(file,{checkCRC32:true});
+  return Object.keys(zip.files).some(function(n){return /\.devotions\/.*\.sqlite3?$/i.test(n)||/\.devotions\.sqlite3?$/i.test(n);});
+ }
+ if(/\.(?:sqlite3?|db)$/.test(name))return /\.devotions\./i.test(name);
+ return false;
+}
+
 async function pbDevImport(file){
  if(!file)return;
  try{
-  if(file.size>6000000)throw Error("Arquivo acima do limite de 6 MB.");
-  var data=JSON.parse(await file.text()),module=pbDevNormalize(data);
-  if(!window.confirm('Importar "'+module.title+'"? Confirme que você possui os direitos necessários para utilizar este conteúdo.'))return;
+  var module=await pbDevDecodeFile(file);
+  if(!window.confirm('Importar "'+module.title+'"? Confirme que possui direito de utilizar este conteúdo.'))return;
   var existing=(await pbDevAll()).find(function(x){return x.id===module.id;});
-  if(existing&&!window.confirm("Já existe um módulo com este identificador. Substituir apenas esse módulo devocional?"))return;
-  await pbDevSave(module);notify("Módulo devocional importado: "+module.title);pb2RenderPlans();
- }catch(error){notify("Falha ao importar devocional: "+error.message);}
+  if(existing&&!window.confirm("Módulo já instalado. Substituir apenas este devocional?"))return;
+  await pbDevSave(module);notify("Devocional instalado: "+module.title);pb2RenderPlans();
+ }catch(error){notify("Erro no devocional: "+error.message);var area=document.getElementById("pb-dev-module-list");if(area)area.textContent="Falha: "+error.message;}
 }
 async function pbDevPaint(){
  var holder=document.getElementById("pb-dev-module-list");if(!holder)return;
@@ -2681,7 +2751,7 @@ function pb2RenderPlans(){
  var db=pb2Read(),plans=Array.isArray(db.plans)?db.plans:[];
  MAIN.innerHTML='<div class="content">'+title("planos")+
  '<p class="subtitle">Organize suas leituras e escreva devocionais pessoais para cada capítulo. Tudo fica salvo localmente.</p>'+
- '<div class="card card-pad"><h3>Módulos de devocionais</h3><p>Importe devocionais JSON por capítulo ou por dia do ano. Os devocionais diários aparecem abaixo, inclusive offline.</p><input class="field" type="file" id="pb-dev-import" accept=".json,application/json"><div id="pb-dev-module-list">Carregando módulos...</div></div>'+ 
+ '<div class="card card-pad"><h3>Módulos de devocionais</h3><p>Importe devocionais ZIP/SQLite3 do MyBible ou JSON por capítulo ou dia do ano. Os devocionais diários aparecem abaixo, inclusive offline.</p><input class="field" type="file" id="pb-dev-import" accept=".json,application/json"><div id="pb-dev-module-list">Carregando módulos...</div></div>'+ 
  '<div class="card card-pad"><h3>Devocional de hoje</h3><div id="pb-dev-today">Carregando...</div></div>'+ 
  '<div class="card card-pad"><label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Ex.: Evangelho de João"></label><label>Livro<select class="field" id="pb2-plan-book">'+books.map(function(b){return '<option value="'+esc(b.slug)+'">'+esc(b.name)+'</option>';}).join("")+'</select></label><label>Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label><button class="btn primary" data-act="pb2-plan-add">Criar plano</button></div>'+
  plans.map(function(p){var refs=p.references||[],done=Object.keys(p.done||{}).filter(function(k){return p.done[k];}).length;
