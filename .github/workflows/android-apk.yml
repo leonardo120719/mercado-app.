@@ -165,7 +165,10 @@ jobs:
                   }
               }
           """,1)
-          content=re.sub(r'versionCode\s+\d+', 'versionCode '+str(int(os.environ["PULPITO_VERSION_CODE"])),content,count=1)
+          # Keep CI versions ahead of the two signed APKs built outside Actions.
+          version_code = int(os.environ["PULPITO_VERSION_CODE"]) + 2
+          content=re.sub(r'versionCode\s+\d+', 'versionCode '+str(version_code),content,count=1)
+          content=re.sub(r'versionName\s+"[^"]+"', 'versionName "1.0.'+str(version_code)+'"',content,count=1)
           content=content.replace("release {", "release {\n            signingConfig signingConfigs.pulpitoRelease",1)
           gradle.write_text(content)
           PY
