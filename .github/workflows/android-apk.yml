@@ -17,6 +17,7 @@ on:
 # Requested fresh signed APK build, including offline cross references.
 # Rebuild requested 2026-11-11: Historical Study Diary beside Sermão.
 # Build request: advanced Historical Study Diary with offline search and filters (2026-11-11).
+# Build request 2026-11-11: searchable automatic study history with commentary and dictionary resume.
 permissions:
   contents: read
 jobs:
