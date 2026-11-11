@@ -1,3 +1,4 @@
+# APK rebuild requested: add-window button in dark Bible navigation toolbar (2026-11-11).
 name: Pulpito Bible Android APK
 on:
   workflow_dispatch:
