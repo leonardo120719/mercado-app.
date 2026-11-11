@@ -2713,7 +2713,7 @@ function pbWinRender(){
   (w.type!=="devotional"?'<label>Módulo<select class="field" data-win-field="moduleId" data-win-id="'+esc(w.id)+'"><option value="">'+(w.type==="commentary"?"Todos os comentários":w.type==="dictionary"?"Todos os dicionários":"Selecione uma tradução")+'</option>'+options.map(function(m){var val=w.type==="bible"?"local:"+m.id:m.id;return '<option value="'+esc(val)+'"'+(val===sel?' selected':'')+'>'+esc(m.name)+'</option>';}).join("")+'</select></label>':'')+
   '<label>Sincronização<select class="field" data-win-field="group" data-win-id="'+esc(w.id)+'"><option value="A"'+(w.group==="A"?' selected':'')+'>Grupo A · Bíblia principal</option><option value="B"'+(w.group==="B"?' selected':'')+'>Grupo B · referência independente</option><option value="C"'+(w.group==="C"?' selected':'')+'>Grupo C · referência independente</option><option value="fixed"'+(w.group==="fixed"?' selected':'')+'>Fixar referência</option></select></label>'+
   '<label>Livro<select class="field" data-win-field="book" data-win-id="'+esc(w.id)+'">'+books.map(function(b){return '<option value="'+esc(b.slug)+'"'+((w.book||state.book)===b.slug?' selected':'')+'>'+esc(b.name)+'</option>';}).join("")+'</select></label>'+
-  '<label>Capítulo<input class="field" type="number" min="1" max="150" data-win-field="chapter" data-win-id="'+esc(w.id)+'" value="'+(Number(w.chapter)||state.chapter)+'"></label>'+
+  '<label>Capítulo<input class="field" type="number" min="1" max="150" data-win-field="chapter" data-win-id="'+esc(w.id)+'" value="'+(Number(w.chapter)||state.chapter)+'"></label>'+ '<label>Versículo<input class="field" type="number" min="1" max="176" data-win-field="verse" data-win-id="'+esc(w.id)+'" value="'+(Number(w.verse)||1)+'"></label>'+
   (w.type==="dictionary"?'<label>Palavra / Strong<input class="field" data-win-field="term" data-win-id="'+esc(w.id)+'" value="'+esc(w.term||"")+'" placeholder="Ex.: amor, G25"></label>':'')+
   '<div class="btn-row"><button class="btn slim" data-act="pb-win-load" data-win-id="'+esc(w.id)+'">Atualizar conteúdo</button></div><div data-win-content="'+esc(w.id)+'" style="max-height:380px;overflow:auto">Carregando...</div></section>';
  }).join("");
@@ -2733,7 +2733,7 @@ async function pbWinLoad(w){
    var data=await PBModules.getChapter(w.moduleId,book,chapter);
    html=(data.verses||[]).map(function(v,i){return '<p><strong>'+(Number(v.number||v.verse)||i+1)+'</strong> '+esc(typeof v==="string"?v:(v.text||v.content||""))+'</p>';}).join("");
   }else if(w.type==="commentary"){
-   var verse=w.group==="A"?(Number(state.selectedVerse)||1):1;
+   var verse=w.group==="A"?(Number(state.selectedVerse)||1):(Number(w.verse)||1);
    var items=await PBModules.getCommentaries(book,chapter,verse,w.moduleId||undefined);
    html=items.length?items.map(function(x){return '<p><strong>'+esc(x.moduleName)+'</strong> · '+esc(selected.name+" "+chapter+":"+verse)+'</p><p style="white-space:pre-wrap">'+esc(x.text)+'</p>';}).join(""):"Nenhum comentário disponível para este versículo.";
   }else if(w.type==="dictionary"){
@@ -3236,7 +3236,7 @@ document.addEventListener("click",function(ev){
  if(a==="pb2-plan-delete"){var id=el.dataset.planId,d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===id;});if(!p)return;if(!window.confirm('Excluir o plano "'+p.title+'", seu progresso e seus devocionais? Esta ação não pode ser desfeita.'))return;d.plans=d.plans.filter(function(x){return x.id!==id;});pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-plan-add"){var d=pb2Read(),book=books.find(function(b){return b.slug===document.getElementById("pb2-plan-book").value;});if(!book)return;d.plans=d.plans||[];d.plans.push({id:String(Date.now()),title:document.getElementById("pb2-plan-title").value||book.name,pace:Math.max(1,Number(document.getElementById("pb2-plan-pace").value)||2),references:Array.from({length:book.chapters},function(_,i){return book.name+" "+(i+1);}),done:{}});pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-sermon-save"){var d=pb2Read();d.sermons=d.sermons||[];d.sermons.unshift(Object.assign({},state.sermon,{id:String(Date.now()),created:new Date().toISOString()}));pb2Write(d);pb2RenderSermonLibrary();return;}
- if(a==="pb-win-add"){var type=document.getElementById("pb-win-kind").value,w=pbWinRead();if(w.length>=12){notify("Limite de 12 janelas por layout.");return;}w.push({id:pbWinEscapeId(),type:type,group:"A",book:state.book,chapter:state.chapter,moduleId:"",term:""});pbWinSave(w);pbWinRender();return;}
+ if(a==="pb-win-add"){var type=document.getElementById("pb-win-kind").value,w=pbWinRead();if(w.length>=12){notify("Limite de 12 janelas por layout.");return;}w.push({id:pbWinEscapeId(),type:type,group:"A",book:state.book,chapter:state.chapter,moduleId:"",term:"",verse:1});pbWinSave(w);pbWinRender();return;}
  if(a==="pb-win-remove"){pbWinSave(pbWinRead().filter(function(w){return w.id!==el.dataset.winId;}));pbWinRender();return;}
  if(a==="pb-win-refresh"){pbWinRender();return;}
  if(a==="pb-win-load"){var w=pbWinRead().find(function(x){return x.id===el.dataset.winId;});if(w)pbWinLoad(w);return;}
