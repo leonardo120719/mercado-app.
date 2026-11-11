@@ -897,3 +897,11 @@ button.mtb-version{text-align:left;overflow:hidden;text-overflow:ellipsis;white-
   background:rgba(150,83,165,.08);
 }
 
+
+.pb-mw-menu button[data-pbmw-layout]{justify-content:flex-start}
+.pb-mw-layout-preview{display:grid;grid-template-columns:1fr;grid-template-rows:1fr;gap:2px;width:22px;height:16px;flex:none;color:#17614a}
+.pb-mw-layout-preview i{border:1px solid currentColor;border-radius:2px}
+[data-pbmw-layout="2"] .pb-mw-layout-preview{grid-template-columns:repeat(2,1fr)}
+[data-pbmw-layout="3"] .pb-mw-layout-preview,
+[data-pbmw-layout="4"] .pb-mw-layout-preview{grid-template:repeat(2,1fr)/repeat(2,1fr)}
+[data-pbmw-layout="3"] .pb-mw-layout-preview i:first-child{grid-row:span 2}

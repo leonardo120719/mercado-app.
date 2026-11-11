@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261111-multiwindows-v3";
+window.PB_BUILD_ID = "pb-20261111-multiwindows-v4";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -920,7 +920,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     const layout=window.PBReaderMultiWindow.getState();
     return '<div class="pb-mw-toolbar"><button type="button" class="mtb-button pb-mw-trigger" data-pbmw="menu" aria-controls="pb-mw-menu" aria-expanded="false" aria-pressed="'+layout.active+'" aria-label="Gerenciar janelas bíblicas" title="Janelas bíblicas"><span class="pb-mw-four-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span></button>'+
       '<div class="pb-mw-menu" id="pb-mw-menu" role="group" aria-label="Janelas bíblicas" hidden>'+
-      [1,2,3,4].map(n=>'<button type="button" data-pbmw-layout="'+n+'" aria-pressed="'+(layout.active&&layout.count===n)+'">'+n+(n===1?' janela':' janelas')+'</button>').join("")+
+      [1,2,3,4].map(n=>'<button type="button" data-pbmw-layout="'+n+'" aria-pressed="'+(layout.active&&layout.count===n)+'"><span class="pb-mw-layout-preview" aria-hidden="true">'+ '<i></i>'.repeat(n)+'</span>'+n+(n===1?' janela':' janelas')+'</button>').join("")+
       '<div class="pb-mw-menu-divider"></div><button type="button" data-pbmw-orientation>Posição de 2 janelas <small id="pb-mw-orientation-label">'+(layout.orientation==="horizontal"?"Lado a lado":"Empilhadas")+'</small></button>'+
       (layout.active?'<button type="button" data-pbmw-exit>Voltar ao leitor tradicional</button>':'')+'</div></div>';
   }
@@ -1913,6 +1913,27 @@ function chapterOptions(){var opts="";for(var i=1;i<=activeBook.chapters;i++) op
 function readBooks(){
  fetch(API+"/books").then(function(r){if(!r.ok)throw Error("API");return r.json();}).then(function(j){var list=Array.isArray(j.data)?j.data:(j.data&&j.data.books)||[];if(!Array.isArray(list)||list.length<60)return;books=list.map(function(b){var name=typeof b.name==="string"?b.name:(b.name&&b.name["pt-br"])||b.name.en||"";var slug=typeof b.slug==="string"?b.slug:(b.slug&&b.slug.en)||"";return {name:name,slug:slug,chapters:Number(b.chapters)||1,testament:b.testament};}).filter(function(b){return b.name&&b.slug;});activeBook=books.find(function(b){return b.slug===state.book;})||activeBook;if(state.page==="leitura")render();}).catch(function(){});
 }
+async function loadOnlineBibleChapter(version,book,chapter){
+ var cached=chaptersCache[version+"/"+book+"/"+chapter];
+ if(cached?.verses?.length)return cached;
+
+ var failure=Error("Este capítulo ainda não foi salvo para leitura offline.");
+ if(navigator.onLine!==false){
+  try{
+   var response=await fetch(API+"/"+encodeURIComponent(version)+"/"+book+"/"+chapter);
+   if(!response.ok)throw Error("Não foi possível obter o capítulo.");
+   var json=await response.json(),data=json.data||{},verses=data.verses||[];
+   if(!verses.length&&data.text)verses=[data.text];
+   if(!verses.length)throw Error("Não foram encontrados versículos.");
+   var copyright=json.meta?.copyright||"";
+   await PBModules.saveSearchCache(version,[{book:book,chapter:chapter,verses:verses,credit:copyright}]).catch(function(){});
+   return {verses:verses,copyright:copyright,version:data.version||version};
+  }catch(error){failure=error;}
+ }
+ var saved=await PBModules.getSearchCacheChapter(version,book,chapter).catch(function(){return null;});
+ if(saved?.verses?.length)return {verses:saved.verses,copyright:saved.credit||"",version:version};
+ throw failure;
+}
 function loadChapter(){
  trackStudyActivity("Leitura bíblica",activeBook.name+" "+state.chapter,"Tradução: "+state.version);
  var key=cacheKey(),seq=++loadSeq;
@@ -1931,22 +1952,7 @@ function loadChapter(){
  }
  function fail(err){if(seq!==loadSeq)return;var b=document.getElementById("chapter-body");if(b)b.innerHTML='<div class="empty">'+esc(err&&err.message||"Não foi possível carregar o texto.")+'<br><br><button class="btn primary" data-act="retry">Tentar novamente</button> <button class="btn" data-page="modulos">Gerenciar módulos</button></div>';}
  if(state.version.startsWith("local:")){window.PBModules.getChapter(state.version,state.book,state.chapter).then(success).catch(fail);return;}
- var requested={version:state.version,book:state.book,chapter:state.chapter};
- function useSavedChapter(error){
-  window.PBModules.getSearchCacheChapter(requested.version,requested.book,requested.chapter).then(function(saved){
-   if(saved?.verses?.length)success({verses:saved.verses,copyright:saved.credit||"",version:requested.version});
-   else fail(error);
-  }).catch(fail);
- }
- if(navigator.onLine===false){useSavedChapter(Error("Este capítulo ainda não foi salvo para leitura offline."));return;}
- fetch(API+"/"+encodeURIComponent(requested.version)+"/"+requested.book+"/"+requested.chapter)
- .then(function(r){if(!r.ok)throw Error("Não foi possível obter o capítulo");return r.json();})
- .then(function(j){
-  var d=j.data||{},verses=d.verses||[];
-  if(!verses.length&&d.text)verses=[d.text];
-  success({verses:verses,copyright:j.meta?.copyright||"",version:d.version||requested.version});
-  if(verses.length)window.PBModules.saveSearchCache(requested.version,[{book:requested.book,chapter:requested.chapter,verses:verses,credit:j.meta?.copyright||""}]).catch(function(){});
- }).catch(useSavedChapter);
+ loadOnlineBibleChapter(state.version,state.book,state.chapter).then(success).catch(fail);
 }
 
 function verseGlobalId(number){
@@ -2214,9 +2220,9 @@ var inlineStrongMap={
  "genesis/1/1":[{pattern:/criou/i,id:"H1254"}],
  "psalms/73/3":[{pattern:/(?:ímpios|impios)/i,id:"H7563"}]
 };
-function annotateVerse(text,verseNumber){
+function annotateVerse(text,verseNumber,passage=state){
  var source=String(text==null?"":text);
- var rules=inlineStrongMap[state.book+"/"+state.chapter+"/"+verseNumber]||[];
+ var rules=inlineStrongMap[passage.book+"/"+passage.chapter+"/"+verseNumber]||[];
  if(!rules.length)return esc(source);
  var matches=[];
  rules.forEach(function(rule){for(var m of source.matchAll(new RegExp("(?<![\\p{L}\\p{M}])(?:"+rule.pattern.source+")(?![\\p{L}\\p{M}])","giu"))){
@@ -3464,7 +3470,7 @@ var PBReaderMultiWindow=(function(){
   ["plans","Planos de estudo"],["map","Mapa bíblico"],["original","Línguas originais"],["sermon","Estudo / Sermão"]
  ];
  function defaults(){
-  return {active:false,count:1,orientation:matchMedia("(max-width: 720px) and (orientation: portrait)").matches?"vertical":"horizontal",colRatio:.5,rowRatio:.5,maxPaneId:"",baseReaderState:null,panes:[
+  return {active:false,count:1,orientation:matchMedia("(max-width: 720px) and (orientation: portrait)").matches?"vertical":"horizontal",colRatio:.5,rowRatio:.5,maxPaneId:"",primaryPaneId:"mw-main",baseReaderState:null,panes:[
    {id:"mw-main",type:"bible",linked:true,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,scrollTop:0,moduleId:state.version},
    {id:"mw-commentary",type:"commentary",linked:true,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,scrollTop:0,moduleId:"",term:""},
    {id:"mw-dictionary",type:"dictionary",linked:true,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,scrollTop:0,moduleId:"",term:""},
@@ -3568,8 +3574,11 @@ var PBReaderMultiWindow=(function(){
  function render(){
   if(!host||!host.isConnected)return;
   var panes=visible();if(!panes.length){ensureCount(1);panes=visible();}
-  primaryId=(panes.find(function(p){return p.type==="bible";})||{}).id||null;
-  if(!primaryId){panes[0].type="bible";primaryId=panes[0].id;}
+  var mainPane=panes.find(function(p){return p.type==="bible"&&p.id===cfg.primaryPaneId;})||
+   panes.find(function(p){return p.type==="bible";})||panes[0];
+  if(mainPane.type!=="bible"){mainPane.type="bible";mainPane.moduleId=state.version;}
+  primaryId=mainPane.id;
+  if(cfg.primaryPaneId!==primaryId){cfg.primaryPaneId=primaryId;save();}
   if(columns&&stash)stash.appendChild(columns);
   host.replaceChildren(stash);
   panes.forEach(function(pane,index){host.insertAdjacentHTML("beforeend",paneMarkup(pane,index));});
@@ -3600,12 +3609,12 @@ var PBReaderMultiWindow=(function(){
    var version=pane.moduleId||"bpm",opts=versionOptions(version);
    body.insertAdjacentHTML("afterbegin",'<label class="pb-mw-field-label">Tradução<select class="pb-mw-field" data-pbmw-module data-pane-id="'+esc(pane.id)+'">'+opts.map(function(x){return '<option value="'+esc(x[0])+'"'+(x[0]===version?" selected":"")+'>'+esc(x[1])+'</option>';}).join("")+'</select></label>');
    try{
-    var data;
-    if(version.startsWith("local:"))data=await PBModules.getChapter(version,ref.book,ref.chapter);
-    else{var response=await fetch(API+"/"+version+"/"+ref.book+"/"+ref.chapter);if(!response.ok)throw Error("Tradução indisponível");var json=await response.json(),d=json.data||{};data={verses:d.verses||[],copyright:json.meta&&json.meta.copyright||""};}
+    var data=version.startsWith("local:")?
+     await PBModules.getChapter(version,ref.book,ref.chapter):
+     await loadOnlineBibleChapter(version,ref.book,ref.chapter);
     var html=(data.verses||[]).map(function(v,i){
      var n=Number(v.number||v.verse)||i+1,txt=typeof v==="string"?v:(v.text||v.content||"");
-     var rendered=version.startsWith("local:")?PBModules.renderVerse(txt,ref.book,state.showStrong):annotateVerse(txt,n);
+     var rendered=version.startsWith("local:")?PBModules.renderVerse(txt,ref.book,state.showStrong):annotateVerse(txt,n,ref);
      return '<p class="pb-mw-bible-verse"><button type="button" data-pbmw-open-verse="'+n+'" data-book="'+esc(ref.book)+'" data-chapter="'+ref.chapter+'">'+n+'</button> '+PBConnections.wrapHtml(rendered)+'</p>';
     }).join("");
     paneResult(body,serial,html+'<small class="pb-mw-credit">'+esc(data.copyright||"Conteúdo da tradução selecionada")+'</small>');
@@ -3669,7 +3678,13 @@ var PBReaderMultiWindow=(function(){
  function setLayout(n){
   if(!cfg.active){ensureBaseState();cfg.active=true;}
   ensureCount(n);cfg.maxPaneId="";
-  visible().forEach(function(p,i){if(i>0&&p.linked){p.book=state.book;p.chapter=state.chapter;p.verse=state.selectedVerse||1;}});
+  var mainIndex=cfg.panes.findIndex(function(p){return p.id===cfg.primaryPaneId&&p.type==="bible";});
+  if(mainIndex>=cfg.count){
+   var displaced=cfg.panes[cfg.count-1];
+   cfg.panes[cfg.count-1]=cfg.panes[mainIndex];
+   cfg.panes[mainIndex]=displaced;
+  }
+  visible().forEach(function(p){if(p.linked){p.book=state.book;p.chapter=state.chapter;p.verse=state.selectedVerse||1;}});
   save();renderReader();
  }
  function exit(){cfg.active=false;cfg.maxPaneId="";save();prepareReaderState();renderReader();}
@@ -3728,12 +3743,16 @@ var PBReaderMultiWindow=(function(){
    if(target.dataset.pbmwLayout){setLayout(Number(target.dataset.pbmwLayout));return;}
    if(target.hasAttribute("data-pbmw-orientation")){cfg.orientation=cfg.orientation==="horizontal"?"vertical":"horizontal";save();setGrid();var label=document.getElementById("pb-mw-orientation-label");if(label)label.textContent=cfg.orientation==="horizontal"?"Lado a lado":"Empilhadas";return;}
    if(target.hasAttribute("data-pbmw-exit")){exit();return;}
-   if(target.hasAttribute("data-pbmw-open-ref")){setRef(target.dataset.book,Number(target.dataset.chapter),Number(target.dataset.verse));return;}
-   if(target.hasAttribute("data-pbmw-open-verse")){
-    var source=target.closest("[data-pbmw-pane]"),selected=source&&cfg.panes.find(function(p){return p.id===source.dataset.pbmwPane;});
-    var verse=Number(target.dataset.pbmwOpenVerse);
-    if(selected&&!selected.linked){selected.verse=verse;save();renderPane(selected);}
-    else setRef(target.dataset.book||state.book,Number(target.dataset.chapter)||state.chapter,verse);
+   if(target.hasAttribute("data-pbmw-open-ref")||target.hasAttribute("data-pbmw-open-verse")){
+    var source=target.closest("[data-pbmw-pane]");
+    var selected=source&&visible().find(function(p){return p.id===source.dataset.pbmwPane;});
+    var book=target.dataset.book,chapter=Number(target.dataset.chapter);
+    var verse=Number(target.dataset.pbmwOpenVerse||target.dataset.verse);
+    if(selected&&selected.id!==primaryId&&!selected.linked){
+     selected.book=book;selected.chapter=chapter;selected.verse=verse;
+     if(target.hasAttribute("data-pbmw-open-ref"))selected.scrollTop=0;
+     save();renderPane(selected);
+    }else setRef(book,chapter,verse);
     return;
    }
    var act=target.dataset.pbmwAction,id=target.dataset.paneId,pane=cfg.panes.find(function(p){return p.id===id;});
