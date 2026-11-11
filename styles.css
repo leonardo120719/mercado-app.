@@ -897,8 +897,6 @@ button.mtb-version{text-align:left;overflow:hidden;text-overflow:ellipsis;white-
   background:rgba(150,83,165,.08);
 }
 
-/* Botão de janelas sempre visível na faixa de navegação bíblica (área escura da foto). */
-#dynamic-toolbar{position:relative}
-#dynamic-toolbar .pb-toolbar-window-add{position:absolute;right:clamp(68px,13vw,155px);top:50%;transform:translateY(-50%);z-index:16;display:inline-flex;align-items:center;justify-content:center;min-width:52px;min-height:43px;padding:5px 11px;border:1px solid #b7c9d8;border-radius:8px;background:#173b57;color:#fff;font-size:22px;font-weight:800;cursor:pointer;box-shadow:0 2px 8px #0004}
-#dynamic-toolbar .pb-toolbar-window-add:focus-visible{outline:3px solid #e8c67d;outline-offset:2px}
-@media(max-width:600px){#dynamic-toolbar .pb-toolbar-window-add{right:65px;min-width:42px;min-height:40px;font-size:20px}}
+/* Botão discreto integrado à barra original, entre navegação e Aa. */
+#dynamic-toolbar .mtb-navigate .pb-toolbar-window-add{position:static;transform:none;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:44px;height:40px;padding:0 8px;margin:0;border:1px solid #59616f;border-radius:3px;background:transparent;color:inherit;font:700 18px system-ui;box-shadow:none;cursor:pointer}
+#dynamic-toolbar .mtb-navigate .pb-toolbar-window-add:focus-visible{outline:2px solid #e8c67d;outline-offset:-2px}
