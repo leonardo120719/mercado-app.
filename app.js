@@ -2562,16 +2562,56 @@ function pb2Backup(){
  var payload={format:"pulpito-bible-backup-v2",created:new Date().toISOString(),state:localStorage.getItem(STORE_KEY),advanced:localStorage.getItem(pb2Key),activity:localStorage.getItem("pulpito-bible-study-activity-v1")};
  var blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="pulpito-bible-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);
 }
+function pb2SearchHistory(term){
+ var q=String(term||"").trim().slice(0,120);if(!q)return;
+ var d=pb2Read(),items=Array.isArray(d.searchHistory)?d.searchHistory:[];
+ d.searchHistory=[{query:q,at:new Date().toISOString()}].concat(items.filter(function(x){return x&&x.query.toLocaleLowerCase("pt-BR")!==q.toLocaleLowerCase("pt-BR");})).slice(0,35);pb2Write(d);
+}
+async function pb2SearchCommentaries(term,token){
+ var el=document.getElementById("pb2-commentary-results");if(!el)return;
+ var modules=window.PBModules&&window.PBModules.getInstalled().filter(function(m){return m.type==="commentary";})||[];
+ if(!modules.length){el.innerHTML='<p class="subtitle">Nenhum comentário instalado.</p>';return;}
+ el.innerHTML='<p class="subtitle">Consultando comentários instalados no capítulo atual...</p>';
+ var book=state.book,chapter=state.chapter,found=[],seen=new Set(),normalized=String(term||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+ try{
+  var verses=Array.from({length:80},function(_,i){return i+1;});
+  var coverage=await window.PBModules.getCommentaryCoverage(book,chapter,verses);
+  for(var v=1;v<=80&&found.length<60;v++){
+   if(token!==pb2SearchToken||!document.getElementById("pb2-commentary-results"))return;
+   if(!coverage[v]||!coverage[v].length)continue;
+   var entries=await window.PBModules.getCommentaries(book,chapter,v);
+   for(var i=0;i<entries.length;i++){
+    var e=entries[i],key=e.moduleId+":"+e.fromChapter+":"+e.fromVerse+":"+e.toVerse+":"+String(e.text).slice(0,60);
+    if(seen.has(key))continue;seen.add(key);
+    var plain=bibleSearchText(e.text),hay=plain.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
+    if(hay.includes(normalized))found.push({module:e.moduleName,verse:v,text:plain});
+    if(found.length>=60)break;
+   }
+  }
+  if(token!==pb2SearchToken)return;
+  el=document.getElementById("pb2-commentary-results");if(!el)return;
+  el.innerHTML='<h3>Comentários encontrados neste capítulo ('+found.length+')</h3>'+(found.length?found.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.module)+'</strong><p>'+esc((books.find(function(b){return b.slug===book;})||activeBook).name+" "+chapter+":"+x.verse)+'</p><p>'+esc(x.text.slice(0,360))+'</p></div>';}).join(""):'<p class="subtitle">Nenhum comentário correspondente neste capítulo. A pesquisa global em todos os comentários ainda não está disponível.</p>');
+ }catch(error){if(token===pb2SearchToken){el=document.getElementById("pb2-commentary-results");if(el)el.textContent="Não foi possível consultar os comentários instalados: "+error.message;}}
+}
+document.addEventListener("submit",function(e){if(e.target&&e.target.id==="pb2-search-form"){e.preventDefault();var button=e.target.querySelector("button[type=submit]");if(button)button.click();}});
+var pb2SearchToken=0;
 function pb2RenderSearch(){
- var db=pb2Read(),q=String(db.query||"").toLocaleLowerCase("pt-BR"),filter=db.filter||"todos";
+ var db=pb2Read(),query=String(db.query||""),q=query.toLocaleLowerCase("pt-BR"),filter=db.filter||"todos";
  var entries=[];
- (Array.isArray(state.notes)?state.notes:Object.values(state.notes||{})).forEach(function(n){if(!n||typeof n!=="object")return;entries.push({type:"notas",title:n.ref||"Anotação",body:n.text||n.content||"",ref:n.ref});});
- Object.keys(state.historicalDiary||{}).forEach(function(k){var d=state.historicalDiary[k];entries.push({type:"historico",title:k,body:Object.values(d).join(" "),key:k});});
- (db.sermons||[]).forEach(function(x){entries.push({type:"sermoes",title:x.title||"Sermão",body:Object.values(x).join(" "),id:x.id});});
- (db.plans||[]).forEach(function(x){entries.push({type:"planos",title:x.title||"Plano",body:(x.references||[]).join(" "),id:x.id});});
- (Array.isArray(studyActivity())?studyActivity():[]).forEach(function(x){entries.push({type:"historico",title:x.label,body:x.detail||"",ref:x.book+":"+x.chapter});});
- var rows=entries.filter(function(x){return (!q||[x.title,x.body].join(" ").toLocaleLowerCase("pt-BR").includes(q))&&(filter==="todos"||x.type===filter);}).slice(0,150);
- MAIN.innerHTML='<div class="content">'+title("pesquisa")+'<p class="subtitle">Pesquisa unificada nos estudos, anotações, sermões, planos e histórico armazenados neste dispositivo. Para textos de módulos bíblicos, utilize a busca bíblica já disponível na leitura.</p><div class="card card-pad"><label>Pesquisar<input id="pb2-query" class="field" value="'+esc(db.query||"")+'" placeholder="Palavra, passagem ou tema"></label><label>Tipo<select id="pb2-filter" class="field">'+["todos","notas","historico","sermoes","planos"].map(function(x){return '<option value="'+x+'"'+(filter===x?' selected':'')+'>'+esc(x)+'</option>';}).join("")+'</select></label><div class="btn-row"><button class="btn primary" data-act="pb2-search">Pesquisar</button><button class="btn" data-act="pb2-backup">Exportar backup</button></div><h3>'+rows.length+' resultados</h3>'+rows.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.title)+'</strong><small> · '+esc(x.type)+'</small><p>'+esc(String(x.body).slice(0,220))+'</p></div>';}).join("")+'</div></div>';
+ (Array.isArray(state.notes)?state.notes:Object.values(state.notes||{})).forEach(function(n){if(!n||typeof n!=="object")return;entries.push({type:"notas",title:n.ref||"Anotação",body:n.text||n.content||""});});
+ Object.keys(state.historicalDiary||{}).forEach(function(k){var d=state.historicalDiary[k];entries.push({type:"historico",title:k,body:Object.values(d||{}).join(" ")});});
+ (db.sermons||[]).forEach(function(x){entries.push({type:"sermoes",title:x.title||"Sermão",body:Object.values(x).join(" ")});});
+ (db.plans||[]).forEach(function(x){entries.push({type:"planos",title:x.title||"Plano",body:(x.references||[]).join(" ")});});
+ var activity=studyActivity();(Array.isArray(activity)?activity:[]).forEach(function(x){entries.push({type:"historico",title:x.label,body:x.detail||""});});
+ var rows=q?entries.filter(function(x){return [x.title,x.body].join(" ").toLocaleLowerCase("pt-BR").includes(q)&&(filter==="todos"||x.type===filter);}).slice(0,100):[];
+ var history=Array.isArray(db.searchHistory)?db.searchHistory:[];
+ MAIN.innerHTML='<div class="content">'+title("pesquisa")+
+ '<div class="card card-pad"><h2>Pesquisa inteligente</h2><form id="pb2-search-form" style="display:flex;gap:8px;align-items:center"><input id="pb2-query" class="field" type="search" style="flex:1;min-width:0;border-radius:28px" value="'+esc(query)+'" placeholder="Pesquise palavras, assuntos, passagens..." aria-label="Termo da pesquisa"><button class="btn primary" type="submit" aria-label="Pesquisar">🔍 Pesquisar</button></form>'+
+ '<label>Pesquisar em <select id="pb2-filter" class="field">'+["todos","notas","historico","sermoes","planos"].map(function(x){return '<option value="'+x+'"'+(filter===x?' selected':'')+'>'+esc(x)+'</option>';}).join("")+'</select></label>'+
+ '<div class="btn-row"><button class="btn" data-act="pb2-open-bible-search">🔍 Pesquisar textos bíblicos</button><button class="btn" data-act="pb2-backup">Exportar backup</button></div>'+
+ '<h3>Histórico de pesquisas</h3><div class="btn-row" style="flex-wrap:wrap">'+history.slice(0,12).map(function(x){return '<button class="btn slim" data-pb2-search-history="'+esc(x.query)+'">🕘 '+esc(x.query)+'</button>';}).join("")+(history.length?'<button class="btn slim" data-act="pb2-search-clear">Limpar histórico</button>':'<p class="subtitle">Nenhuma pesquisa recente.</p>')+'</div></div>'+
+ (q?'<div class="card card-pad" style="margin-top:12px"><h3>Meus estudos ('+rows.length+')</h3>'+rows.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.title)+'</strong><small> · '+esc(x.type)+'</small><p>'+esc(String(x.body).slice(0,250))+'</p></div>';}).join("")+'</div><div class="card card-pad" style="margin-top:12px"><h3>Comentários bíblicos instalados</h3><p class="subtitle">Busca local no capítulo aberto ('+esc(activeBook.name+" "+state.chapter)+'). A busca em toda a Bíblia está disponível no botão acima; busca global de comentários ainda exige indexação.</p><div id="pb2-commentary-results"></div></div>':'<p class="subtitle">Digite um termo e toque na lupa para pesquisar. Seu histórico fica salvo apenas neste dispositivo.</p>')+'</div>';
+ if(q)pb2SearchCommentaries(query,++pb2SearchToken);
 }
 function pb2RenderPlans(){
  var db=pb2Read(),plans=db.plans||[];
@@ -3027,6 +3067,7 @@ document.addEventListener("click",function(ev){
  /* As consultas do texto bíblico usam os handlers do leitor. */
  if(ev.target.closest("#chapter-body"))return;
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
+ var historySearch=ev.target.closest("[data-pb2-search-history]");if(historySearch){var d=pb2Read();d.query=historySearch.dataset.pb2SearchHistory;pb2Write(d);pb2SearchHistory(d.query);pb2RenderSearch();return;}
  var graphNode=ev.target.closest("[data-pb-graph-node],[data-pb-graph-center]");if(graphNode){pbGraphSession.center=graphNode.dataset.pbGraphNode||graphNode.dataset.pbGraphCenter;pbGraphStore();pbShowGraphResults();return;}
  var savedGraph=ev.target.closest("[data-pb-graph-saved]");if(savedGraph){var x=(pb2Read().graphSaved||[])[Number(savedGraph.dataset.pbGraphSaved)];if(x){var d=pb2Read();d.graphQuery=x.query;pbGraphSession.center=x.center;pbGraphSession.depth=x.depth;pbGraphSession.filter=x.filter;pbGraphStore();pbRenderGraph();}return;}
  var graphRef=ev.target.closest("[data-pb-graph-ref]");if(graphRef){lookupReference(graphRef.dataset.pbGraphRef);return;}
@@ -3059,7 +3100,9 @@ document.addEventListener("click",function(ev){
  if(a==="pb-coach-save"){var d=pb2Read();d.coach=document.getElementById("pb-coach-notes").value;pb2Write(d);notify("Avaliação salva");return;}
  if(a==="pb-coach-sermon"){page("sermao");return;}
  if(a==="pb2-backup"){pb2Backup();return;}
- if(a==="pb2-search"){var d=pb2Read();d.query=document.getElementById("pb2-query").value;d.filter=document.getElementById("pb2-filter").value;pb2Write(d);pb2RenderSearch();return;}
+ if(a==="pb2-search"){var d=pb2Read();d.query=document.getElementById("pb2-query").value.trim();d.filter=document.getElementById("pb2-filter").value;pb2Write(d);pb2SearchHistory(d.query);pb2RenderSearch();return;}
+ if(a==="pb2-search-clear"){var d=pb2Read();d.searchHistory=[];pb2Write(d);pb2RenderSearch();return;}
+ if(a==="pb2-open-bible-search"){openBibleSearch();return;}
  if(a==="pb2-plan-add"){var d=pb2Read(),book=books.find(function(b){return b.slug===document.getElementById("pb2-plan-book").value;});if(!book)return;d.plans=d.plans||[];d.plans.push({id:String(Date.now()),title:document.getElementById("pb2-plan-title").value||book.name,pace:Math.max(1,Number(document.getElementById("pb2-plan-pace").value)||2),references:Array.from({length:book.chapters},function(_,i){return book.name+" "+(i+1);}),done:{}});pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-sermon-save"){var d=pb2Read();d.sermons=d.sermons||[];d.sermons.unshift(Object.assign({},state.sermon,{id:String(Date.now()),created:new Date().toISOString()}));pb2Write(d);pb2RenderSermonLibrary();return;}
  if(a==="pb2-panel-open"){state.splitStudy=true;state.dictionaryOpen=true;page("leitura");return;}
