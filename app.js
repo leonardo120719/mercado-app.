@@ -1899,7 +1899,7 @@ document.addEventListener("pb-crossref-navigate",function(event){
  var d=event.detail||{};
  if(d.book&&Number.isInteger(d.chapter)&&Number.isInteger(d.verse))setRef(d.book,d.chapter,d.verse);
 });
-function setRef(book,ch,verse,passage){linkedPassage=passage||null;window.PBVerseComments.invalidate();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();render();}
+function setRef(book,ch,verse,passage){linkedPassage=passage||null;window.PBVerseComments.invalidate();TS.actions.clearSelection();stopAudio();state.book=book;state.chapter=Math.max(1,Number(ch)||1);state.selectedVerse=Number(verse)||0;activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;PBStudyBridge.selectVerse(state.book,state.chapter,state.selectedVerse,"setRef");persist();render();}
 function chapterOptions(){var opts="";for(var i=1;i<=activeBook.chapters;i++) opts+='<option value="'+i+'"'+(i===state.chapter?" selected":"")+'>'+i+'</option>';return opts;}
 function readBooks(){
  fetch(API+"/books").then(function(r){if(!r.ok)throw Error("API");return r.json();}).then(function(j){var list=Array.isArray(j.data)?j.data:(j.data&&j.data.books)||[];if(!Array.isArray(list)||list.length<60)return;books=list.map(function(b){var name=typeof b.name==="string"?b.name:(b.name&&b.name["pt-br"])||b.name.en||"";var slug=typeof b.slug==="string"?b.slug:(b.slug&&b.slug.en)||"";return {name:name,slug:slug,chapters:Number(b.chapters)||1,testament:b.testament};}).filter(function(b){return b.name&&b.slug;});activeBook=books.find(function(b){return b.slug===state.book;})||activeBook;if(state.page==="leitura")render();}).catch(function(){});
@@ -2558,6 +2558,7 @@ var pb2Key="pulpito-bible-advanced-v1";
 function pb2Read(){try{return JSON.parse(localStorage.getItem(pb2Key)||"{}")||{};}catch(e){return {};}}
 function pb2Write(data){try{localStorage.setItem(pb2Key,JSON.stringify(data));}catch(e){notify("Armazenamento cheio; exporte um backup.");}}
 function pb2Backup(){
+ notify("Este backup inclui dados locais selecionados, mas NÃO inclui módulos ZIP/SQLite armazenados no IndexedDB.");
  var payload={format:"pulpito-bible-backup-v2",created:new Date().toISOString(),state:localStorage.getItem(STORE_KEY),advanced:localStorage.getItem(pb2Key),activity:localStorage.getItem("pulpito-bible-study-activity-v1")};
  var blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="pulpito-bible-backup-"+new Date().toISOString().slice(0,10)+".json";a.click();setTimeout(function(){URL.revokeObjectURL(url);},2000);
 }
@@ -2586,14 +2587,33 @@ function pb2RenderPanels(){
 }
 
 /* Advanced integrated study: source-linked graph, speech commands and sermon coaching. */
+
+/* Integration bridge v1: transient, non-persistent study context.
+ * Does not change legacy storage or module databases. */
+var PBStudyBridge=(function(){
+ var listeners=new Map(),lastVerse="",sequence=0;
+ function subscribe(topic,handler){if(!listeners.has(topic))listeners.set(topic,new Set());listeners.get(topic).add(handler);return function(){listeners.get(topic).delete(handler);};}
+ function emit(topic,payload){
+  var snapshot=Object.freeze(Object.assign({sequence:++sequence,at:Date.now()},payload||{}));
+  (listeners.get(topic)||[]).forEach(function(handler){try{handler(snapshot);}catch(error){console.warn("Púlpito bridge",topic,error);}});
+  return snapshot;
+ }
+ function selectVerse(book,chapter,verse,origin){
+  var key=[book,chapter,verse].join(":");if(lastVerse===key)return false;
+  lastVerse=key;emit("verse:changed",{book:book,chapter:chapter,verse:verse,origin:origin||"reader"});return true;
+ }
+ return Object.freeze({subscribe:subscribe,emit:emit,selectVerse:selectVerse,getSequence:function(){return sequence;}});
+})();
+
 var pbGraphCache=null,pbVoiceRecognizer=null;
-function pbGraphBook(number){return books[number-1]||booksFallback[number-1];}
+function pbGraphBook(number){return booksFallback[number-1]||books[number-1];}
 function pbGraphReference(node){var b=pbGraphBook(node[0]);return b?b.name+" "+node[1]+":"+node[2]+(node[3]&&node[3]!==node[2]?"–"+node[3]:""):"";}
 var pbGraphIndex=null,pbGraphSession={center:"",depth:1,filter:"todos",maxNodes:48};
 function pbGraphId(n){return n.slice(0,3).join(":");}
 function pbGraphNode(id){var p=id.split(":").map(Number);return [p[0],p[1],p[2],0];}
 function pbGraphBuildIndex(data){
  if(pbGraphIndex&&pbGraphIndex.data===data)return pbGraphIndex;
+ if(!data||!Array.isArray(data.references))throw Error("Formato de referências cruzadas inválido");
  var adj=new Map(),descriptions=new Map();
  function link(a,b,description){if(!adj.has(a))adj.set(a,[]);if(!adj.get(a).some(function(x){return x.to===b&&x.description===description;}))adj.get(a).push({to:b,description:description,kind:"referência temática catalogada",source:"Midvash · CC BY 4.0"});}
  data.references.forEach(function(r){if(!r.s||!r.t)return;var a=pbGraphId(r.s);descriptions.set(a,r.d);r.t.forEach(function(t){var b=pbGraphId(t);link(a,b,r.d);link(b,a,r.d);});});
@@ -2605,6 +2625,7 @@ function pbGraphFind(query){
  return pbGraphCache.references.filter(function(r){return [r.d,pbGraphReference(r.s)].join(" ").toLocaleLowerCase("pt-BR").includes(q);}).slice(0,40);
 }
 function pbGraphTraverse(center,depth,limit){
+ depth=Math.max(1,Math.min(6,Number(depth)||1));limit=Math.max(1,Math.min(120,Number(limit)||48));
  var index=pbGraphBuildIndex(pbGraphCache),visited=new Set([center]),queue=[{id:center,depth:0}],nodes=[],edges=[];
  while(queue.length&&nodes.length<limit){
   var item=queue.shift();nodes.push(item);
@@ -2654,6 +2675,7 @@ function pbShowGraphResults(){
 }
 function pbGraphStore(){var d=pb2Read();d.graphCenter=pbGraphSession.center;d.graphDepth=pbGraphSession.depth;d.graphFilter=pbGraphSession.filter;pb2Write(d);}
 function pbGraphPath(a,b){
+ if(!pbGraphCache||!a||!b)return null;
  var idx=pbGraphBuildIndex(pbGraphCache),queue=[a],prev=new Map([[a,null]]),steps=0;
  while(queue.length&&steps++<5000){var n=queue.shift();if(n===b)break;(idx.adj.get(n)||[]).forEach(function(e){if(!prev.has(e.to)){prev.set(e.to,{from:n,edge:e});queue.push(e.to);}});}
  if(!prev.has(b))return null;var path=[];for(var at=b;at!==null;){path.unshift(at);var p=prev.get(at);at=p?p.from:null;}return path;
