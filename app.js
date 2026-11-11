@@ -2435,17 +2435,50 @@ function renderSermon(){
  '<div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meu esboço expositivo</h2><span class="chip greenish">Salvamento local</span></div><div class="sermon-grid">'+
  [["title","Tema"],["reference","Texto bíblico"],["context","Contexto histórico e literário"],["introduction","Introdução"],["point1","Tópico 1 · Exposição"],["point2","Tópico 2 · Exposição"],["application","Aplicação"],["conclusion","Conclusão"]].map(function(a,i){return '<label class="'+(i>=2?"full":"")+'">'+esc(a[1])+(i>=2?'<textarea class="editor" data-sermon="'+a[0]+'" placeholder="Escreva aqui…">'+esc(s[a[0]]||"")+'</textarea>':'<input class="field" data-sermon="'+a[0]+'" value="'+esc(s[a[0]]||"")+'">')+'</label>';}).join("")+'</div><div class="btn-row"><button class="btn" data-act="sermon-from-ref">Usar passagem atual</button><div class="row"><button class="btn" data-act="sermon-copy">Copiar esboço</button><button class="btn primary" data-act="sermon-export">Exportar .txt</button></div></div></div><div class="tip">Os comentários e PDFs pessoais poderão alimentar o Criador de Sermões após a integração da Biblioteca Teológica, com fontes e páginas identificadas.</div></div>';
 }
-function renderHistoricalDiary(){
- var key=state.book+":"+state.chapter;
+var historicalFilters={term:"",book:"",period:"",theme:"",type:""};
+var historicalTabs=[["contexto","Contexto histórico"],["cronologia","Cronologia"],["cultura","Cultura e costumes"],["geografia","Geografia"],["sociedade","Povo e sociedade"],["aplicacoes","Aplicações"],["notas","Minhas anotações"]];
+var historicalActiveTab="contexto";
+function historicalEntries(){
  var all=state.historicalDiary||{};
- var entry=all[key]||{};
- var fields=[["contexto","Contexto histórico"],["cronologia","Cronologia"],["cultura","Cenário e cultura"],["sociedade","Povo e sociedade"],["costumes","Costumes e práticas"],["notas","Minhas anotações"]];
+ return Object.keys(all).map(function(key){
+  var parts=key.split(":");
+  var book=books.find(function(b){return b.slug===parts[0];})||booksFallback.find(function(b){return b.slug===parts[0];});
+  return {key:key,book:book,chapter:Number(parts[1]),data:all[key]};
+ }).filter(function(row){return row.book&&row.data;});
+}
+function historicalMatches(row){
+ var d=row.data, f=historicalFilters;
+ if(f.book&&row.book.slug!==f.book)return false;
+ if(f.period&&String(d.periodo||"")!==f.period)return false;
+ if(f.theme&&!String(d.tema||"").toLocaleLowerCase("pt-BR").includes(f.theme.toLocaleLowerCase("pt-BR")))return false;
+ if(f.type&&!String(d[f.type]||"").trim())return false;
+ var text=[row.book.name,row.chapter,d.tema,d.periodo].concat(historicalTabs.map(function(x){return d[x[0]];})).join(" ").toLocaleLowerCase("pt-BR");
+ return !f.term||text.includes(f.term.toLocaleLowerCase("pt-BR"));
+}
+function renderHistoricalDiary(){
+ var key=state.book+":"+state.chapter,all=state.historicalDiary||{},entry=all[key]||{};
+ var rows=historicalEntries().filter(historicalMatches);
+ var bookOptions=books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(historicalFilters.book===b.slug?' selected':'')+'>'+esc(b.name)+'</option>';}).join("");
+ var periods=["Patriarcal","Êxodo e conquista","Juízes","Monarquia","Exílio","Pós-exílio","Período intertestamentário","Período de Jesus","Igreja primitiva","Outro / incerto"];
+ var periodOptions=periods.map(function(p){return '<option'+(entry.periodo===p?' selected':'')+'>'+esc(p)+'</option>';}).join("");
+ var filterPeriods=periods.map(function(p){return '<option'+(historicalFilters.period===p?' selected':'')+'>'+esc(p)+'</option>';}).join("");
+ var tabs=historicalTabs.map(function(t){return '<button type="button" class="btn slim'+(historicalActiveTab===t[0]?' primary':'')+'" data-historical-tab="'+t[0]+'">'+esc(t[1])+'</button>';}).join("");
  MAIN.innerHTML='<div class="content">'+title("historico")+
- '<p class="subtitle">Diário pessoal de pesquisa histórica, salvo neste dispositivo e organizado por capítulo. Não apresenta fatos históricos sem fonte verificada.</p>'+
- '<div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">'+esc(activeBook.name+" "+state.chapter)+'</h2><button class="btn slim" type="button" data-act="historico-go-reading">◫ Voltar à leitura</button></div>'+
- '<p class="subtitle">Selecione outro capítulo na leitura bíblica para criar ou consultar seu registro histórico correspondente.</p>'+
- fields.map(function(f){return '<label style="display:block;margin:14px 0"><strong>'+esc(f[1])+'</strong><textarea class="editor" style="display:block;width:100%;min-height:100px;margin-top:8px" data-historical-field="'+f[0]+'" placeholder="Registre suas pesquisas e fontes aqui…">'+esc(entry[f[0]]||"")+'</textarea></label>';}).join("")+
- '<div class="tip">Salvamento automático local. Para estudos históricos, registre as fontes consultadas e diferencie fatos documentados de interpretações.</div></div></div>';
+ '<p class="subtitle">Pesquise seus estudos históricos, filtre os registros e organize as informações por passagem. Funciona offline; os registros são pessoais e salvos neste dispositivo.</p>'+
+ '<div class="grid-2" style="grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr);align-items:start;gap:16px">'+
+ '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">▣ '+esc(activeBook.name+" "+state.chapter)+'</h2><button class="btn slim" type="button" data-act="historico-go-reading">◫ Leitura</button></div>'+
+ '<div class="row" style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0"><label>Tema<input class="field" data-historical-field="tema" placeholder="Ex.: Criação, aliança..." value="'+esc(entry.tema||"")+'"></label><label>Período<select class="field" data-historical-field="periodo"><option value="">Não definido</option>'+periodOptions+'</select></label></div>'+
+ '<div class="row" style="display:flex;flex-wrap:wrap;gap:7px;margin:14px 0">'+tabs+'</div>'+
+ '<label style="display:block"><strong>'+esc((historicalTabs.find(function(t){return t[0]===historicalActiveTab;})||historicalTabs[0])[1])+'</strong><textarea class="editor" style="display:block;width:100%;min-height:240px;margin-top:10px" data-historical-field="'+historicalActiveTab+'" placeholder="Escreva suas descobertas, datas, fontes e referências aqui…">'+esc(entry[historicalActiveTab]||"")+'</textarea></label>'+
+ '<div class="tip" style="margin-top:14px">Salvamento automático. Registre as fontes consultadas; este diário não gera afirmações históricas automaticamente.</div></section>'+
+ '<aside class="card card-pad"><h2 class="section-heading">⌕ Pesquisa histórica</h2>'+
+ '<label>Pesquisar palavra ou assunto<input class="field" id="historical-search" placeholder="Termo, tema ou passagem..." value="'+esc(historicalFilters.term)+'"></label>'+
+ '<label style="display:block;margin-top:10px">Livro bíblico<select class="field" data-historical-filter="book"><option value="">Todos os livros</option>'+bookOptions+'</select></label>'+
+ '<label style="display:block;margin-top:10px">Período histórico<select class="field" data-historical-filter="period"><option value="">Todos os períodos</option>'+filterPeriods+'</select></label>'+
+ '<label style="display:block;margin-top:10px">Tema<input class="field" data-historical-filter="theme" placeholder="Todos os temas" value="'+esc(historicalFilters.theme)+'"></label>'+
+ '<label style="display:block;margin-top:10px">Tipo de conteúdo<select class="field" data-historical-filter="type"><option value="">Todos os tipos</option>'+historicalTabs.map(function(t){return '<option value="'+t[0]+'"'+(historicalFilters.type===t[0]?' selected':'')+'>'+esc(t[1])+'</option>';}).join("")+'</select></label>'+
+ '<div class="btn-row" style="margin:12px 0"><button class="btn primary" data-act="historico-search">Pesquisar</button><button class="btn" data-act="historico-clear">Limpar filtros</button></div>'+
+ '<h3>Resultados ('+rows.length+')</h3><div id="historical-results" style="max-height:340px;overflow:auto">'+(rows.length?rows.map(function(r){return '<button type="button" class="btn" style="display:block;width:100%;text-align:left;margin:6px 0;white-space:normal" data-historical-open="'+esc(r.key)+'"><strong>'+esc(r.book.name+" "+r.chapter)+'</strong><small style="display:block">'+esc(r.data.tema||r.data.periodo||"Estudo salvo")+'</small></button>';}).join(""):'<p class="subtitle">Nenhum estudo encontrado. Preencha os campos para criar seu primeiro registro.</p>')+'</div></aside></div></div>';
 }
 function renderNotebook(){
  var notes=state.notes||[],marks=state.bookmarks||[],filter=state.noteFilter||"";
@@ -2775,6 +2808,8 @@ document.addEventListener("click",function(ev){
  /* As consultas do texto bíblico usam os handlers do leitor. */
  if(ev.target.closest("#chapter-body"))return;
  var comment=ev.target.closest("[data-comment-sermon]");if(comment){state.sermon.context+=(state.sermon.context?"\n\n":"")+comment.dataset.commentText;persist();notify("Trecho do comentário adicionado ao sermão");return;}
+ var histTab=ev.target.closest("[data-historical-tab]");if(histTab){historicalActiveTab=histTab.dataset.historicalTab;renderHistoricalDiary();return;}
+ var histOpen=ev.target.closest("[data-historical-open]");if(histOpen){var parts=histOpen.dataset.historicalOpen.split(":");state.book=parts[0];state.chapter=Number(parts[1]);activeBook=books.find(function(b){return b.slug===state.book;})||booksFallback.find(function(b){return b.slug===state.book;})||activeBook;persist();renderHistoricalDiary();return;}
  var nav=ev.target.closest("[data-page]");if(nav){page(nav.dataset.page);return;}
  var w=ev.target.closest("[data-word]");if(w){currentWord=words.find(function(t){return t.id===w.dataset.word;})||currentWord;renderOriginal();return;}
  var st=ev.target.closest("[data-step]");if(st){state.tutorStep=+st.dataset.step;persist();renderTutor();return;}
@@ -2786,6 +2821,8 @@ document.addEventListener("click",function(ev){
  var a=el.dataset.act;
 
  if(a==="historico-go-reading"){page("leitura");return;}
+ if(a==="historico-clear"){historicalFilters={term:"",book:"",period:"",theme:"",type:""};renderHistoricalDiary();return;}
+ if(a==="historico-search"){historicalFilters.term=(document.getElementById("historical-search")||{}).value||"";renderHistoricalDiary();return;}
  if(a==="toggle-strong"){toggleStrongNumbers();return;}
  if(a==="reference-back"){returnToReference();return;}
  if(a==="toggle-comments"){toolbarAction("comments");return;}
@@ -2821,10 +2858,12 @@ document.addEventListener("change",function(ev){
  if(t.id==="version-select"){state.version=t.value;persist();renderReader();return;}
  if(t.id==="parallel-version-select"){state.parallelVersion=t.value;persist();renderReader();return;}
 });
+document.addEventListener("change",function(ev){var t=ev.target;if(t.dataset.historicalFilter){historicalFilters[t.dataset.historicalFilter]=t.value;renderHistoricalDiary();}if(t.dataset.historicalField&&t.tagName==="SELECT"){var key=state.book+":"+state.chapter;state.historicalDiary=state.historicalDiary||{};state.historicalDiary[key]=state.historicalDiary[key]||{};state.historicalDiary[key][t.dataset.historicalField]=t.value;persist();}});
 document.addEventListener("input",function(ev){
  var t=ev.target;
  if(t.id==="tutor-answer"){var st=getStudy();st.answers[state.tutorStep]=t.value;state.studies[studyKey()]=st;persist();}
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
+ if(t.dataset.historicalFilter){historicalFilters[t.dataset.historicalFilter]=t.value;renderHistoricalDiary();return;}
  if(t.dataset.historicalField){var diaryKey=state.book+":"+state.chapter;state.historicalDiary=state.historicalDiary||{};var diaryEntry=state.historicalDiary[diaryKey]||{};diaryEntry[t.dataset.historicalField]=t.value;state.historicalDiary[diaryKey]=diaryEntry;persist();}
  if(t.id==="note-filter"){state.noteFilter=t.value;persist();var p=t.selectionStart;renderNotebook();var n=document.getElementById("note-filter");n.focus();n.setSelectionRange(p,p);}
 });
