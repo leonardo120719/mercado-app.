@@ -1,0 +1,172 @@
+{
+  "schema": 2,
+  "title": "Púlpito Acervo",
+  "description": "Catálogo de módulos. Dicionários e traduções bíblicas só são publicados após verificação da licença e do arquivo exato.",
+  "modules": [
+    {
+      "name": "Wicliffe",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Wicliffe.dictionary.zip",
+      "sizeMB": 30.12,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null,
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar edição, autor e licença do arquivo específico antes de publicar."
+    },
+    {
+      "name": "Houaiss",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Houaiss.dictionary.zip",
+      "sizeMB": 24.11,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null,
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Dicionário moderno: não publicar sem autorização expressa do titular."
+    },
+    {
+      "name": "CWSD",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/CWSD.dictionary.zip",
+      "sizeMB": 5.23,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null,
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
+    },
+    {
+      "name": "Strong-PT",
+      "type": "strong",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Strong-PT.dictionary.zip",
+      "sizeMB": 1.63,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null,
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Strong original é domínio público, mas a tradução portuguesa deste módulo precisa de licença própria comprovada."
+    },
+    {
+      "name": "Universal",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Universal.dictionary.zip",
+      "sizeMB": 1.17,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null,
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
+    },
+    {
+      "name": "Almeida",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/Almeida.dictionary.zip",
+      "sizeMB": 0.48,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null,
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
+    },
+    {
+      "name": "MBAP",
+      "type": "dictionary",
+      "bucket": "pulpito-modulos",
+      "path": "Modulos dicionarios/MBAP.dictionary.zip",
+      "sizeMB": 0.87,
+      "format": "zip",
+      "formatVerified": false,
+      "distributionAuthorized": false,
+      "license": null,
+      "signedUrl": null,
+      "licenseStatus": "pending_exact_file_license_evidence",
+      "reviewNote": "Identificar titular, origem e licença de redistribuição do arquivo específico antes de publicar."
+    }
+  ],
+  "publicDistributionPolicy": {
+    "rule": "Apenas arquivos com licença de redistribuição comprovada, fonte e atribuição identificadas, e URL de download válida podem ser publicados.",
+    "reviewedAt": "2026-11-10",
+    "note": "Licença da obra original não comprova a licença de traduções, edições, digitalizações ou módulos derivados."
+  },
+  "bibleTranslationReview": [
+    {
+      "name": "Almeida Revista e Corrigida 1911",
+      "type": "bible",
+      "licenseStatus": "public_domain_text",
+      "source": "https://bibliaalmeida.com/",
+      "reviewNote": "Texto de 1911; verificar a procedência e o formato do arquivo antes de disponibilizar.",
+      "distributionAuthorized": false,
+      "formatVerified": false,
+      "signedUrl": null
+    },
+    {
+      "name": "Bíblia Portuguesa Mundial (BPM)",
+      "type": "bible",
+      "licenseStatus": "public_domain_text",
+      "source": "https://ebible.org/",
+      "reviewNote": "Verificar edição exata, integridade do módulo e eventuais avisos da edição.",
+      "distributionAuthorized": false,
+      "formatVerified": false,
+      "signedUrl": null
+    },
+    {
+      "name": "World English Bible (WEB)",
+      "type": "bible",
+      "licenseStatus": "public_domain_text",
+      "source": "https://ebible.org/eng-web/copyright.htm",
+      "reviewNote": "Texto de domínio público; nome World English Bible é marca registrada e exige uso fiel.",
+      "distributionAuthorized": false,
+      "formatVerified": false,
+      "signedUrl": null
+    },
+    {
+      "name": "Bíblia Livre",
+      "type": "bible",
+      "licenseStatus": "cc_by_3_0_br",
+      "source": "https://crosswire.org/sword/modules/ModInfo.jsp?modName=PorBLivre",
+      "reviewNote": "Verificar os termos de atribuição e a edição do arquivo.",
+      "distributionAuthorized": false,
+      "formatVerified": false,
+      "signedUrl": null
+    },
+    {
+      "name": "Nova Versão de Acesso Livre (NVA)",
+      "type": "bible",
+      "licenseStatus": "cc_by_sa_4_0",
+      "source": "https://crosswire.org/sword/modules/ModInfo.jsp?modName=PorNVA",
+      "reviewNote": "Verificar atribuição e obrigações de compartilhamento pela mesma licença.",
+      "distributionAuthorized": false,
+      "formatVerified": false,
+      "signedUrl": null
+    },
+    {
+      "name": "NVI / NAA / NTLH / ACF",
+      "type": "bible",
+      "licenseStatus": "restricted_or_unverified",
+      "source": null,
+      "reviewNote": "Não distribuir sem licença expressa aplicável ao arquivo.",
+      "distributionAuthorized": false,
+      "formatVerified": false,
+      "signedUrl": null
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/svg+xml" sizes="192x192" href="/pulpito-icon-512.svg"><link rel="apple-touch-icon" href="/pulpito-icon-512.svg"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css?v=20261111-janelas6"></head>
+<body><div class="app-shell pb-top-shell"><div class="workarea">
+<header class="topbar" id="topbar">
+  <div class="topbar-main">
+    <a href="#" class="top-brand" id="brand-link" aria-label="Púlpito Bible — início"><span class="top-brand-icon">✦</span><span class="top-brand-word">PÚLPITO <strong>BIBLE</strong></span></a>
+    <div class="header-context" id="page-location">Leitura bíblica</div>
+    <div class="header-tools"><button id="pwa-install" class="header-action pwa-install" type="button" title="Instalar Púlpito Bible no iPhone ou Android" aria-label="Instalar Púlpito Bible no iPhone ou Android">⇩ <span>Instalar</span></button>
+      <button id="theme-toggle" class="header-action" title="Alternar tema" aria-label="Alternar tema">◐</button>
+      <button id="font-down" class="header-action font-action" title="Diminuir fonte" aria-label="Diminuir fonte">A−</button>
+      <button id="font-up" class="header-action font-action" title="Aumentar fonte" aria-label="Aumentar fonte">A+</button>
+      <button id="menu-toggle" class="top-menu-toggle" type="button" aria-label="Abrir todas as seções" aria-controls="top-menu" aria-expanded="false">☰ <span>Seções</span></button>
+    </div>
+  </div>
+  <nav class="topnav" id="topnav" aria-label="Barra superior de navegação">
+<button class="nav-item active" type="button" data-page="leitura" aria-current="page"><span class="nav-icon" aria-hidden="true">◫</span><span>Leitura</span></button>
+<button class="nav-item" type="button" data-page="sermao" aria-current="false"><span class="nav-icon" aria-hidden="true">▤</span><span>Sermão</span></button>
+<button class="nav-item" type="button" data-page="historico" aria-current="false"><span class="nav-icon" aria-hidden="true">▣</span><span>Diário Histórico</span></button>
+<button class="nav-item" type="button" data-page="pesquisa"><span class="nav-icon" aria-hidden="true">⌕</span><span>Pesquisa</span></button>
+<button class="nav-item" type="button" data-page="paineis"><span class="nav-icon" aria-hidden="true">▥</span><span>Janelas</span></button>
+<button class="nav-item" type="button" data-page="biblioteca-sermoes"><span class="nav-icon" aria-hidden="true">▤</span><span>Sermões+</span></button>
+<button class="nav-item" type="button" data-page="mapa"><span class="nav-icon" aria-hidden="true">◈</span><span>Mapa Bíblico</span></button>
+<button class="nav-item" type="button" data-page="instrutor"><span class="nav-icon" aria-hidden="true">▤</span><span>Instrutor</span></button>
+<button class="nav-item" type="button" data-page="voz"><span class="nav-icon" aria-hidden="true">🎙</span><span>Voz</span></button>
+<button class="nav-item" type="button" data-page="planos"><span class="nav-icon" aria-hidden="true">▦</span><span>Planos</span></button>
+<button class="nav-item" type="button" data-page="caderno" aria-current="false"><span class="nav-icon" aria-hidden="true">▱</span><span>Meu Caderno</span></button>
+<button class="nav-item" type="button" data-page="modulos" aria-current="false"><span class="nav-icon" aria-hidden="true">⇩</span><span>Módulos</span></button>
+  </nav>
+  <div class="top-menu" id="top-menu" role="navigation" aria-label="Todas as seções" hidden>
+    <div class="top-menu-caption">ACESSO RÁPIDO ÀS FERRAMENTAS</div>
+    <div class="top-menu-grid">
+<button class="nav-item active" type="button" data-page="leitura"><span class="nav-icon" aria-hidden="true">◫</span><span>Leitura</span></button>
+<button class="nav-item" type="button" data-page="sermao"><span class="nav-icon" aria-hidden="true">▤</span><span>Sermão</span></button>
+<button class="nav-item" type="button" data-page="historico" aria-current="false"><span class="nav-icon" aria-hidden="true">▣</span><span>Diário Histórico</span></button>
+<button class="nav-item" type="button" data-page="caderno"><span class="nav-icon" aria-hidden="true">▱</span><span>Meu Caderno</span></button>
+<button class="nav-item" type="button" data-page="modulos"><span class="nav-icon" aria-hidden="true">⇩</span><span>Módulos</span></button>
+<button class="nav-item" type="button" data-page="mercado"><span class="nav-icon" aria-hidden="true">◇</span><span>Análise das Bíblias</span></button>
+<button class="nav-item" type="button" data-page="projeto"><span class="nav-icon" aria-hidden="true">⌘</span><span>Recursos e evolução</span></button>
+    </div>
+  </div>
+</header>
+<main id="app-main" tabindex="-1"></main>
+<footer class="app-footer"><span>Púlpito Bible · Primeira versão de estudo</span><span>Conteúdo aberto com atribuição · <a href="https://api.midvash.com/pt-br" target="_blank" rel="noopener">Midvash</a> · <a href="https://github.com/STEPBible/STEPBible-Data" target="_blank" rel="noopener">STEPBible</a></span></footer></div></div>
+<div id="toast" role="status" aria-live="polite"></div>
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" crossorigin="anonymous" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js" crossorigin="anonymous" defer></script>
+<script src="./app.js?v=20261111-janelas6" defer></script><script>
+(function(){
+  "use strict";
+  var button=document.getElementById("pwa-install");
+  var installPrompt=null;
+  if(!button)return;
+  var standalone=window.matchMedia&&window.matchMedia("(display-mode: standalone)").matches;
+  if(standalone||window.navigator.standalone===true)button.hidden=true;
+  window.addEventListener("beforeinstallprompt",function(event){
+    event.preventDefault();
+    installPrompt=event;
+    button.classList.add("is-ready");
+  });
+  button.addEventListener("click",async function(){
+    if(installPrompt){
+      installPrompt.prompt();
+      var choice=await installPrompt.userChoice;
+      if(choice&&choice.outcome==="accepted")button.hidden=true;
+      installPrompt=null;
+      button.classList.remove("is-ready");
+      return;
+    }
+    var isIOS=/iPad|iPhone|iPod/i.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+    var message=isIOS
+      ?"Para instalar o Púlpito Bible no iPhone: abra este endereço no Safari, toque em Compartilhar (quadrado com seta para cima), escolha “Adicionar à Tela de Início” e confirme em “Adicionar”. Se aparecer “Abrir como App”, deixe ativado. Depois abra o ícone Púlpito Bible na tela inicial."
+      :/Android/i.test(navigator.userAgent)
+        ?"No Android, abra esta página no Google Chrome, toque no menu ⋮ e escolha “Instalar app”. Se aparecer “Adicionar à tela inicial”, confirme."
+        :"Abra esta página no navegador do celular e escolha “Instalar aplicativo” ou “Adicionar à tela inicial”.";
+    window.alert(message);
+  });
+  window.addEventListener("appinstalled",function(){button.hidden=true;});
+  if("serviceWorker" in navigator){
+    window.addEventListener("load",function(){
+      navigator.serviceWorker.register("/pulpito-sw.js",{scope:"/",updateViaCache:"none"})
+        .then(function(registration){registration.update().catch(function(){});})
+        .catch(function(error){console.warn("Não foi possível registrar o modo instalável:",error);});
+    });
+  }
+})();
+</script><script>
+/* Atualização do APK: botão sempre acessível e aviso quando nova versão é detectada. */
+(function(){
+ var nativeApp=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform()) || /^(localhost|127\\.0\\.1)$/.test(location.hostname)&&/Android/i.test(navigator.userAgent);
+ if(!nativeApp)return;
+ var localVersion="pb-20261109-toolbar-v34";
+ var builds="https://github.com/leonardo120719/mercado-app./actions/workflows/android-apk.yml";
+ var endpoint="https://pulpito-bible-android.onrender.com/app.js";
+ var notified=false;
+ function show(newer){
+  var box=document.getElementById("pb-apk-updater");
+  if(!box){
+   box=document.createElement("aside");box.id="pb-apk-updater";box.setAttribute("aria-label","Atualização do Púlpito Bible");
+   box.style.cssText="position:fixed;bottom:12px;right:12px;z-index:999999;background:#123b48;color:#fff;padding:12px;border-radius:12px;max-width:310px;box-shadow:0 4px 20px #0005;font:13px system-ui";
+   var title=document.createElement("strong");title.id="pb-apk-update-title";box.appendChild(title);
+   var buttons=document.createElement("div");buttons.style.cssText="display:flex;gap:8px;margin-top:8px";
+   var open=document.createElement("button");open.textContent="Atualizar APK";open.type="button";open.style.cssText="background:white;color:#123b48;border:0;padding:8px;border-radius:7px;font-weight:bold";open.onclick=function(){window.open(builds,"_system");};
+   var later=document.createElement("button");later.textContent="Fechar";later.type="button";later.style.cssText="background:transparent;color:white;border:1px solid white;padding:8px;border-radius:7px";later.onclick=function(){box.style.display="none";};
+   buttons.append(open,later);box.appendChild(buttons);document.body.appendChild(box);
+  }
+  box.querySelector("#pb-apk-update-title").textContent=newer?"Nova versão disponível! Atualize o Púlpito Bible.":"Púlpito Bible • Verificar atualizações";
+  box.style.display="block";
+ }
+ async function check(){
+  if(!navigator.onLine)return;
+  try{
+   var response=await fetch(endpoint+"?v="+Date.now(),{cache:"no-store"});
+   if(!response.ok)return;
+   var content=await response.text();
+   var match=content.match(/window\\.PB_BUILD_ID\\s*=\\s*["']([^"']+)["']/);
+   if(match&&match[1]!==localVersion&&!notified){notified=true;show(true);}
+  }catch(e){/* Rede ou CORS indisponível: opção manual continua acessível. */}
+ }
+ function init(){
+  var shortcut=document.createElement("button");shortcut.type="button";shortcut.textContent="↻ Atualizações";shortcut.setAttribute("aria-label","Verificar atualizações do Púlpito Bible");
+  shortcut.style.cssText="position:fixed;right:12px;bottom:12px;z-index:999998;background:#123b48;color:white;border:1px solid #ffffff66;border-radius:24px;padding:8px 12px;font:12px system-ui";
+  shortcut.onclick=function(){show(false);check();};document.body.appendChild(shortcut);
+  check();
+ }
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+ window.addEventListener("online",check);
+ document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check();});
+ setInterval(check,3600000);
+})();
+</script>
+<script>
+/* Ajuste de leitura por gesto de dois dedos, separado da seleção de versículos. */
+(function(){
+ var zones=[
+  {selector:"#chapter-body",name:"bible",content:".verse-list"},
+  {selector:"#pb-split-comments .pb-split-scroll",name:"commentary",content:".pb-split-entry-text"},
+  {selector:".pb-dictionary-scroll",name:"dictionary",content:".pb-dict-entry-title, .pb-dict-definition, .pb-dictionary-scroll p, .pb-dictionary-scroll li"}
+ ];
+ var sizes={};
+ zones.forEach(function(z){var n=Number(localStorage.getItem("pb-text-zoom-"+z.name));sizes[z.name]=Number.isFinite(n)&&n>=0.75&&n<=1.8?n:1;});
+ var style=document.createElement("style");style.id="pb-responsive-text-zoom";document.head.appendChild(style);
+ function paint(){
+  style.textContent=zones.map(function(z){return z.content.split(",").map(function(sel){return sel.trim()+"{zoom:"+sizes[z.name].toFixed(3)+";}";}).join("\n");}).join("\n");
+ }
+ paint();
+ var active=null;
+ function zoneFor(el){if(!el||!el.closest)return null;return zones.find(function(z){return el.closest(z.selector);})||null;}
+ function dist(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
+ document.addEventListener("touchstart",function(e){
+  if(e.touches.length!==2){active=null;return;}
+  var z=zoneFor(e.target);
+  if(!z)return;
+  var d=dist(e.touches[0],e.touches[1]);
+  if(d<10)return;
+  active={name:z.name,start:d,base:sizes[z.name]};
+ },{passive:true});
+ document.addEventListener("touchmove",function(e){
+  if(!active||e.touches.length!==2)return;
+  var d=dist(e.touches[0],e.touches[1]);
+  sizes[active.name]=Math.max(.75,Math.min(1.8,Math.round(active.base*d/active.start*100)/100));
+  paint();
+  if(e.cancelable)e.preventDefault();
+ },{passive:false});
+ function finish(){if(!active)return;try{localStorage.setItem("pb-text-zoom-"+active.name,String(sizes[active.name]));}catch(e){}active=null;}
+ document.addEventListener("touchend",function(e){if(active&&e.touches.length<2)finish();},{passive:true});
+ document.addEventListener("touchcancel",finish,{passive:true});
+})();
+</script>
+</body></html>

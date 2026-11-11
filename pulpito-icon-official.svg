@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="Ícone Púlpito Bible">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#08214e"/><stop offset=".55" stop-color="#06419a"/><stop offset="1" stop-color="#071d4a"/></linearGradient>
+<linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff0a6"/><stop offset=".4" stop-color="#e7b849"/><stop offset="1" stop-color="#a76a18"/></linearGradient>
+<linearGradient id="page" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ffffff"/><stop offset="1" stop-color="#dceaf7"/></linearGradient>
+<filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#00112d" flood-opacity=".45"/></filter>
+</defs>
+<rect width="1024" height="1024" rx="205" fill="url(#bg)"/>
+<rect x="18" y="18" width="988" height="988" rx="192" fill="none" stroke="url(#gold)" stroke-width="15"/>
+<path d="M198 565 C205 310 356 185 513 185 C670 185 822 310 828 565" fill="none" stroke="url(#gold)" stroke-width="18" stroke-linecap="round" opacity=".95"/>
+<g filter="url(#shadow)">
+<path d="M487 128h50v122h95v49h-95v174h-50V299h-95v-49h95z" fill="url(#gold)" stroke="#fff2b7" stroke-width="5" stroke-linejoin="round"/>
+<path d="M164 529 Q331 468 504 540 L504 719 Q333 659 164 715Z" fill="url(#page)" stroke="url(#gold)" stroke-width="13" stroke-linejoin="round"/>
+<path d="M860 529 Q693 468 520 540 L520 719 Q691 659 860 715Z" fill="url(#page)" stroke="url(#gold)" stroke-width="13" stroke-linejoin="round"/>
+<path d="M512 541V722" stroke="#c59131" stroke-width="13"/>
+<path d="M200 573Q333 536 472 586M200 608Q333 571 472 621M200 643Q333 606 472 656M824 573Q691 536 552 586M824 608Q691 571 552 621M824 643Q691 606 552 656" fill="none" stroke="#a9bed3" stroke-width="7" stroke-linecap="round"/>
+<path d="M175 718Q342 671 511 733Q682 671 849 718" fill="none" stroke="url(#gold)" stroke-width="17" stroke-linecap="round"/>
+<path d="M518 720l38 8v77l-23-20-19 19z" fill="#d6a23a" stroke="#a97620" stroke-width="4"/>
+</g>
+<text x="512" y="862" text-anchor="middle" font-family="Arial,DejaVu Sans,sans-serif" font-size="91" font-weight="700" letter-spacing="-2" fill="#ffffff">Púlpito Bible</text>
+<path d="M325 892 Q512 920 699 892" fill="none" stroke="url(#gold)" stroke-width="10" stroke-linecap="round"/>
+</svg>
