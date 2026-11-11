@@ -900,3 +900,13 @@ button.mtb-version{text-align:left;overflow:hidden;text-overflow:ellipsis;white-
 /* Botão discreto integrado à barra original, entre navegação e Aa. */
 #dynamic-toolbar .mtb-navigate .pb-toolbar-window-add{position:static;transform:none;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:36px;height:36px;padding:0 5px;margin:0;border:1px solid #59616f;border-radius:3px;background:transparent;color:inherit;font:700 15px system-ui;box-shadow:none;cursor:pointer}
 #dynamic-toolbar .mtb-navigate .pb-toolbar-window-add:focus-visible{outline:2px solid #e8c67d;outline-offset:-2px}
+
+/* MySword-like inline split: unchanged toolbar, panes only when user adds a window. */
+.pb-reader-study-layout{min-width:0}
+.pb-reader-study-layout.pb-study-split{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(290px,1fr);gap:10px;align-items:start}
+.pb-reader-study-layout.pb-study-split>.reader-columns{min-width:0;display:block}
+.pb-reader-study-layout.pb-study-split>.reader-columns>.reader-paper{min-width:0;width:100%;margin:0 0 10px}
+.pb-reader-study-panes{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0}
+.pb-reader-study-panes>.card{min-width:0;margin:0}
+.pb-reader-study-panes .field{max-width:100%}
+@media(max-width:700px){.pb-reader-study-layout.pb-study-split{grid-template-columns:minmax(0,1fr)}.pb-reader-study-panes{grid-template-columns:minmax(0,1fr)}}
