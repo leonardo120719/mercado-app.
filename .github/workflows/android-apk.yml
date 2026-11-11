@@ -18,6 +18,7 @@ on:
 # Rebuild requested 2026-11-11: Historical Study Diary beside Sermão.
 # Build request: advanced Historical Study Diary with offline search and filters (2026-11-11).
 # Build request 2026-11-11: searchable automatic study history with commentary and dictionary resume.
+# Requested signed APK: integrated Bible map, sermon coach, voice assistant, synced panes and adaptive plans.
 permissions:
   contents: read
 jobs:
