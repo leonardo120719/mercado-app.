@@ -111,8 +111,24 @@ function isPortugueseModule(module){
  var language=String(module.language||"").trim();
  return !language||/^n[ãa]o informada$/i.test(language)||/^(?:pt|por|br|portugu[eê]s|portuguese)(?:$|[-_ (])/i.test(language);
 }
+// Decode imported HTML entities as text (never inject imported markup into the DOM).
+// Applied at read time, so existing modules and future installations work alike.
+function decodeModuleEntities(value){
+ var text=String(value==null?"":value);
+ if(!/&(?:amp;|#(?:x[0-9a-f]+|[0-9]+);|[a-z][a-z0-9]+;)/i.test(text))return text;
+ var textarea=document.createElement("textarea");
+ for(var pass=0;pass<2;pass++){
+  var next=text.replace(/&(?:#(?:x[0-9a-f]+|[0-9]+)|[a-z][a-z0-9]+);/gi,function(entity){
+   textarea.innerHTML=entity;
+   return textarea.value;
+  });
+  if(next===text)break;
+  text=next;
+ }
+ return text;
+}
 function repairModuleText(text,module){
- var value=String(text==null?"":text);
+ var value=decodeModuleEntities(text);
  if(!isPortugueseModule(module))return value;
  // Skip URLs, email, markup-like fragments, references and Strong identifiers.
  var protectedText=/((?:https?:\/\/|www\.)[^\s<>]+|[\w.+-]+@[\w.-]+\.[a-z]{2,}|<[^>]*>|&(?:#\w+|[a-z]+);|\b[GH]\s*0*\d{1,5}[a-z]?\b|\b\d{1,3}[:.,]\s*\d{1,3}(?:\s*[-–—]\s*\d{1,3})?)/gi;
