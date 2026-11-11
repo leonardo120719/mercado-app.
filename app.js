@@ -2696,9 +2696,62 @@ function pb2RenderSermonLibrary(){
  var db=pb2Read(),list=db.sermons||[];
  MAIN.innerHTML='<div class="content">'+title("biblioteca-sermoes")+'<p class="subtitle">Biblioteca de esboços com versões salvas. O editor original permanece disponível na aba Sermão.</p><div class="card card-pad"><button class="btn primary" data-act="pb2-sermon-save">Salvar versão do sermão atual</button><button class="btn" data-act="pb2-backup">Exportar backup</button></div>'+list.map(function(x){return '<div class="card card-pad" style="margin-top:10px"><h3>'+esc(x.title||"Sem título")+'</h3><p>'+esc(x.reference||"")+' · '+esc(new Date(x.created).toLocaleString("pt-BR"))+'</p><button class="btn" data-pb2-sermon-open="'+esc(x.id)+'">Abrir no editor</button></div>';}).join("")+'</div>';
 }
+function pbWinRead(){var d=pb2Read();return Array.isArray(d.studyWindows)?d.studyWindows:[];}
+function pbWinSave(windows){var d=pb2Read();d.studyWindows=windows;pb2Write(d);}
+function pbWinEscapeId(){return "w"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);}
+function pbWinOptions(type){
+ var installed=window.PBModules&&PBModules.getInstalled?PBModules.getInstalled():[];
+ if(type==="devotional")return [];
+ return installed.filter(function(m){return m.type===(type==="bible"?"bible":type==="commentary"?"commentary":"dictionary");});
+}
+function pbWinRender(){
+ var host=document.getElementById("pb-win-grid");if(!host)return;
+ var windows=pbWinRead();if(!windows.length){host.innerHTML='<p class="subtitle">Toque em Adicionar janela para escolher uma Bíblia, comentário, dicionário ou devocional.</p>';return;}
+ host.innerHTML=windows.map(function(w){
+  var options=pbWinOptions(w.type),sel=w.moduleId||"",label=w.type==="bible"?"Tradução bíblica":w.type==="commentary"?"Comentário":w.type==="dictionary"?"Dicionário / Strong":"Devocional";
+  return '<section class="card card-pad" style="min-width:0"><div class="btn-row"><strong>'+esc(label)+'</strong><button class="btn slim" data-act="pb-win-remove" data-win-id="'+esc(w.id)+'">Fechar</button></div>'+
+  (w.type!=="devotional"?'<label>Módulo<select class="field" data-win-field="moduleId" data-win-id="'+esc(w.id)+'"><option value="">'+(w.type==="commentary"?"Todos os comentários":w.type==="dictionary"?"Todos os dicionários":"Selecione uma tradução")+'</option>'+options.map(function(m){var val=w.type==="bible"?"module"+m.id:m.id;return '<option value="'+esc(val)+'"'+(val===sel?' selected':'')+'>'+esc(m.name)+'</option>';}).join("")+'</select></label>':'')+
+  '<label>Sincronização<select class="field" data-win-field="group" data-win-id="'+esc(w.id)+'"><option value="A"'+(w.group==="A"?' selected':'')+'>Grupo A · Bíblia principal</option><option value="B"'+(w.group==="B"?' selected':'')+'>Grupo B · referência independente</option><option value="C"'+(w.group==="C"?' selected':'')+'>Grupo C · referência independente</option><option value="fixed"'+(w.group==="fixed"?' selected':'')+'>Fixar referência</option></select></label>'+
+  '<label>Livro<select class="field" data-win-field="book" data-win-id="'+esc(w.id)+'">'+books.map(function(b){return '<option value="'+esc(b.slug)+'"'+((w.book||state.book)===b.slug?' selected':'')+'>'+esc(b.name)+'</option>';}).join("")+'</select></label>'+
+  '<label>Capítulo<input class="field" type="number" min="1" max="150" data-win-field="chapter" data-win-id="'+esc(w.id)+'" value="'+(Number(w.chapter)||state.chapter)+'"></label>'+
+  (w.type==="dictionary"?'<label>Palavra / Strong<input class="field" data-win-field="term" data-win-id="'+esc(w.id)+'" value="'+esc(w.term||"")+'" placeholder="Ex.: amor, G25"></label>':'')+
+  '<div class="btn-row"><button class="btn slim" data-act="pb-win-load" data-win-id="'+esc(w.id)+'">Atualizar conteúdo</button></div><div data-win-content="'+esc(w.id)+'" style="max-height:380px;overflow:auto">Carregando...</div></section>';
+ }).join("");
+ windows.forEach(pbWinLoad);
+}
+var pbWinEpoch={};
+async function pbWinLoad(w){
+ var target=document.querySelector('[data-win-content="'+w.id+'"]');if(!target)return;
+ var epoch=pbWinEpoch[w.id]=(pbWinEpoch[w.id]||0)+1;
+ try{
+  var book=w.group==="A"?state.book:(w.book||state.book),chapter=w.group==="A"?state.chapter:(Number(w.chapter)||state.chapter);
+  var selected=books.find(function(b){return b.slug===book;});if(!selected)throw Error("Livro não encontrado.");
+  if(chapter<1||chapter>selected.chapters)throw Error("Capítulo inválido.");
+  var html="";
+  if(w.type==="bible"){
+   if(!w.moduleId)throw Error("Selecione uma tradução instalada.");
+   var data=await PBModules.getChapter(w.moduleId,book,chapter);
+   html=(data.verses||[]).map(function(v,i){return '<p><strong>'+(Number(v.number||v.verse)||i+1)+'</strong> '+esc(typeof v==="string"?v:(v.text||v.content||""))+'</p>';}).join("");
+  }else if(w.type==="commentary"){
+   var verse=w.group==="A"?(Number(state.selectedVerse)||1):1;
+   var items=await PBModules.getCommentaries(book,chapter,verse,w.moduleId||undefined);
+   html=items.length?items.map(function(x){return '<p><strong>'+esc(x.moduleName)+'</strong> · '+esc(selected.name+" "+chapter+":"+verse)+'</p><p style="white-space:pre-wrap">'+esc(x.text)+'</p>';}).join(""):"Nenhum comentário disponível para este versículo.";
+  }else if(w.type==="dictionary"){
+   if(!w.term)html="Informe uma palavra ou número Strong no campo acima.";
+   else{var entries=await PBModules.getDictionaryEntry(w.term,w.moduleId||undefined);html=entries.length?entries.map(function(x){return '<p><strong>'+esc(x.moduleName||x.term||w.term)+'</strong></p><p>'+esc(x.text||x.definition||"")+'</p>';}).join(""):"Nenhuma definição encontrada nos módulos instalados.";}
+  }else if(w.type==="devotional"){
+   var mods=await pbDevAll(),items=mods.flatMap(function(m){return m.entries.filter(function(e){return e.book===book&&e.chapter===chapter;}).map(function(e){return {m:m,e:e};});});
+   html=items.length?items.map(function(x){return '<p><strong>'+esc(x.e.title)+'</strong> · '+esc(x.m.title)+'</p><p style="white-space:pre-wrap">'+esc(x.e.text)+'</p>'+(x.e.prayer?'<p><strong>Oração:</strong> '+esc(x.e.prayer)+'</p>':'');}).join(""):"Nenhum devocional instalado para este capítulo.";
+  }
+  if(pbWinEpoch[w.id]===epoch&&target.isConnected)target.innerHTML=html;
+ }catch(error){if(pbWinEpoch[w.id]===epoch&&target.isConnected)target.textContent="Não foi possível carregar: "+error.message;}
+}
 function pb2RenderPanels(){
- var db=pb2Read(),panels=db.panels||{lock:false};
- MAIN.innerHTML='<div class="content">'+title("paineis")+'<p class="subtitle">Área de estudo com painel bíblico e painéis de comentários/dicionário sincronizados. A opção de fixar mantém a referência escolhida.</p><div class="card card-pad"><label><input type="checkbox" id="pb2-panel-lock"'+(panels.lock?' checked':'')+'> Fixar referência atual</label><p>Referência: '+esc(panels.lock&&panels.reference||activeBook.name+" "+state.chapter)+'</p><div class="btn-row"><button class="btn primary" data-act="pb2-panel-open">Abrir leitura com painéis</button><button class="btn" data-act="pb2-panel-lock">Aplicar fixação</button></div></div></div>';
+ var windows=pbWinRead();
+ MAIN.innerHTML='<div class="content">'+title("paineis")+'<p class="subtitle">Janelas bíblicas personalizáveis. Adicione módulos, escolha referências e use grupos de sincronização. As configurações são salvas neste dispositivo.</p>'+
+ '<div class="card card-pad"><div class="btn-row"><label>Nova janela<select class="field" id="pb-win-kind"><option value="bible">Tradução bíblica</option><option value="commentary">Comentário bíblico</option><option value="dictionary">Dicionário / Strong</option><option value="devotional">Devocional</option></select></label><button class="btn primary" data-act="pb-win-add">+ Adicionar janela</button><button class="btn" data-act="pb-win-refresh">Sincronizar</button></div><p class="subtitle">Grupo A acompanha a Bíblia principal. Grupos B/C e janela fixa mantêm a referência escolhida. As janelas utilizam apenas módulos instalados.</p></div>'+
+ '<div id="pb-win-grid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px;margin-top:12px"></div></div>';
+ pbWinRender();
 }
 
 /* Advanced integrated study: source-linked graph, speech commands and sermon coaching. */
@@ -3183,6 +3236,10 @@ document.addEventListener("click",function(ev){
  if(a==="pb2-plan-delete"){var id=el.dataset.planId,d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===id;});if(!p)return;if(!window.confirm('Excluir o plano "'+p.title+'", seu progresso e seus devocionais? Esta ação não pode ser desfeita.'))return;d.plans=d.plans.filter(function(x){return x.id!==id;});pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-plan-add"){var d=pb2Read(),book=books.find(function(b){return b.slug===document.getElementById("pb2-plan-book").value;});if(!book)return;d.plans=d.plans||[];d.plans.push({id:String(Date.now()),title:document.getElementById("pb2-plan-title").value||book.name,pace:Math.max(1,Number(document.getElementById("pb2-plan-pace").value)||2),references:Array.from({length:book.chapters},function(_,i){return book.name+" "+(i+1);}),done:{}});pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-sermon-save"){var d=pb2Read();d.sermons=d.sermons||[];d.sermons.unshift(Object.assign({},state.sermon,{id:String(Date.now()),created:new Date().toISOString()}));pb2Write(d);pb2RenderSermonLibrary();return;}
+ if(a==="pb-win-add"){var type=document.getElementById("pb-win-kind").value,w=pbWinRead();if(w.length>=12){notify("Limite de 12 janelas por layout.");return;}w.push({id:pbWinEscapeId(),type:type,group:"A",book:state.book,chapter:state.chapter,moduleId:"",term:""});pbWinSave(w);pbWinRender();return;}
+ if(a==="pb-win-remove"){pbWinSave(pbWinRead().filter(function(w){return w.id!==el.dataset.winId;}));pbWinRender();return;}
+ if(a==="pb-win-refresh"){pbWinRender();return;}
+ if(a==="pb-win-load"){var w=pbWinRead().find(function(x){return x.id===el.dataset.winId;});if(w)pbWinLoad(w);return;}
  if(a==="pb2-panel-open"){state.splitStudy=true;state.dictionaryOpen=true;page("leitura");return;}
  if(a==="pb2-panel-lock"){var d=pb2Read();d.panels={lock:document.getElementById("pb2-panel-lock").checked,reference:activeBook.name+" "+state.chapter};pb2Write(d);pb2RenderPanels();return;}
  if(a==="historico-search"){historicalFilters.term=(document.getElementById("historical-search")||{}).value||"";renderHistoricalDiary();return;}
@@ -3213,7 +3270,7 @@ document.addEventListener("click",function(ev){
  if(a==="sermon-export"){var blob=new Blob([sermonText()],{type:"text/plain;charset=utf-8"});var url=URL.createObjectURL(blob);var link=document.createElement("a");link.href=url;link.download="Pulpito-Bible-Sermao.txt";link.click();setTimeout(function(){URL.revokeObjectURL(url);},1000);notify("Esboço exportado");return;}
 });
 document.addEventListener("change",function(ev){var t=ev.target;if(t.id==="pb-graph-depth"||t.id==="pb-graph-filter"){pbGraphSession.depth=Math.max(1,Math.min(6,Number(document.getElementById("pb-graph-depth").value)||1));pbGraphSession.filter=document.getElementById("pb-graph-filter").value;pbGraphStore();pbShowGraphResults();return;}});
-document.addEventListener("change",function(ev){var t=ev.target;if(t.dataset.pb2Done){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Done;});if(p){p.done=p.done||{};if(t.checked)p.done[t.dataset.ref]=true;else delete p.done[t.dataset.ref];pb2Write(d);pb2RenderPlans();}return;}if(t.id==="pb-dev-import"){pbDevImport(t.files&&t.files[0]);return;}if(t.dataset.pb2Devotional){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Devotional;});if(p){p.devotionals=p.devotionals||{};p.devotionals[t.dataset.ref]=t.value;pb2Write(d);}return;}if(t.dataset.pb2Pace){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Pace;});if(p){p.pace=Math.max(1,Number(t.value)||1);pb2Write(d);}return;}});
+document.addEventListener("change",function(ev){var t=ev.target;if(t.dataset.pb2Done){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Done;});if(p){p.done=p.done||{};if(t.checked)p.done[t.dataset.ref]=true;else delete p.done[t.dataset.ref];pb2Write(d);pb2RenderPlans();}return;}if(t.dataset.winField){var windows=pbWinRead(),w=windows.find(function(x){return x.id===t.dataset.winId;});if(w){w[t.dataset.winField]=t.value;pbWinSave(w);if(t.dataset.winField!=="term")pbWinRender();}return;}if(t.id==="pb-dev-import"){pbDevImport(t.files&&t.files[0]);return;}if(t.dataset.pb2Devotional){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Devotional;});if(p){p.devotionals=p.devotionals||{};p.devotionals[t.dataset.ref]=t.value;pb2Write(d);}return;}if(t.dataset.pb2Pace){var d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===t.dataset.pb2Pace;});if(p){p.pace=Math.max(1,Number(t.value)||1);pb2Write(d);}return;}});
 document.addEventListener("change",function(ev){
  var t=ev.target;
  if(t.id==="reader-mode"){state.readerMode=t.value;persist();renderReaderContent();return;}
