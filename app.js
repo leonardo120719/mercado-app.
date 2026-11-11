@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261110-comentarios-v43";
+window.PB_BUILD_ID = "pb-20261111-multiwindows-v1";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1836,6 +1836,7 @@ window.PBVerseComments.init({
  selectVerse:function(verse){
   var n=Number(verse)||0;if(!n)return;
   state.selectedVerse=n;
+  if(window.PBReaderMultiWindow)window.PBReaderMultiWindow.referenceChanged();
   var id=verseGlobalId(n);
   TS.actions.toggleVerse(id);
   persist();
@@ -2281,6 +2282,7 @@ function attachDictionaryStudy(){
  });
 }
 function showDictionaryPanel(){
+ if(window.PBReaderMultiWindow&&window.PBReaderMultiWindow.isActive()){window.PBReaderMultiWindow.openTool("dictionary");return;}
  trackStudyActivity("Dicionário",activeBook.name+" "+state.chapter+(state.selectedVerse?":"+state.selectedVerse:""),"Consulta ao painel de dicionário");
  var needsSplit=!state.splitStudy||!document.getElementById("pb-study-split");
  state.splitStudy=true;
@@ -2300,6 +2302,7 @@ function closeStudyPanel(){
  renderReader();
 }
 function showCommentaryPanel(verse,moduleId){
+ if(window.PBReaderMultiWindow&&window.PBReaderMultiWindow.isActive()){window.PBReaderMultiWindow.openTool("commentary",{moduleId:moduleId||"",reference:{book:state.book,chapter:state.chapter,verse:Number(verse)||state.selectedVerse||1}});return;}
  var needsSplit=!state.splitStudy||!document.getElementById("pb-study-split");
  if(Number(verse)>0)state.selectedVerse=Number(verse);
  if(moduleId)state.commentModuleId=moduleId;
@@ -2310,6 +2313,7 @@ function showCommentaryPanel(verse,moduleId){
  else window.PBSplitStudy.refresh();
 }
 function openDictionaryTerm(term,verse,codes){
+ if(window.PBReaderMultiWindow&&window.PBReaderMultiWindow.isActive()){if(Number(verse)>0)state.selectedVerse=Number(verse);window.PBReaderMultiWindow.openTool("dictionary",{term:String(term||"").trim(),codes:codes||[],reference:{book:state.book,chapter:state.chapter,verse:state.selectedVerse||1}});return;}
  var token=String(term||"").trim();
  if(!token)return;
  trackStudyActivity("Palavra pesquisada",token,"Dicionário / Strong · "+(codes||[]).toString(),{term:token,verse:Number(verse)||state.selectedVerse||0});
@@ -2353,6 +2357,7 @@ function attachSplitStudy(){
  });
 }
 function renderReader(){
+ if(window.PBReaderMultiWindow){window.PBReaderMultiWindow.unmount();window.PBReaderMultiWindow.prepareReaderState();}
  window.PBVerseComments.invalidate();
  if(state.dictionaryOpen)state.splitStudy=true;
  window.PBDictionaryStudy.destroy();
@@ -2362,7 +2367,7 @@ function renderReader(){
  (previous?'<div class="pb-reference-history"><button type="button" class="pb-reference-back" data-act="reference-back">← Voltar para '+esc(previous.label)+'</button></div>':"")+
  '<div class="reader-commandbar">'+
  '<div class="reader-top-controls"><div class="reader-brand"><span class="brand-small">✦</span><strong>Púlpito Bible</strong><span class="reader-tagline">Leitor avançado</span></div><div class="reader-passage-control"><select class="reader-select book-control" id="book-select" aria-label="Selecionar livro">'+readerOptions()+'</select><select class="reader-select chapter-control" id="chapter-select" aria-label="Selecionar capítulo">'+chapterOptions()+'</select><select class="reader-select version-control" id="version-select" aria-label="Selecionar tradução"><option value="alm1911"'+(state.version==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(state.version==="bpm"?" selected":"")+'>BPM</option><option value="onbv"'+(state.version==="onbv"?" selected":"")+'>ONBV</option><option value="nva"'+(state.version==="nva"?" selected":"")+'>NVA</option>'+window.PBModules.bibleOptions(state.version)+'</select></div><div class="reader-arrows"><button class="reader-icon" data-act="prev-chapter" aria-label="Capítulo anterior">‹</button><button class="reader-icon" data-act="next-chapter" aria-label="Próximo capítulo">›</button></div></div>'+
- '<div class="reader-quicktools"><button class="reader-tool'+(state.showStrong?" on":"")+'" data-act="toggle-strong">H/G <strong>Strong</strong><span class="mini-switch"></span></button><button class="reader-tool'+(state.splitStudy&&!state.dictionaryOpen?" on":"")+'" data-act="toggle-comments">▤ Comentários</button><button class="reader-tool'+(state.showCrossRefs?" on":"")+'" data-act="toggle-crossrefs">⇄ Referências</button><button class="reader-tool'+(state.showParallel?" on":"")+'" data-act="toggle-parallel">◫ Duas Bíblias</button><button class="reader-tool" data-act="open-dictionary">α Dicionário</button><button class="reader-tool" data-page="tutor">✧ Interpretar</button><button class="reader-tool" data-page="modulos">⇩ Instalar módulos</button></div>'+
+ '<div class="reader-quicktools"><button class="reader-tool'+(state.showStrong?" on":"")+'" data-act="toggle-strong">H/G <strong>Strong</strong><span class="mini-switch"></span></button><button class="reader-tool'+(state.splitStudy&&!state.dictionaryOpen?" on":"")+'" data-act="toggle-comments">▤ Comentários</button><button class="reader-tool'+(state.showCrossRefs?" on":"")+'" data-act="toggle-crossrefs">⇄ Referências</button><button class="reader-tool'+(state.showParallel?" on":"")+'" data-act="toggle-parallel">◫ Duas Bíblias</button><button class="reader-tool" data-act="open-dictionary">α Dicionário</button><div class="pb-mw-toolbar"><button type="button" class="reader-tool pb-mw-trigger" data-pbmw="menu" aria-haspopup="menu" aria-expanded="false" aria-label="Gerenciar janelas bíblicas" title="Dividir a leitura em até quatro janelas"><span class="pb-mw-four-icon" aria-hidden="true"><i></i><i></i><i></i><i></i></span> Janelas</button><div class="pb-mw-menu" id="pb-mw-menu" role="menu" hidden><div class="pb-mw-menu-title">DIVIDIR A LEITURA</div><button type="button" data-pbmw-layout="1"><span>1 janela</span><small>Bíblia em tela inteira</small></button><button type="button" data-pbmw-layout="2"><span>2 janelas</span><small>Bíblia + ferramenta</small></button><button type="button" data-pbmw-layout="3"><span>3 janelas</span><small>Bíblia + 2 ferramentas</small></button><button type="button" data-pbmw-layout="4"><span>4 janelas</span><small>Grade 2 × 2</small></button><div class="pb-mw-menu-divider"></div><button type="button" data-pbmw-orientation><span id="pb-mw-orientation-label">Divisão lado a lado</span><small>Alternar orientação</small></button><button type="button" data-pbmw-exit><span>Voltar ao leitor original</span><small>Restaurar painel anterior</small></button></div></div><button class="reader-tool" data-page="tutor">✧ Interpretar</button><button class="reader-tool" data-page="modulos">⇩ Instalar módulos</button></div>'+
  '<div class="reader-appearance"><label>Texto <select id="reader-mode" aria-label="Formato dos versículos"><option value="continuous"'+(state.readerMode==="continuous"?" selected":"")+'>Contínuo</option><option value="verses"'+(state.readerMode==="verses"?" selected":"")+'>Por versículo</option></select></label><label>Fundo <select id="reader-paper" aria-label="Estilo do leitor"><option value="sepia"'+(state.readerTheme==="sepia"?" selected":"")+'>Sépia</option><option value="white"'+(state.readerTheme==="white"?" selected":"")+'>Branco</option><option value="night"'+(state.readerTheme==="night"?" selected":"")+'>Noturno</option></select></label><button class="reader-icon" data-act="reader-font-down" aria-label="Diminuir fonte">A−</button><span class="reader-size">'+state.fontSize+'px</span><button class="reader-icon" data-act="reader-font-up" aria-label="Aumentar fonte">A+</button><button class="reader-tool" data-act="focus-mode">'+(state.focusMode?"◧ Mostrar menus":"⛶ Tela de leitura")+'</button></div></div>'+
  '<div class="reader-searchline"><input class="field" id="reference-search" placeholder="Ir para referência — João 15:4" aria-label="Ir para referência"><button class="btn slim" data-act="search-ref">Ir</button><span class="reader-hint">Toque em uma palavra para consultar os dicionários.</span></div>'+
  '<div id="pb-reader-window-picker" class="card card-pad" style="display:none;margin:10px 0"><strong>Adicionar janela à Bíblia</strong><div class="btn-row"><button class="btn slim" data-act="pb-reader-add" data-win-type="commentary">+ Comentário</button><button class="btn slim" data-act="pb-reader-add" data-win-type="bible">+ Outra tradução</button><button class="btn slim" data-act="pb-reader-add" data-win-type="dictionary">+ Dicionário / Strong</button><button class="btn slim" data-act="pb-reader-add" data-win-type="devotional">+ Devocional</button></div></div>'+ 
@@ -2374,6 +2379,7 @@ function renderReader(){
  if(state.splitStudy)attachSplitStudy();
  if(state.dictionaryOpen)attachDictionaryStudy();
  mountAppToolbar();
+ if(window.PBReaderMultiWindow)window.PBReaderMultiWindow.mount();
  loadChapter();
 
 }
@@ -3029,6 +3035,7 @@ function render(){
  document.querySelectorAll(".nav-item").forEach(function(el){var active=el.dataset.page===state.page;el.classList.toggle("active",active);el.setAttribute("aria-current",active?"page":"false");});
  document.getElementById("page-location").textContent=TITLES[state.page]||"Púlpito Bible";
  document.documentElement.classList.toggle("dark",state.theme==="dark");document.body.classList.toggle("reader-active",state.page==="leitura");document.body.classList.toggle("focus-reading",!!state.focusMode&&state.page==="leitura");document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");
+ if(state.page!=="leitura"&&window.PBReaderMultiWindow)window.PBReaderMultiWindow.unmount();
  if(state.page==="leitura")renderReader();
  if(state.page==="original")renderOriginal();
  if(state.page==="tutor")renderTutor();
@@ -3372,8 +3379,8 @@ document.addEventListener("click",function(ev){
  if(a==="historico-search"){historicalFilters.term=(document.getElementById("historical-search")||{}).value||"";renderHistoricalDiary();return;}
  if(a==="toggle-strong"){toggleStrongNumbers();return;}
  if(a==="reference-back"){returnToReference();return;}
- if(a==="toggle-comments"){toolbarAction("comments");return;}
- if(a==="open-dictionary"){showDictionaryPanel();return;}
+ if(a==="toggle-comments"){if(window.PBReaderMultiWindow&&window.PBReaderMultiWindow.isActive())window.PBReaderMultiWindow.openTool("commentary");else toolbarAction("comments");return;}
+ if(a==="open-dictionary"){if(window.PBReaderMultiWindow&&window.PBReaderMultiWindow.isActive())window.PBReaderMultiWindow.openTool("dictionary");else showDictionaryPanel();return;}
  if(a==="toggle-crossrefs"){state.showCrossRefs=!state.showCrossRefs;persist();renderReader();return;}
  if(a==="toggle-parallel"){state.showParallel=!state.showParallel;persist();renderReader();return;}
  if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);TS.actions.setFontSize(state.fontSize);persist();renderReader();return;}
@@ -3436,6 +3443,311 @@ document.getElementById("brand-link").addEventListener("click",function(e){e.pre
 document.getElementById("theme-toggle").addEventListener("click",function(){var next=TS.getState().theme==="dark"?"sepia":"dark";TS.actions.setTheme(next);state.theme=next==="dark"?"dark":"light";state.readerTheme=next==="dark"?"night":next;persist();render();});
 document.getElementById("font-up").addEventListener("click",function(){state.fontSize=Math.min(30,state.fontSize+2);TS.actions.setFontSize(state.fontSize);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
 document.getElementById("font-down").addEventListener("click",function(){state.fontSize=Math.max(14,state.fontSize-2);persist();document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");notify("Fonte: "+state.fontSize+"px");});
+
+/* Púlpito Bible — gerenciador integrado de até quatro janelas de estudo.
+   Reutiliza os módulos já instalados em IndexedDB e preserva o armazenamento legado. */
+var PBReaderMultiWindow=(function(){
+ "use strict";
+ var KEY="pb-reader-multi-window-v1",host=null,columns=null,stash=null,primaryId=null;
+ var serials=Object.create(null),crossrefData=null,crossrefPromise=null,saveFrame=0,scrollTimer=0;
+ var TYPES=[
+  ["bible","Bíblia / Tradução"],["commentary","Comentários"],["dictionary","Dicionários"],
+  ["strong","Strong / Original"],["crossrefs","Referências cruzadas"],["devotional","Devocional"],
+  ["plans","Planos de estudo"],["map","Mapa bíblico"],["original","Línguas originais"],["sermon","Estudo / Sermão"]
+ ];
+ function defaults(){
+  return {active:false,count:1,orientation:"horizontal",colRatio:.5,rowRatio:.5,maxPaneId:"",baseReaderState:null,panes:[
+   {id:"mw-main",type:"bible",linked:true,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,scrollTop:0,moduleId:state.version},
+   {id:"mw-commentary",type:"commentary",linked:true,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,scrollTop:0,moduleId:"",term:""},
+   {id:"mw-dictionary",type:"dictionary",linked:true,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,scrollTop:0,moduleId:"",term:""},
+   {id:"mw-crossrefs",type:"crossrefs",linked:true,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,scrollTop:0,moduleId:""}
+  ]};
+ }
+ function read(){
+  var base=defaults(),raw={};
+  try{raw=JSON.parse(localStorage.getItem(KEY)||"{}")||{};}catch(e){}
+  var cfg=Object.assign(base,raw);
+  cfg.count=Math.max(1,Math.min(4,Number(cfg.count)||1));
+  cfg.orientation=cfg.orientation==="vertical"?"vertical":"horizontal";
+  cfg.colRatio=Math.max(.25,Math.min(.75,Number(cfg.colRatio)||.5));
+  cfg.rowRatio=Math.max(.25,Math.min(.75,Number(cfg.rowRatio)||.5));
+  if(!Array.isArray(cfg.panes))cfg.panes=base.panes;
+  cfg.panes=cfg.panes.slice(0,4);
+  while(cfg.panes.length<4)cfg.panes.push(base.panes[cfg.panes.length]);
+  cfg.panes=cfg.panes.map(function(p,i){
+   var x=Object.assign({},base.panes[i],p||{});
+   if(!TYPES.some(function(t){return t[0]===x.type;}))x.type=base.panes[i].type;
+   x.id=String(x.id||base.panes[i].id);x.linked=i===0?true:x.linked!==false;
+   x.book=x.book||state.book;x.chapter=Math.max(1,Number(x.chapter)||state.chapter);
+   x.verse=Math.max(1,Number(x.verse)||state.selectedVerse||1);x.scrollTop=Math.max(0,Number(x.scrollTop)||0);
+   return x;
+  });
+  return cfg;
+ }
+ var cfg=read();
+ function save(){try{localStorage.setItem(KEY,JSON.stringify(cfg));}catch(e){notify("Não foi possível salvar o layout de janelas.");}}
+ function isActive(){return !!cfg.active;}
+ function visible(){return cfg.panes.slice(0,cfg.count);}
+ function typeLabel(type){var t=TYPES.find(function(x){return x[0]===type;});return t?t[1]:"Ferramenta";}
+ function ensureBaseState(){if(!cfg.baseReaderState)cfg.baseReaderState={splitStudy:!!state.splitStudy,dictionaryOpen:!!state.dictionaryOpen};}
+ function prepareReaderState(){
+  if(cfg.active){ensureBaseState();state.splitStudy=false;state.dictionaryOpen=false;}
+  else if(cfg.baseReaderState){state.splitStudy=!!cfg.baseReaderState.splitStudy;state.dictionaryOpen=!!cfg.baseReaderState.dictionaryOpen;cfg.baseReaderState=null;save();}
+ }
+ function ensureCount(n){
+  cfg.count=Math.max(1,Math.min(4,Number(n)||1));
+  while(cfg.panes.length<cfg.count){
+   var i=cfg.panes.length,d=defaults().panes[i];
+   cfg.panes.push(Object.assign({},d,{id:"mw-"+Date.now().toString(36)+"-"+i,book:state.book,chapter:state.chapter,verse:state.selectedVerse||1}));
+  }
+ }
+ function versionOptions(selected){
+  var out=[["alm1911","Almeida 1911"],["bpm","BPM"],["onbv","ONBV"],["nva","NVA"]];
+  var installed=window.PBModules&&PBModules.getInstalled?PBModules.getInstalled().filter(function(m){return m.type==="bible";}):[];
+  installed.forEach(function(m){out.push(["local:"+m.id,(m.abbreviation||m.name)+" · instalada"]);});
+  if(selected&&!out.some(function(x){return x[0]===selected;}))out.push([selected,selected]);
+  return out;
+ }
+ function moduleOptions(type){
+  var kind=type==="commentary"?"commentary":"dictionary";
+  return window.PBModules&&PBModules.getInstalled?PBModules.getInstalled().filter(function(m){return m.type===kind;}):[];
+ }
+ function bookOptions(selected){return books.map(function(b){return '<option value="'+esc(b.slug)+'"'+(selected===b.slug?" selected":"")+'>'+esc(b.name)+'</option>';}).join("");}
+ function referenceFor(pane){
+  if(pane.linked)return {book:state.book,chapter:state.chapter,verse:Math.max(1,Number(state.selectedVerse)||1),name:activeBook.name};
+  var b=books.find(function(x){return x.slug===pane.book;})||activeBook;
+  return {book:pane.book||state.book,chapter:Math.max(1,Number(pane.chapter)||1),verse:Math.max(1,Number(pane.verse)||1),name:b.name};
+ }
+ function referenceControls(pane){
+  if(pane.id===primaryId||pane.linked)return "";
+  return '<div class="pb-mw-ref-controls"><select aria-label="Livro da janela" data-pbmw-ref="book" data-pane-id="'+esc(pane.id)+'">'+bookOptions(pane.book)+'</select><input aria-label="Capítulo" type="number" min="1" max="150" value="'+pane.chapter+'" data-pbmw-ref="chapter" data-pane-id="'+esc(pane.id)+'"><input aria-label="Versículo" type="number" min="1" max="176" value="'+pane.verse+'" data-pbmw-ref="verse" data-pane-id="'+esc(pane.id)+'"></div>';
+ }
+ function paneMarkup(pane,index){
+  var opts=TYPES.map(function(t){return '<option value="'+t[0]+'"'+(pane.type===t[0]?" selected":"")+'>'+t[1]+'</option>';}).join("");
+  var sync=pane.id===primaryId?'<button type="button" class="pb-mw-control is-locked" disabled title="A Bíblia principal acompanha a leitura">🔗</button>':
+   '<button type="button" class="pb-mw-control'+(pane.linked?" is-on":"")+'" data-pbmw-action="sync" data-pane-id="'+esc(pane.id)+'" aria-label="Alternar sincronização" title="'+(pane.linked?"Sincronizada":"Referência independente")+'">'+(pane.linked?"🔗":"⛓")+'</button>';
+  return '<section class="pb-mw-pane" data-pbmw-pane="'+esc(pane.id)+'" data-pane-index="'+(index+1)+'"><header class="pb-mw-pane-head"><select class="pb-mw-type" data-pbmw-type data-pane-id="'+esc(pane.id)+'" aria-label="Conteúdo da janela">'+opts+'</select><div class="pb-mw-pane-actions">'+sync+
+   '<button type="button" class="pb-mw-control" data-pbmw-action="max" data-pane-id="'+esc(pane.id)+'" aria-label="Maximizar ou restaurar" title="Maximizar">□</button>'+
+   '<button type="button" class="pb-mw-control" data-pbmw-action="swap" data-pane-id="'+esc(pane.id)+'" aria-label="Trocar posição" title="Trocar posição">⇄</button>'+
+   '<button type="button" class="pb-mw-control" data-pbmw-action="close" data-pane-id="'+esc(pane.id)+'" aria-label="Fechar janela" title="Fechar">×</button></div></header>'+
+   '<div class="pb-mw-pane-body" data-pbmw-body="'+esc(pane.id)+'">'+referenceControls(pane)+'<div class="pb-mw-pane-loading">Preparando '+esc(typeLabel(pane.type))+'…</div></div></section>';
+ }
+ function setGrid(){
+  if(!host)return;
+  host.dataset.count=String(cfg.count);host.dataset.orientation=cfg.orientation;
+  host.style.setProperty("--pb-mw-col-ratio",Math.round(cfg.colRatio*100)+"%");
+  host.style.setProperty("--pb-mw-row-ratio",Math.round(cfg.rowRatio*100)+"%");
+  host.style.setProperty("--pb-mw-count",String(cfg.count));
+  host.classList.toggle("pb-mw-maximized",!!cfg.maxPaneId);
+  host.querySelectorAll(".pb-mw-pane").forEach(function(el){el.classList.toggle("is-maximized",el.dataset.pbmwPane===cfg.maxPaneId);});
+ }
+ function mount(){
+  if(!cfg.active||!document.querySelector(".reader-screen"))return;
+  var screen=document.querySelector(".reader-screen"),found=screen.querySelector(".reader-columns");
+  if(!found)return;
+  if(host&&host.isConnected){render();return;}
+  columns=found;var parent=columns.parentNode;
+  host=document.createElement("section");host.id="pb-reader-multi-host";host.className="pb-mw-grid";host.setAttribute("aria-label","Janelas bíblicas sincronizadas");
+  parent.insertBefore(host,columns);
+  stash=document.createElement("div");stash.className="pb-mw-reader-stash";stash.hidden=true;stash.appendChild(columns);
+  render();bindResize();
+ }
+ function unmount(){
+  if(host&&host.isConnected){if(columns&&host.contains(columns)&&host.parentNode)host.parentNode.insertBefore(columns,host);host.remove();}
+  if(scrollTimer)clearTimeout(scrollTimer);
+  host=null;columns=null;stash=null;primaryId=null;serials=Object.create(null);
+ }
+ function render(){
+  if(!host||!host.isConnected)return;
+  var panes=visible();if(!panes.length){ensureCount(1);panes=visible();}
+  primaryId=(panes.find(function(p){return p.type==="bible";})||{}).id||null;
+  if(columns&&stash)stash.appendChild(columns);
+  host.replaceChildren(stash);
+  panes.forEach(function(pane,index){host.insertAdjacentHTML("beforeend",paneMarkup(pane,index));});
+  var colHandle=document.createElement("div");colHandle.className="pb-mw-resizer pb-mw-resizer-col";colHandle.dataset.pbmwResize="col";colHandle.setAttribute("role","separator");colHandle.setAttribute("aria-label","Redimensionar colunas");
+  var rowHandle=document.createElement("div");rowHandle.className="pb-mw-resizer pb-mw-resizer-row";rowHandle.dataset.pbmwResize="row";rowHandle.setAttribute("role","separator");rowHandle.setAttribute("aria-label","Redimensionar linhas");
+  host.append(colHandle,rowHandle);setGrid();panes.forEach(function(pane){renderPane(pane);});
+ }
+ function moduleSelect(pane,kind){
+  var list=moduleOptions(kind),value=pane.moduleId||"";
+  return '<label class="pb-mw-field-label">Módulo<select class="pb-mw-field" data-pbmw-module data-pane-id="'+esc(pane.id)+'"><option value="">'+(kind==="commentary"?"Todos os comentários":"Todos os dicionários")+'</option>'+
+   list.map(function(m){return '<option value="'+esc(m.id)+'"'+(value===m.id?" selected":"")+'>'+esc(m.name)+'</option>';}).join("")+'</select></label>';
+ }
+ function termField(pane,placeholder){
+  return '<div class="pb-mw-query"><input class="pb-mw-field" type="search" data-pbmw-term data-pane-id="'+esc(pane.id)+'" value="'+esc(pane.term||"")+'" placeholder="'+esc(placeholder)+'"><button type="button" data-pbmw-action="search" data-pane-id="'+esc(pane.id)+'">Consultar</button></div>';
+ }
+ function paneResult(body,serial,html){
+  if(body&&body.isConnected&&serials[body.dataset.pbmwBody]===serial){
+   var old=body.querySelector(".pb-mw-result");if(old)old.innerHTML=html;
+   else body.insertAdjacentHTML("beforeend",'<div class="pb-mw-result">'+html+'</div>');
+  }
+ }
+ async function renderPane(pane){
+  var body=host&&host.querySelector('[data-pbmw-body="'+pane.id+'"]');if(!body)return;
+  var serial=serials[pane.id]=(serials[pane.id]||0)+1,ref=referenceFor(pane),savedScroll=Number(pane.scrollTop)||0;
+  body.innerHTML=referenceControls(pane)+'<div class="pb-mw-ref-label">'+esc(ref.name+" "+ref.chapter+":"+ref.verse)+'</div><div class="pb-mw-result"><div class="pb-mw-pane-loading">Carregando…</div></div>';
+  if(pane.type==="bible"&&pane.id===primaryId&&columns){body.innerHTML="";body.appendChild(columns);body.scrollTop=savedScroll;return;}
+  if(pane.type==="bible"){
+   var version=pane.moduleId||"bpm",opts=versionOptions(version);
+   body.insertAdjacentHTML("afterbegin",'<label class="pb-mw-field-label">Tradução<select class="pb-mw-field" data-pbmw-module data-pane-id="'+esc(pane.id)+'">'+opts.map(function(x){return '<option value="'+esc(x[0])+'"'+(x[0]===version?" selected":"")+'>'+esc(x[1])+'</option>';}).join("")+'</select></label>');
+   try{
+    var data;
+    if(version.startsWith("local:"))data=await PBModules.getChapter(version,ref.book,ref.chapter);
+    else{var response=await fetch(API+"/"+version+"/"+ref.book+"/"+ref.chapter);if(!response.ok)throw Error("Tradução indisponível");var json=await response.json(),d=json.data||{};data={verses:d.verses||[],copyright:json.meta&&json.meta.copyright||""};}
+    var html=(data.verses||[]).map(function(v,i){
+     var n=Number(v.number||v.verse)||i+1,txt=typeof v==="string"?v:(v.text||v.content||"");
+     var rendered=version.startsWith("local:")?PBModules.renderVerse(txt,ref.book,state.showStrong):annotateVerse(txt,n);
+     return '<p class="pb-mw-bible-verse"><button type="button" data-pbmw-open-verse="'+n+'" data-book="'+esc(ref.book)+'" data-chapter="'+ref.chapter+'">'+n+'</button> '+PBConnections.wrapHtml(rendered)+'</p>';
+    }).join("");
+    paneResult(body,serial,html+'<small class="pb-mw-credit">'+esc(data.copyright||"Conteúdo da tradução selecionada")+'</small>');
+   }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
+  }else if(pane.type==="commentary"){
+   body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"commentary"));
+   try{var rows=await PBModules.getCommentaries(ref.book,ref.chapter,ref.verse,pane.moduleId||undefined);
+    paneResult(body,serial,rows.length?rows.map(function(x){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+'</strong><p>'+esc(x.text||"")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Nenhum comentário disponível para esta passagem.</p>');
+   }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
+  }else if(pane.type==="dictionary"){
+   body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"dictionary")+termField(pane,"Palavra ou expressão"));
+   if(!pane.term)paneResult(body,serial,'<p class="pb-mw-empty">Digite uma palavra para consultar os dicionários instalados.</p>');
+   else try{var entries=await PBModules.getDictionaryEntry(pane.term,pane.moduleId||undefined);
+    paneResult(body,serial,entries.length?entries.map(function(x){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||x.term||pane.term)+'</strong><p>'+esc(x.text||x.definition||"")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Nenhum verbete encontrado nos módulos instalados.</p>');
+   }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
+  }else if(pane.type==="strong"||pane.type==="original"){
+   body.insertAdjacentHTML("afterbegin",termField(pane,"Código Strong (G25/H3068) ou palavra"));
+   var term=String(pane.term||"").trim().toUpperCase(),match=term.match(/^[GH]0*\\d{1,5}[A-Z]?$/);
+   if(match)paneResult(body,serial,renderStrongEntry(term,ref));
+   else{var relevant=words.filter(function(w){return String(w.book||"").indexOf(ref.name+" "+ref.chapter+":")===0;});
+    paneResult(body,serial,relevant.length?relevant.map(function(w){return '<article class="pb-mw-entry"><strong>'+esc(w.label)+' · '+esc(w.code)+'</strong><p>'+esc(w.reading||"")+' — '+esc(w.meaning||"")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Não há formas originais catalogadas para este capítulo. Informe um código Strong para consultar o léxico.</p>');
+   }
+  }else if(pane.type==="crossrefs"){
+   try{
+    if(!crossrefData){if(!crossrefPromise)crossrefPromise=fetch("./pulpito-crossrefs.json").then(function(r){if(!r.ok)throw Error("Base de referências indisponível");return r.json();}).then(function(d){crossrefData=d;return d;}).catch(function(e){crossrefPromise=null;throw e;});crossrefData=await crossrefPromise;}
+    var bookIndex=booksFallback.findIndex(function(b){return b.slug===ref.book;});
+    var rows=(crossrefData.references||[]).filter(function(x){return x.s&&x.s[0]===bookIndex+1&&x.s[1]===ref.chapter&&x.s[2]===ref.verse;});
+    paneResult(body,serial,rows.length?rows.map(function(row){return '<article class="pb-mw-entry"><strong>'+esc(row.d||"Referência")+'</strong><div>'+((row.t||[]).map(function(t){var target=booksFallback[t[0]-1];if(!target)return "";return '<button type="button" class="pb-mw-ref-link" data-pbmw-open-ref data-book="'+esc(target.slug)+'" data-chapter="'+Number(t[1])+'" data-verse="'+Number(t[2])+'">'+esc(target.name+" "+t[1]+":"+t[2]+(t[3]&&t[3]!==t[2]?"–"+t[3]:""))+'</button>';}).join(""))+'</div></article>';}).join(""):'<p class="pb-mw-empty">Nenhuma referência cruzada catalogada para este versículo.</p>');
+   }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
+  }else if(pane.type==="devotional"){
+   try{var modules=await pbDevAll(),items=modules.flatMap(function(m){return (m.entries||[]).filter(function(e){return e.book===ref.book&&Number(e.chapter)===ref.chapter;}).map(function(e){return {m:m,e:e};});});
+    paneResult(body,serial,items.length?items.map(function(x){return '<article class="pb-mw-entry"><strong>'+esc(x.e.title||x.m.title)+'</strong><p>'+esc(x.e.text||"")+'</p>'+(x.e.prayer?'<p><b>Oração:</b> '+esc(x.e.prayer)+'</p>':"")+'</article>';}).join(""):'<p class="pb-mw-empty">Nenhum devocional instalado para este capítulo.</p>');
+   }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
+  }else if(pane.type==="plans"){
+   var plans=pb2Read().plans||[],matching=plans.filter(function(p){return (p.references||[]).some(function(x){return x===ref.name+" "+ref.chapter;});});
+   paneResult(body,serial,matching.length?matching.map(function(p){return '<article class="pb-mw-entry"><strong>'+esc(p.title)+'</strong><p>'+((p.done||{})[ref.name+" "+ref.chapter]?"Capítulo concluído":"Capítulo pendente")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Nenhum plano de estudo inclui este capítulo.</p>');
+  }else if(pane.type==="map"){
+   paneResult(body,serial,'<p>Explore as conexões temáticas e referências relacionadas à passagem.</p><button type="button" class="pb-mw-primary" data-pbmw-action="map">Abrir Mapa Bíblico</button>');
+  }else if(pane.type==="sermon"){
+   paneResult(body,serial,'<article class="pb-mw-entry"><strong>'+esc(state.sermon.title||"Sermão atual")+'</strong><p>'+esc(state.sermon.reference||"")+'</p><p>'+esc(state.sermon.context||"Adicione notas e observações ao sermão.")+'</p></article><button type="button" class="pb-mw-primary" data-pbmw-action="insert-reference">Inserir referência no sermão</button>');
+  }
+  if(body.isConnected)body.scrollTop=savedScroll;
+ }
+ function saveScroll(pane,body){
+  pane.scrollTop=body.scrollTop;if(saveFrame)return;
+  saveFrame=requestAnimationFrame(function(){saveFrame=0;save();});
+ }
+ function setLayout(n){
+  if(!cfg.active){ensureBaseState();cfg.active=true;}
+  ensureCount(n);cfg.maxPaneId="";
+  visible().forEach(function(p,i){if(i>0&&p.linked){p.book=state.book;p.chapter=state.chapter;p.verse=state.selectedVerse||1;}});
+  save();renderReader();
+ }
+ function exit(){cfg.active=false;cfg.maxPaneId="";save();prepareReaderState();renderReader();}
+ function openTool(type,payload){
+  if(!cfg.active){ensureBaseState();cfg.active=true;}
+  var panes=visible(),pane=panes.find(function(p,i){return i>0&&p.type===type;});
+  if(!pane){if(cfg.count<4){ensureCount(cfg.count+1);pane=cfg.panes[cfg.count-1];}else pane=panes[panes.length-1];pane.type=type;}
+  if(payload){if(payload.term)pane.term=payload.term;if(payload.codes)pane.codes=payload.codes;if(payload.moduleId)pane.moduleId=payload.moduleId;
+   if(payload.reference){pane.book=payload.reference.book||state.book;pane.chapter=payload.reference.chapter||state.chapter;pane.verse=payload.reference.verse||state.selectedVerse||1;}
+   if(pane.linked){pane.book=state.book;pane.chapter=state.chapter;pane.verse=state.selectedVerse||1;}
+  }
+  save();renderReader();
+ }
+ function referenceChanged(){
+  if(!cfg.active||!host||!host.isConnected)return;
+  visible().forEach(function(p){if(p.id!==primaryId&&p.linked)renderPane(p);});
+ }
+ function bindResize(){
+  if(!host)return;
+  host.addEventListener("pointerdown",function(event){
+   var handle=event.target.closest("[data-pbmw-resize]");if(!handle)return;
+   event.preventDefault();var axis=handle.dataset.pbmwResize,rect=host.getBoundingClientRect();
+   function move(e){var ratio=axis==="col"?(e.clientX-rect.left)/Math.max(1,rect.width):(e.clientY-rect.top)/Math.max(1,rect.height);ratio=Math.max(.25,Math.min(.75,ratio));if(axis==="col")cfg.colRatio=ratio;else cfg.rowRatio=ratio;setGrid();}
+   function finish(){host.removeEventListener("pointermove",move);host.removeEventListener("pointerup",finish);host.removeEventListener("pointercancel",finish);save();}
+   host.addEventListener("pointermove",move);host.addEventListener("pointerup",finish,{once:true});host.addEventListener("pointercancel",finish,{once:true});
+  });
+  host.addEventListener("scroll",function(event){
+   var body=event.target;if(!body||!body.matches||!body.matches(".pb-mw-pane-body"))return;
+   var pane=cfg.panes.find(function(p){return p.id===body.dataset.pbmwBody;});if(pane)saveScroll(pane,body);
+  },true);
+  host.addEventListener("scroll",function(event){
+   var body=event.target;if(!body||!body.matches||!body.matches(".pb-mw-pane-body")||!columns||!columns.contains(body.querySelector("#chapter-body")))return;
+   if(scrollTimer)clearTimeout(scrollTimer);
+   scrollTimer=setTimeout(function(){
+    if(!host||!host.isConnected)return;
+    var rect=body.getBoundingClientRect(),line=rect.top+Math.min(50,rect.height/3),items=columns.querySelectorAll("#chapter-body .verse-line[data-verse]"),chosen=0,best=Infinity;
+    items.forEach(function(item){var r=item.getBoundingClientRect();if(r.bottom<rect.top||r.top>rect.bottom)return;var distance=Math.abs(r.top-line);if(distance<best){best=distance;chosen=Number(item.dataset.verse)||0;}});
+    if(chosen&&chosen!==state.selectedVerse){state.selectedVerse=chosen;persist();PBStudyBridge.selectVerse(state.book,state.chapter,chosen,"multi-window-scroll");var label=document.getElementById("selected-reference");if(label)label.textContent=ref();referenceChanged();}
+   },120);
+  },true);
+ }
+ function closePane(id){
+  var index=cfg.panes.findIndex(function(p){return p.id===id;});
+  if(index<0||cfg.count<=1){notify("Mantenha ao menos uma janela aberta.");return;}
+  cfg.panes.splice(index,1);
+  while(cfg.panes.length<4){var d=defaults().panes[cfg.panes.length];cfg.panes.push(Object.assign({},d,{id:"mw-"+Date.now().toString(36)+"-"+cfg.panes.length}));}
+  cfg.count=Math.max(1,cfg.count-1);cfg.maxPaneId="";
+  if(!visible().some(function(p){return p.type==="bible";}))visible()[0].type="bible";
+  save();render();
+ }
+ function actionClick(event){
+  var target=event.target.closest("[data-pbmw],[data-pbmw-layout],[data-pbmw-orientation],[data-pbmw-exit],[data-pbmw-action],[data-pbmw-open-ref],[data-pbmw-open-verse]");
+  if(!target)return;
+  if(target.closest("#pb-reader-multi-host")||target.closest(".pb-mw-toolbar")||target.hasAttribute("data-pbmw-open-ref")||target.hasAttribute("data-pbmw-open-verse")){
+   if(target.dataset.pbmw==="menu"){var menu=document.getElementById("pb-mw-menu");if(menu){menu.hidden=!menu.hidden;target.setAttribute("aria-expanded",String(!menu.hidden));}event.preventDefault();return;}
+   if(target.dataset.pbmwLayout){setLayout(Number(target.dataset.pbmwLayout));var menu2=document.getElementById("pb-mw-menu");if(menu2)menu2.hidden=true;return;}
+   if(target.dataset.pbmwOrientation){cfg.orientation=cfg.orientation==="horizontal"?"vertical":"horizontal";save();setGrid();var label=document.getElementById("pb-mw-orientation-label");if(label)label.textContent=cfg.orientation==="horizontal"?"Divisão lado a lado":"Divisão empilhada";return;}
+   if(target.hasAttribute("data-pbmw-exit")){exit();return;}
+   if(target.hasAttribute("data-pbmw-open-ref")){setRef(target.dataset.book,Number(target.dataset.chapter),Number(target.dataset.verse));return;}
+   if(target.hasAttribute("data-pbmw-open-verse")){setRef(target.dataset.book||state.book,Number(target.dataset.chapter)||state.chapter,Number(target.dataset.pbmwOpenVerse));return;}
+   var act=target.dataset.pbmwAction,id=target.dataset.paneId,pane=cfg.panes.find(function(p){return p.id===id;});
+   if(act==="sync"&&pane){pane.linked=!pane.linked;if(pane.linked){pane.book=state.book;pane.chapter=state.chapter;pane.verse=state.selectedVerse||1;}save();render();return;}
+   if(act==="max"&&pane){cfg.maxPaneId=cfg.maxPaneId===id?"":id;save();setGrid();return;}
+   if(act==="swap"&&pane){var i=cfg.panes.findIndex(function(p){return p.id===id;}),j=i+1<cfg.count?i+1:i-1;if(j>=0){var tmp=cfg.panes[i];cfg.panes[i]=cfg.panes[j];cfg.panes[j]=tmp;save();render();}return;}
+   if(act==="close"&&pane){closePane(id);return;}
+   if(act==="search"&&pane){var input=host.querySelector('[data-pbmw-term][data-pane-id="'+id+'"]');pane.term=input?input.value.trim():pane.term;save();renderPane(pane);return;}
+   if(act==="map"){page("map");return;}
+   if(act==="insert-reference"){state.sermon.context+=(state.sermon.context?"\n\n":"")+ref();persist();notify("Referência inserida no sermão.");return;}
+  }
+ }
+ function actionChange(event){
+  var t=event.target;
+  if(t.matches("[data-pbmw-type]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){p.type=t.value;if(p.type==="bible"&&!p.moduleId)p.moduleId=state.parallelVersion||"bpm";save();render();}return;}
+  if(t.matches("[data-pbmw-module]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){p.moduleId=t.value;save();renderPane(p);}return;}
+  if(t.matches("[data-pbmw-ref]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){p[t.dataset.pbmwRef]=t.dataset.pbmwRef==="book"?t.value:Number(t.value)||1;p.linked=false;save();renderPane(p);}return;}
+  if(t.matches("[data-pbmw-term]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){p.term=t.value;save();}}
+ }
+ function actionInput(event){var t=event.target;if(!t.matches("[data-pbmw-term]"))return;var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p)p.term=t.value;}
+ function selfTest(){
+  var checks=[1,2,3,4].map(function(n){return {test:"layout-"+n,passed:n>=1&&n<=4};});
+  checks.push({test:"minimum-one-pane",passed:Math.max(1,Math.min(4,0))===1});
+  checks.push({test:"independent-sync-flags",passed:visible().every(function(p,i){return i===0||typeof p.linked==="boolean";})});
+  return {passed:checks.every(function(x){return x.passed;}),checks:checks};
+ }
+ document.addEventListener("click",actionClick);
+ document.addEventListener("change",actionChange);
+ document.addEventListener("input",actionInput);
+ document.addEventListener("click",function(event){if(!event.target.closest(".pb-mw-toolbar")&&!event.target.closest("#pb-mw-menu")){var menu=document.getElementById("pb-mw-menu");if(menu)menu.hidden=true;}});
+ return {isActive:isActive,prepareReaderState:prepareReaderState,mount:mount,unmount:unmount,setLayout:setLayout,openTool:openTool,referenceChanged:referenceChanged,selfTest:selfTest,getState:function(){return JSON.parse(JSON.stringify(cfg));}};
+})();
+window.PBReaderMultiWindow=PBReaderMultiWindow;
+
+/* Multi-window controls retain the original Púlpito Bible color palette. */
+(function(){
+ var css="\n.pb-mw-toolbar{position:relative;display:inline-flex;align-items:center}\n.pb-mw-trigger{display:inline-flex;align-items:center;gap:7px}\n.pb-mw-four-icon{width:16px;height:16px;display:inline-grid;grid-template-columns:repeat(2,1fr);grid-template-rows:repeat(2,1fr);gap:2px;flex:none}\n.pb-mw-four-icon i{display:block;background:currentColor;border-radius:1px}\n.pb-mw-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:1500;width:min(260px,88vw);padding:9px;background:#fff;border:1px solid #cbd5d1;border-radius:10px;box-shadow:0 12px 34px #142c3030;color:#203338}\n.pb-mw-menu[hidden]{display:none!important}\n.pb-mw-menu-title{padding:5px 8px 8px;font-size:10px;font-weight:800;letter-spacing:.12em;color:#738184}\n.pb-mw-menu button{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 9px;border:0;border-radius:7px;background:transparent;color:inherit;text-align:left;font-size:13px}\n.pb-mw-menu button:hover,.pb-mw-menu button:focus-visible{background:#eaf1ef}\n.pb-mw-menu button small{color:#7a898a;font-size:10px}\n.pb-mw-menu .pb-mw-menu-divider{height:1px;background:#e3e9e6;margin:6px 2px}\n#pb-reader-multi-host{position:relative;display:grid;gap:7px;width:100%;height:clamp(500px,calc(100dvh - 330px),980px);min-height:500px;margin:12px 0 18px;overflow:hidden;grid-template-columns:minmax(0,var(--pb-mw-col-ratio,50%)) minmax(0,1fr);grid-template-rows:minmax(0,var(--pb-mw-row-ratio,50%)) minmax(0,1fr);background:#28343a;border:1px solid #6c777d;border-radius:7px;padding:7px}\n#pb-reader-multi-host[data-count=\"1\"]{display:block;height:auto;min-height:0;overflow:visible;margin:0;border:0;border-radius:0;background:transparent;padding:0}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"horizontal\"]{grid-template-columns:minmax(0,var(--pb-mw-col-ratio,50%)) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"vertical\"]{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,var(--pb-mw-row-ratio,50%)) minmax(0,1fr)}\n#pb-reader-multi-host[data-count=\"3\"] .pb-mw-pane[data-pane-index=\"1\"]{grid-area:1/1/3/2}\n#pb-reader-multi-host[data-count=\"3\"] .pb-mw-pane[data-pane-index=\"2\"]{grid-area:1/2/2/3}\n#pb-reader-multi-host[data-count=\"3\"] .pb-mw-pane[data-pane-index=\"3\"]{grid-area:2/2/3/3}\n#pb-reader-multi-host[data-count=\"4\"] .pb-mw-pane[data-pane-index=\"1\"]{grid-area:1/1/2/2}\n#pb-reader-multi-host[data-count=\"4\"] .pb-mw-pane[data-pane-index=\"2\"]{grid-area:1/2/2/3}\n#pb-reader-multi-host[data-count=\"4\"] .pb-mw-pane[data-pane-index=\"3\"]{grid-area:2/1/3/2}\n#pb-reader-multi-host[data-count=\"4\"] .pb-mw-pane[data-pane-index=\"4\"]{grid-area:2/2/3/3}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"vertical\"] .pb-mw-pane[data-pane-index=\"1\"]{grid-area:1/1/2/2}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"vertical\"] .pb-mw-pane[data-pane-index=\"2\"]{grid-area:2/1/3/2}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"horizontal\"] .pb-mw-pane[data-pane-index=\"1\"]{grid-area:1/1/2/2}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"horizontal\"] .pb-mw-pane[data-pane-index=\"2\"]{grid-area:1/2/2/3}\n#pb-reader-multi-host[data-count=\"1\"] .pb-mw-pane{border:0;border-radius:0;overflow:visible;background:transparent}\n#pb-reader-multi-host[data-count=\"1\"] .pb-mw-pane-head{display:none}\n#pb-reader-multi-host[data-count=\"1\"] .pb-mw-pane-body{overflow:visible;padding:0}\n.pb-mw-reader-stash{display:none!important}\n.pb-mw-pane{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;background:#f9f7f0;color:#27343a;border:1px solid #7b8589;border-radius:4px}\n.pb-mw-pane-head{display:flex;align-items:center;justify-content:space-between;gap:5px;min-height:38px;padding:4px 6px;background:#343d44;color:#f5f7f8;border-bottom:1px solid #56616a}\n.pb-mw-type{min-width:0;max-width:65%;height:29px;padding:3px 6px;border:1px solid #647078;border-radius:4px;background:#29343b;color:#fff;font-size:11px;font-weight:700}\n.pb-mw-pane-actions{display:flex;align-items:center;gap:2px;flex:none}\n.pb-mw-control{width:27px;height:27px;padding:0;border:1px solid #66727a;border-radius:4px;background:#414c54;color:#fff;font-size:14px;line-height:1}\n.pb-mw-control.is-on{color:#f6d58c;border-color:#c9a65f}\n.pb-mw-control.is-locked{opacity:.55}\n.pb-mw-pane-body{min-width:0;min-height:0;flex:1;overflow:auto;overscroll-behavior:contain;padding:8px;font-size:12px;line-height:1.55}\n.pb-mw-pane-body .reader-columns{display:block!important;width:100%;max-width:none;margin:0;min-height:0}\n.pb-mw-pane-body .reader-paper{width:100%;max-width:none;min-height:0;margin:0;border:0;border-radius:0;box-shadow:none;padding:0}\n.pb-mw-pane-body .reader-paper-head{position:sticky;top:0;z-index:3;padding:9px 12px;gap:8px}\n.pb-mw-pane-body .reader-paper-head h1{font-size:18px}\n.pb-mw-pane-body .reader-scripture{min-height:0;padding:10px 12px 18px}\n.pb-mw-pane-body .reader-note,.pb-mw-pane-body .reader-paper.second{display:none!important}\n.pb-mw-pane-body #chapter-body{max-width:100%;overflow-wrap:anywhere}\n.pb-mw-pane-body .pb-mw-ref-controls{display:flex;gap:5px;margin:0 0 7px}\n.pb-mw-ref-controls select,.pb-mw-ref-controls input{min-width:0;width:100%;height:30px;padding:3px 5px;border:1px solid #cbd3d0;border-radius:4px;background:#fff;color:#27343a;font-size:11px}\n.pb-mw-ref-controls input{max-width:64px}\n.pb-mw-ref-label{font-size:10px;font-weight:800;color:#17614a;letter-spacing:.04em;margin:0 0 7px}\n.pb-mw-field-label{display:grid;gap:3px;margin:0 0 7px;font-size:10px;color:#68777a;font-weight:700}\n.pb-mw-field{min-width:0;width:100%;height:31px;padding:5px 7px;border:1px solid #cbd3d0;border-radius:5px;background:#fff;color:#243438;font-size:12px}\n.pb-mw-query{display:flex;gap:5px;margin:4px 0 8px}\n.pb-mw-query button,.pb-mw-primary{border:1px solid #164954;border-radius:5px;background:#164954;color:#fff;padding:6px 9px;font-size:11px;white-space:nowrap}\n.pb-mw-result{min-width:0}\n.pb-mw-entry{padding:8px 2px;border-bottom:1px solid #e2e7e3}\n.pb-mw-entry strong{color:#16534d}\n.pb-mw-entry p{margin:4px 0;white-space:pre-wrap;overflow-wrap:anywhere}\n.pb-mw-empty,.pb-mw-pane-loading{color:#778487;font-size:11px}\n.pb-mw-bible-verse{margin:0 0 7px;font:13px/1.65 Georgia,serif}\n.pb-mw-bible-verse button{border:0;background:transparent;color:#17614a;font-weight:800;padding:0 4px 0 0}\n.pb-mw-ref-link{display:inline-block;border:0;background:transparent;color:#17614a;text-decoration:underline;padding:4px 6px;font-size:11px}\n.pb-mw-credit{display:block;margin-top:9px;color:#899391;font-size:9px}\n.pb-mw-resizer{position:absolute;z-index:8;touch-action:none;user-select:none;background:#e2c27e88}\n.pb-mw-resizer-col{top:7px;bottom:7px;left:calc(var(--pb-mw-col-ratio,50%) - 3px);width:6px;cursor:col-resize}\n.pb-mw-resizer-row{left:7px;right:7px;top:calc(var(--pb-mw-row-ratio,50%) - 3px);height:6px;cursor:row-resize}\n#pb-reader-multi-host[data-count=\"1\"] .pb-mw-resizer{display:none}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"horizontal\"] .pb-mw-resizer-row{display:none}\n#pb-reader-multi-host[data-count=\"2\"][data-orientation=\"vertical\"] .pb-mw-resizer-col{display:none}\n#pb-reader-multi-host.pb-mw-maximized .pb-mw-pane:not(.is-maximized){display:none}\n#pb-reader-multi-host.pb-mw-maximized .pb-mw-pane.is-maximized{grid-area:1/1/3/3!important}\n#pb-reader-multi-host .pb-mw-pane.is-maximized .pb-mw-pane-body{font-size:14px}\n#pb-reader-multi-host .pb-mw-pane.is-maximized .pb-mw-pane-body .reader-paper{max-width:900px;margin:0 auto}\n@media(max-width:720px) and (orientation:portrait){\n #pb-reader-multi-host:not([data-count=\"1\"]){height:auto;min-height:0;max-height:none;overflow:visible;grid-template-columns:minmax(0,1fr)!important;grid-template-rows:none!important}\n #pb-reader-multi-host:not([data-count=\"1\"]) .pb-mw-pane{grid-area:auto!important;min-height:260px;max-height:62vh}\n #pb-reader-multi-host .pb-mw-resizer{display:none!important}\n .pb-mw-type{max-width:58%}\n}\n";
+ var style=document.getElementById("pb-reader-multi-window-styles");
+ if(!style){style=document.createElement("style");style.id="pb-reader-multi-window-styles";document.head.appendChild(style);}
+ style.textContent=css;
+})();
+
 render();readBooks();
 
 
