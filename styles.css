@@ -879,3 +879,25 @@ body.pb-toolbar-dark .reader-scripture .pb-verse-comment-indicator{
 .pb-translation-options{display:grid;gap:8px}
 .mtb-navigate>select[hidden]{display:none!important}
 button.mtb-version{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+
+
+/* Púlpito Bible: clearer verse emphasis and original-language study text. */
+.reader-scripture .verse-line .verse-num,
+#chapter-body .verse-line .verse-num{
+  color:#a67820 !important;
+  font-weight:800 !important;
+  opacity:1 !important;
+}
+#chapter-body .verse-line{
+  font-weight:550;
+}
+.pb-split-entry-text .pb-original-language{
+  color:#087f69;
+  font-weight:700;
+  background:rgba(8,127,105,.075);
+  border-radius:2px;
+}
+.pb-split-entry-text .pb-hebrew{
+  color:#9653a5;
+  background:rgba(150,83,165,.08);
+}
