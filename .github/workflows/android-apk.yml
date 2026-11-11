@@ -16,6 +16,7 @@ on:
 # Rebuild signed APK with module text decoding fix (2026-11-10).
 # Requested fresh signed APK build, including offline cross references.
 # Rebuild requested 2026-11-11: Historical Study Diary beside Sermão.
+# Build request: advanced Historical Study Diary with offline search and filters (2026-11-11).
 permissions:
   contents: read
 jobs:
