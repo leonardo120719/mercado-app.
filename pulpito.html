@@ -88,7 +88,7 @@
  "use strict";
  var isNative=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform());
  if(!isNative)return;
- var releaseEndpoint="https://pulpito-bible.onrender.com/pulpito-release.json";
+ var releaseEndpoint="https://raw.githubusercontent.com/leonardo120719/mercado-app./pulpito-bible-pwa/pulpito-release.json";
  var native=window.Capacitor.registerPlugin("ApkUpdater");
  var release=null, installed=0, busy=false, timer=null;
  var box, status, progress, fill, action, verify;
