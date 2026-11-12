@@ -371,3 +371,5 @@ jobs:
       version_code: ${{ needs.android-apk.outputs.version_code }}
     secrets:
       RENDER_DEPLOY_HOOK: ${{ secrets.PULPITO_RENDER_DEPLOY_HOOK }}
+
+# Release publication includes the signed APK and SHA-256 updater manifest.
