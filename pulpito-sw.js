@@ -1,11 +1,11 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v49";
+const CACHE_NAME = "pulpito-bible-shell-v50";
 const APP_SHELL = [
   "/",
   "/pulpito.html",
   "/styles.css",
-  "/app.js?v=20261112-sermoes",
+  "/app.js?v=20261112-planos-leitura",
   "/pulpito-manifest.webmanifest",
   "/pulpito-acervo.json"
 ];
@@ -65,7 +65,7 @@ self.addEventListener("fetch", event => {
     event.respondWith((async () => {
       const cache = await caches.open(CACHE_NAME);
       try {
-        const response = await fetch(request);
+        const response = await fetch(request, { cache: "no-store" });
         if (response.ok) await cache.put(request, response.clone());
         return response;
       } catch (_) {

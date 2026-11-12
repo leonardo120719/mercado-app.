@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261112-sermoes";
+window.PB_BUILD_ID = "pb-20261112-planos-leitura";
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
@@ -1810,7 +1810,7 @@ global.PBVerseComments={init:init,decorate:decorate,invalidate:invalidate,select
 "use strict";
 var API="https://api.midvash.com/v1";
 var MAIN=document.getElementById("app-main");
-var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Sermões",historico:"Diário de Estudo Histórico",pesquisa:"Pesquisa inteligente",mapa:"Mapa inteligente da Bíblia",voz:"Assistente bíblico por voz",instrutor:"Instrutor profissional de sermões",planos:"Planos adaptativos",devocional:"Leitor de devocionais",paineis:"Janelas sincronizadas",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
+var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Sermões",historico:"Diário de Estudo Histórico",pesquisa:"Pesquisa inteligente",mapa:"Mapa inteligente da Bíblia",voz:"Assistente bíblico por voz",instrutor:"Instrutor profissional de sermões",planos:"Planos de leitura",devocional:"Leitor de devocionais",paineis:"Janelas sincronizadas",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
 var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:56,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"",reference:"",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},historicalDiary:{},history:[],parallelVersion:"bpm"};
@@ -2979,11 +2979,6 @@ async function pbDevPaint(){
  }
 }
 var pbPlanSelectedDays=new Map();
-var pbPlanManualRanges=[];
-var pbPlanScopes=[
- ["book","Um livro"],["old","Antigo Testamento"],["new","Novo Testamento"],
- ["bible","Bíblia inteira"],["manual","Seleção manual"]
-];
 var pbPlanMaxDays=3660;
 var pbPlanMoments=[
  {id:"morning",label:"Manhã",reflection:"Leia a passagem do dia. O que ela revela sobre Deus? Escolha uma atitude concreta para colocar em prática hoje.",prayer:"Senhor, abre meu entendimento e ajuda-me a viver hoje o que aprendo na tua Palavra."},
@@ -2991,20 +2986,6 @@ var pbPlanMoments=[
 ];
 function pbPlanPace(value){
  return Math.min(20,Math.max(1,Math.floor(Number(value)||1)));
-}
-function pbPlanChapterRange(book,first,last){
- return Array.from({length:last-first+1},function(_,index){return book.name+" "+(first+index);});
-}
-function pbPlanReferences(scope,book,ranges){
- if(scope==="manual"){
-  return Array.from(new Set(ranges.flatMap(function(range){
-   return pbPlanChapterRange(range.book,range.first,range.last);
-  })));
- }
- var selected=scope==="book"?(book?[book]:[]):booksFallback.filter(function(item){
-  return scope==="bible"||item.testament===scope;
- });
- return selected.flatMap(function(item){return pbPlanChapterRange(item,1,item.chapters);});
 }
 function pbPlanDays(plan){
  var refs=plan.references||[],pace=pbPlanPace(plan.pace),days=[];
@@ -3032,61 +3013,6 @@ function pbPlanMomentDone(plan,refs,day,moment){
 }
 function pbPlanDayComplete(plan,refs,day){
  return pbPlanMoments.every(function(moment){return pbPlanMomentDone(plan,refs,day,moment.id);});
-}
-function pbPlanFormValues(){
- var scope=document.getElementById("pb-plan-scope").value;
- var book=booksFallback.find(function(item){return item.slug===document.getElementById("pb2-plan-book").value;});
- var mode=document.getElementById("pb-plan-duration").value;
- var duration=mode==="custom"?Number(document.getElementById("pb-plan-custom-days").value):Number(mode);
- return {scope:scope,book:book,pace:pbPlanPace(document.getElementById("pb2-plan-pace").value),
-  durationDays:mode==="pace"?null:duration};
-}
-function pbPlanRefreshForm(){
- if(!document.getElementById("pb-plan-scope"))return;
- var form=pbPlanFormValues();
- document.getElementById("pb-plan-book-field").hidden=form.scope!=="book"&&form.scope!=="manual";
- document.getElementById("pb-plan-manual-fields").hidden=form.scope!=="manual";
- document.getElementById("pb-plan-pace-field").hidden=form.durationDays!==null;
- document.getElementById("pb-plan-custom-field").hidden=document.getElementById("pb-plan-duration").value!=="custom";
- ["pb-plan-first","pb-plan-last"].forEach(function(id){document.getElementById(id).max=form.book?.chapters||1;});
- var references=pbPlanReferences(form.scope,form.book,pbPlanManualRanges);
- var days=pbPlanDays({references:references,pace:form.pace,durationDays:form.durationDays});
- var preview=document.getElementById("pb-plan-preview");
- if(!references.length){preview.textContent="Adicione os trechos na ordem em que deseja ler.";return;}
- if(form.durationDays!==null&&days.length!==form.durationDays){
-  preview.textContent="Informe um número inteiro entre 1 e "+pbPlanMaxDays+" dias.";return;
- }
- var pauses=days.filter(function(refs){return !refs.length;}).length;
- preview.textContent=references.length+" capítulos em "+days.length+(days.length===1?" dia":" dias")+
-  (pauses?" · "+pauses+(pauses===1?" dia de pausa":" dias de pausa"):"")+".";
-}
-function pbPlanManualList(){
- var list=document.getElementById("pb-plan-manual-list");
- if(!list)return;
- list.innerHTML=pbPlanManualRanges.map(function(range,index){
-  var label=range.book.name+" "+range.first+(range.last!==range.first?"–"+range.last:"");
-  return '<li>'+esc(label)+' <button type="button" class="btn slim" data-act="pb-plan-range-remove" data-range="'+index+'" aria-label="Remover '+esc(label)+'">Remover</button></li>';
- }).join("");
- pbPlanRefreshForm();
-}
-function pbPlanForm(){
- return '<section class="card card-pad"><h2>Criar plano de leitura</h2>'+
- '<label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Opcional"></label>'+
- '<label>O que você quer ler?<select class="field" id="pb-plan-scope">'+pbPlanScopes.map(function(scope){
-  return '<option value="'+scope[0]+'">'+scope[1]+'</option>';
- }).join("")+'</select></label>'+
- '<label id="pb-plan-book-field">Livro<select class="field" id="pb2-plan-book">'+booksFallback.map(function(book){
-  return '<option value="'+esc(book.slug)+'">'+esc(book.name)+'</option>';
- }).join("")+'</select></label>'+
- '<div id="pb-plan-manual-fields" hidden><label>Capítulo inicial<input class="field" type="number" id="pb-plan-first" min="1" value="1"></label>'+
- '<label>Capítulo final<input class="field" type="number" id="pb-plan-last" min="1" placeholder="Mesmo capítulo se vazio"></label>'+
- '<button type="button" class="btn" data-act="pb-plan-range-add">Adicionar trecho</button><ol id="pb-plan-manual-list"></ol></div>'+
- '<label>Prazo da leitura<select class="field" id="pb-plan-duration"><option value="pace">Definir capítulos por dia</option>'+
- '<option value="180">Seis meses (180 dias)</option><option value="365">Um ano (365 dias)</option><option value="custom">Número de dias personalizado</option></select></label>'+
- '<label id="pb-plan-pace-field">Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label>'+
- '<label id="pb-plan-custom-field" hidden>Número de dias<input class="field" id="pb-plan-custom-days" type="number" min="1" max="'+pbPlanMaxDays+'" value="30"></label>'+
- '<p id="pb-plan-preview" role="status"></p><fieldset><legend>Devocional do plano</legend><div id="pb-plan-new-picker" data-pb-plan-picker="">Carregando...</div></fieldset>'+
- '<button type="button" class="btn primary" data-act="pb2-plan-add">Criar plano</button></section>';
 }
 function pbPlanDevotional(plan){
  return plan?.devotionalModule??plan?.devotionalModules?.[0]?.id??"";
@@ -3142,7 +3068,7 @@ function pbPlanDailyCard(plan,days,selected){
   return '<option value="'+i+'"'+(i===selected?' selected':'')+'>Dia '+(i+1)+(day.length?'':' · Pausa')+
    (pbPlanDayComplete(plan,day,i)&&day.every(function(ref){return plan.done?.[ref];})?' · Concluído':'')+'</option>';
  }).join("")+'</select></label>'+
- (refs.length?'<p><strong>Leitura do dia</strong> '+refs.map(function(ref){return referenceButton(ref,ref);}).join(' · ')+'</p>':
+ (refs.length?'<p><strong>Leitura do dia</strong> '+refs.map(function(ref){return window.PBConnections.referenceButton(ref,ref);}).join(' · ')+'</p>':
   '<p>Dia de pausa na leitura. Aproveite para revisar uma passagem anterior.</p>')+
  '<div data-pb-plan-reading="'+esc(plan.id)+'" data-day="'+selected+'"></div>'+
  '<p role="status">'+(done===pbPlanMoments.length?'Devocional concluído':done+' de '+pbPlanMoments.length+' momentos concluídos')+'</p>'+
@@ -3159,7 +3085,7 @@ function pb2RenderPlans(){
  '<p class="subtitle">Siga a leitura do dia e faça o devocional de manhã e à noite.</p>'+
  '<div class="card card-pad"><h3>Meus devocionais</h3><p>Os devocionais são instalados na Biblioteca de Módulos. Aqui você escolhe um devocional instalado e faz sua leitura.</p><div id="pb-dev-module-list">Carregando devocionais instalados...</div></div>'+
  '<div class="card card-pad"><h3>Devocional de hoje</h3><div id="pb-dev-today">Carregando...</div></div>'+ 
- pbPlanForm()+
+ '<div class="card card-pad"><label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Ex.: Evangelho de João"></label><label>Livro<select class="field" id="pb2-plan-book">'+books.map(function(b){return '<option value="'+esc(b.slug)+'">'+esc(b.name)+'</option>';}).join("")+'</select></label><label>Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label><fieldset><legend>Devocional do plano</legend><div id="pb-plan-new-picker" data-pb-plan-picker="">Carregando...</div></fieldset><button class="btn primary" data-act="pb2-plan-add">Criar plano</button></div>'+
  plans.map(function(p){
  var refs=p.references||[],done=refs.filter(function(ref){return p.done?.[ref];}).length;
  var days=pbPlanDays(p),selected=pbPlanSelectedDay(p,days),displayedRefs=p.scope?(days[selected]||[]):refs;
@@ -3174,7 +3100,6 @@ function pb2RenderPlans(){
  (p.devotionalModule!==undefined||p.devotionalModules?'':'<div data-pb-dev-content data-book="'+esc(parseLinkedReference(ref)?.book||"")+'" data-chapter="'+esc(ref.split(" ").slice(-1)[0])+'"></div>')+
  '<label>Reflexão, oração e aplicação pessoal<textarea class="field" rows="4" data-pb2-devotional="'+esc(p.id)+'" data-ref="'+esc(ref)+'" placeholder="O que aprendi neste capítulo? Como aplicar?">'+esc(devotional)+'</textarea></label><small>Salvo ao sair do campo. Texto pessoal; nenhum conteúdo de terceiros é inserido automaticamente.</small></details>';
  }).join("")+'</div></div>';}).join("")+'</div>';
- pbPlanManualList();
  pbDevPaint();
 }
 function pbWinRead(){var d=pb2Read();return Array.isArray(d.studyWindows)?d.studyWindows:[];}
@@ -3757,41 +3682,15 @@ document.addEventListener("click",function(ev){
  if(a==="pb-dev-remove"){var id=el.dataset.devId;if(!window.confirm("Remover este módulo de devocionais? As anotações pessoais dos planos serão preservadas."))return;pbDevRemove(id).then(pb2RenderPlans).catch(function(e){notify(e.message);});return;}
  if(a==="pb2-plan-edit"){var id=el.dataset.planId,d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===id;});if(!p)return;var name=window.prompt("Nome do plano:",p.title||"");if(name===null)return;name=name.trim();if(!name){notify("O nome não pode ficar vazio.");return;}p.title=name;pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-plan-delete"){var id=el.dataset.planId,d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===id;});if(!p)return;if(!window.confirm('Excluir o plano "'+p.title+'", seu progresso e seus devocionais? Esta ação não pode ser desfeita.'))return;d.plans=d.plans.filter(function(x){return x.id!==id;});pb2Write(d);pb2RenderPlans();return;}
- if(a==="pb-plan-range-add"){
-  var book=pbPlanFormValues().book;
-  var first=Number(document.getElementById("pb-plan-first").value);
-  var last=Number(document.getElementById("pb-plan-last").value||first);
-  if(!book||!Number.isInteger(first)||!Number.isInteger(last)||first<1||last<first||last>book.chapters){
-   notify("Escolha um intervalo válido de capítulos para este livro.");return;
-  }
-  if(pbPlanManualRanges.some(function(range){return range.book.slug===book.slug&&first>=range.first&&last<=range.last;})){
-   notify("Esse trecho já está na seleção.");return;
-  }
-  pbPlanManualRanges.push({book:book,first:first,last:last});
-  pbPlanManualList();
-  return;
- }
- if(a==="pb-plan-range-remove"){
-  pbPlanManualRanges.splice(Number(el.dataset.range),1);
-  pbPlanManualList();
-  return;
- }
  if(a==="pb2-plan-add"){
-  var form=pbPlanFormValues(),d=pb2Read();
-  var references=pbPlanReferences(form.scope,form.book,pbPlanManualRanges);
-  if(!references.length){notify("Adicione pelo menos um trecho para criar o plano.");return;}
-  if(form.durationDays!==null&&(!Number.isInteger(form.durationDays)||form.durationDays<1||form.durationDays>pbPlanMaxDays)){
-   document.getElementById("pb-plan-custom-days").reportValidity();
-   notify("Informe um número válido de dias.");return;
-  }
-  var defaultTitle=form.scope==="book"?form.book.name:pbPlanScopes.find(function(scope){return scope[0]===form.scope;})[1];
-  var plan={id:pbWinEscapeId(),title:document.getElementById("pb2-plan-title").value.trim()||defaultTitle,
-   scope:form.scope,pace:form.pace,durationDays:form.durationDays,
+  var d=pb2Read(),book=books.find(function(b){return b.slug===document.getElementById("pb2-plan-book").value;});
+  if(!book)return;
+  var plan={id:pbWinEscapeId(),title:document.getElementById("pb2-plan-title").value.trim()||book.name,
+   pace:pbPlanPace(document.getElementById("pb2-plan-pace").value),
    devotionalModule:pbPlanSelectedDevotional(document.getElementById("pb-plan-new-picker")),
-   references:references,done:{}};
+   references:Array.from({length:book.chapters},function(_,i){return book.name+" "+(i+1);}),done:{}};
   d.plans=(d.plans||[]).concat(plan);
   if(pb2Write(d)){
-   pbPlanManualRanges=[];
    pb2RenderPlans();
    document.getElementById("pb-plan-"+plan.id)?.focus();
   }
@@ -3869,7 +3768,6 @@ document.addEventListener("click",function(ev){
 document.addEventListener("change",function(ev){var t=ev.target;if(t.id==="pb-graph-depth"||t.id==="pb-graph-filter"){pbGraphSession.depth=Math.max(1,Math.min(6,Number(document.getElementById("pb-graph-depth").value)||1));pbGraphSession.filter=document.getElementById("pb-graph-filter").value;pbGraphStore();pbShowGraphResults();return;}});
 document.addEventListener("change",function(ev){
  var target=ev.target;
- if(["pb-plan-scope","pb-plan-duration","pb2-plan-book"].includes(target.id))pbPlanRefreshForm();
  if(target.dataset.pbPlanDay){
   pbPlanSelectedDays.set(target.dataset.pbPlanDay,Number(target.value));
   pb2RenderPlans();
@@ -3892,7 +3790,6 @@ document.addEventListener("change",function(ev){
 document.addEventListener("change",function(ev){var t=ev.target;if(t.dataset.historicalFilter){historicalFilters[t.dataset.historicalFilter]=t.value;renderHistoricalDiary();}if(t.dataset.historicalField&&t.tagName==="SELECT"){var key=state.book+":"+state.chapter;state.historicalDiary=state.historicalDiary||{};state.historicalDiary[key]=state.historicalDiary[key]||{};state.historicalDiary[key][t.dataset.historicalField]=t.value;persist();}});
 document.addEventListener("input",function(ev){
  var t=ev.target;
- if(t.id==="pb2-plan-pace"||t.id==="pb-plan-custom-days")pbPlanRefreshForm();
  if(t.id==="tutor-answer"){var st=getStudy();st.answers[state.tutorStep]=t.value;state.studies[studyKey()]=st;persist();}
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
  if(t.dataset.historicalFilter){historicalFilters[t.dataset.historicalFilter]=t.value;renderHistoricalDiary();return;}
