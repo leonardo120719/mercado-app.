@@ -354,10 +354,14 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon
+      - name: Prepare release APK filename
+        run: |
+          mkdir -p release-assets
+          cp android/app/build/outputs/apk/release/app-release.apk release-assets/pulpito-bible.apk
       - name: Calculate APK SHA-256
         id: apkmeta
         run: |
-          sha256=$(sha256sum android/app/build/outputs/apk/release/app-release.apk | awk '{print $1}')
+          sha256=$(sha256sum release-assets/pulpito-bible.apk | awk '{print $1}')
           echo "sha256=$sha256" >> "$GITHUB_OUTPUT"
       - name: Publish signed APK release
         uses: softprops/action-gh-release@v2
@@ -365,7 +369,7 @@ jobs:
           tag_name: pulpito-latest
           name: Púlpito Bible — versão atual
           body: APK oficial assinado do Púlpito Bible. Atualização instalada pelo Android, preservando os dados do aplicativo.
-          files: android/app/build/outputs/apk/release/app-release.apk
+          files: release-assets/pulpito-bible.apk
           overwrite_files: true
           make_latest: true
           fail_on_unmatched_files: true
