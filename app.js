@@ -400,10 +400,11 @@ async function getOriginalTermsForWord(term){
  function add(code,book,chapter,verse,moduleName){
   code=String(code||"").toUpperCase().replace(/\s+/g,"");
   if(!/^[GH]\d{1,5}$/.test(code))return;
-  if(!found.has(code))found.set(code,{code:code,language:code[0]==="G"?"greek":"hebrew",count:0,references:[],translations:[]});
-  var item=found.get(code);item.count++;
+  if(!found.has(code))found.set(code,{code:code,language:code[0]==="G"?"greek":"hebrew",count:0,references:[],translations:[],referenceKeys:new Set()});
+  var item=found.get(code);
   if(item.translations.indexOf(moduleName)<0)item.translations.push(moduleName);
   var key=book+"/"+chapter+":"+verse;
+  if(!item.referenceKeys.has(key)){item.referenceKeys.add(key);item.count++;}
   if(item.references.length<20&&!item.references.some(function(r){return r.key===key;}))
    item.references.push({key:key,book:book,chapter:Number(chapter),verse:Number(verse),translation:moduleName});
  }
@@ -444,7 +445,7 @@ async function getOriginalTermsForWord(term){
   });
  }
  for(var i=0;i<bibles.length;i++)await scanModule(bibles[i]);
- return Array.from(found.values()).sort(function(a,b){
+ return Array.from(found.values()).map(function(item){delete item.referenceKeys;return item;}).sort(function(a,b){
   if(a.language!==b.language)return a.language==="greek"?-1:1;
   return a.code.localeCompare(b.code,undefined,{numeric:true});
  });
@@ -2926,8 +2927,12 @@ async function pb2SearchOriginalLanguages(term,token){
   if(token!==pb2SearchToken)return;
   el=document.getElementById("pb2-original-results");if(!el)return;
   var codes=originals.map(function(item){return item.code;});
-  var lexical=await Promise.all(codes.map(function(code){return window.PBModules.getDictionaryEntry(code);}));
-  if(token!==pb2SearchToken)return;
+  var lexical=[];
+  for(var offset=0;offset<codes.length;offset+=8){
+   var batch=await Promise.all(codes.slice(offset,offset+8).map(function(code){return window.PBModules.getDictionaryEntry(code);}));
+   lexical=lexical.concat(batch);
+   if(token!==pb2SearchToken)return;
+  }
   var byCode=new Map(codes.map(function(code,i){return [code,lexical[i]||[]];}));
   function renderLanguage(language,title){
    var list=originals.filter(function(item){return item.language===language;});
