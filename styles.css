@@ -924,3 +924,13 @@ body.pb-mw-viewport-open{overflow:hidden}
 #pb-reader-multi-host.pb-mw-maximized .pb-mw-pane.is-maximized .pb-mw-pane-body{overflow:auto}
 #pb-reader-multi-host.pb-mw-maximized .reader-columns,
 #pb-reader-multi-host.pb-mw-maximized .reader-paper{min-height:100%}
+
+/* Sermões: editor e arquivos salvos na mesma tela. */
+.sermon-workspace > .card,
+.sermon-workspace article + article,
+.sermon-workspace .sermon-grid + .row {
+  margin-top: 16px;
+}
+.sermon-workspace h2[tabindex="-1"] {
+  scroll-margin-top: 125px;
+}
