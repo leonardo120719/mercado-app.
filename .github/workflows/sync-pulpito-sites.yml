@@ -117,8 +117,9 @@ jobs:
             sleep 8
           done
           if [[ -z "$RENDER_DEPLOY_HOOK" ]]; then
-            echo "::error::A publicação automática do Render não entregou esta versão. Configure o segredo PULPITO_RENDER_DEPLOY_HOOK."
+            echo "::warning::O Render não foi atualizado porque o segredo PULPITO_RENDER_DEPLOY_HOOK não está configurado. O APK e o manifesto oficial já foram publicados no GitHub Releases e continuam disponíveis ao atualizador nativo."
+            exit 0
           else
             echo "::error::O Render recebeu o pedido de publicação, mas a versão do APK ainda não está no site."
+            exit 1
           fi
-          exit 1
