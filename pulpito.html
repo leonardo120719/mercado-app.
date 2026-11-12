@@ -83,48 +83,69 @@
   }
 })();
 </script><script>
-/* Atualização do APK: botão sempre acessível e aviso quando nova versão é detectada. */
+/* Atualizador nativo do APK Púlpito Bible: verifica versão, baixa com progresso e chama o instalador Android. */
 (function(){
- var nativeApp=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform()) || /^(localhost|127\\.0\\.1)$/.test(location.hostname)&&/Android/i.test(navigator.userAgent);
- if(!nativeApp)return;
- var localVersion="pb-20261109-toolbar-v34";
- var builds="https://github.com/leonardo120719/mercado-app./actions/workflows/android-apk.yml";
- var endpoint="https://pulpito-bible-android.onrender.com/app.js";
- var notified=false;
- function show(newer){
-  var box=document.getElementById("pb-apk-updater");
-  if(!box){
-   box=document.createElement("aside");box.id="pb-apk-updater";box.setAttribute("aria-label","Atualização do Púlpito Bible");
-   box.style.cssText="position:fixed;bottom:12px;right:12px;z-index:999999;background:#123b48;color:#fff;padding:12px;border-radius:12px;max-width:310px;box-shadow:0 4px 20px #0005;font:13px system-ui";
-   var title=document.createElement("strong");title.id="pb-apk-update-title";box.appendChild(title);
-   var buttons=document.createElement("div");buttons.style.cssText="display:flex;gap:8px;margin-top:8px";
-   var open=document.createElement("button");open.textContent="Atualizar APK";open.type="button";open.style.cssText="background:white;color:#123b48;border:0;padding:8px;border-radius:7px;font-weight:bold";open.onclick=function(){window.open(builds,"_system");};
-   var later=document.createElement("button");later.textContent="Fechar";later.type="button";later.style.cssText="background:transparent;color:white;border:1px solid white;padding:8px;border-radius:7px";later.onclick=function(){box.style.display="none";};
-   buttons.append(open,later);box.appendChild(buttons);document.body.appendChild(box);
-  }
-  box.querySelector("#pb-apk-update-title").textContent=newer?"Nova versão disponível! Atualize o Púlpito Bible.":"Púlpito Bible • Verificar atualizações";
-  box.style.display="block";
+ "use strict";
+ var isNative=!!(window.Capacitor&&typeof window.Capacitor.isNativePlatform==="function"&&window.Capacitor.isNativePlatform());
+ if(!isNative)return;
+ var releaseEndpoint="https://pulpito-bible.onrender.com/pulpito-release.json";
+ var native=window.Capacitor.registerPlugin("ApkUpdater");
+ var release=null, installed=0, busy=false, timer=null;
+ var box, status, progress, fill, action, verify;
+ function ui(){
+  if(box)return;
+  box=document.createElement("section");box.id="pb-apk-updater";
+  box.style.cssText="position:fixed;left:12px;right:12px;bottom:12px;z-index:999999;background:#123b48;color:#fff;padding:15px;border-radius:16px;box-shadow:0 8px 30px #0007;font:14px/1.45 system-ui;max-width:520px;margin:auto";
+  var heading=document.createElement("strong");heading.textContent="Atualização do Púlpito Bible";heading.style.cssText="display:block;font-size:16px;margin-bottom:6px";
+  status=document.createElement("div");status.textContent="Verificando atualizações…";
+  progress=document.createElement("div");progress.style.cssText="height:8px;background:#ffffff40;border-radius:20px;overflow:hidden;margin-top:10px;display:none";
+  fill=document.createElement("div");fill.style.cssText="height:100%;width:0;background:#72d69b;transition:width .2s";progress.appendChild(fill);
+  var row=document.createElement("div");row.style.cssText="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px";
+  action=document.createElement("button");action.type="button";action.textContent="Baixar e instalar";action.style.cssText="background:#fff;color:#123b48;border:0;padding:10px 14px;border-radius:9px;font-weight:700";action.hidden=true;action.onclick=download;
+  verify=document.createElement("button");verify.type="button";verify.textContent="Verificar atualização";verify.style.cssText="background:transparent;color:#fff;border:1px solid #ffffff80;padding:10px 14px;border-radius:9px";verify.onclick=check;
+  var close=document.createElement("button");close.type="button";close.textContent="Fechar";close.style.cssText="background:transparent;color:#fff;border:0;padding:10px";close.onclick=function(){box.remove();box=null;};
+  row.append(action,verify,close);box.append(heading,status,progress,row);document.body.appendChild(box);
  }
+ function message(text){ui();status.textContent=text;}
  async function check(){
-  if(!navigator.onLine)return;
+  if(busy)return;
   try{
-   var response=await fetch(endpoint+"?v="+Date.now(),{cache:"no-store"});
-   if(!response.ok)return;
-   var content=await response.text();
-   var match=content.match(/window\\.PB_BUILD_ID\\s*=\\s*["']([^"']+)["']/);
-   if(match&&match[1]!==localVersion&&!notified){notified=true;show(true);}
-  }catch(e){/* Rede ou CORS indisponível: opção manual continua acessível. */}
+   message("Verificando se existe uma nova versão…");
+   var v=await native.getInstalledVersion();installed=Number(v.versionCode||0);
+   var response=await fetch(releaseEndpoint+"?t="+Date.now(),{cache:"no-store"});
+   if(!response.ok)throw Error("Não foi possível consultar a versão publicada.");
+   var data=await response.json();
+   if(!data.apk_url||!data.sha256||!Number(data.version_code))throw Error("Informações da atualização incompletas.");
+   release=data;
+   if(Number(data.version_code)>installed){
+    message("Nova versão "+(data.version_name||"")+" disponível. Suas Bíblias, comentários e dicionários serão preservados.");
+    action.hidden=false;action.disabled=false;action.textContent="Baixar e instalar";
+   }else{
+    message("Seu Púlpito Bible já está atualizado.");
+    action.hidden=true;
+   }
+  }catch(e){message(e&&e.message?e.message:"Não foi possível verificar a atualização. Confira sua conexão.");}
  }
- function init(){
-  var shortcut=document.createElement("button");shortcut.type="button";shortcut.textContent="↻ Atualizações";shortcut.setAttribute("aria-label","Verificar atualizações do Púlpito Bible");
-  shortcut.style.cssText="position:fixed;right:12px;bottom:12px;z-index:999998;background:#123b48;color:white;border:1px solid #ffffff66;border-radius:24px;padding:8px 12px;font:12px system-ui";
-  shortcut.onclick=function(){show(false);check();};document.body.appendChild(shortcut);
-  check();
+ async function download(){
+  if(!release||busy)return;
+  busy=true;action.disabled=true;action.textContent="Baixando…";progress.style.display="block";fill.style.width="0%";
+  message("Preparando o download seguro do APK…");
+  try{
+   await native.startDownload({url:release.apk_url,sha256:release.sha256,versionName:release.version_name||("1.0."+release.version_code)});
+   if(timer)clearInterval(timer);
+   timer=setInterval(async function(){
+    try{
+     var s=await native.getDownloadStatus();
+     if(s.totalBytes>0){var pct=Math.max(0,Math.min(100,Math.round(s.downloadedBytes*100/s.totalBytes)));fill.style.width=pct+"%";message("Baixando atualização… "+pct+"%");}
+     if(s.status==="complete"){clearInterval(timer);timer=null;message("Download concluído. Verificando o arquivo e abrindo o instalador do Android…");action.textContent="Aguardando instalador";busy=false;}
+     if(s.status==="failed"){clearInterval(timer);timer=null;throw Error(s.reason||"Falha no download.");}
+    }catch(e){if(timer){clearInterval(timer);timer=null;}busy=false;action.disabled=false;action.textContent="Tentar novamente";message(e.message||"Falha ao acompanhar o download.");}
+   },850);
+  }catch(e){busy=false;action.disabled=false;action.textContent="Tentar novamente";message(e&&e.message?e.message:"Não foi possível iniciar o download.");}
  }
+ async function resume(){try{await native.installPending();}catch(e){console.warn("Púlpito Bible: instalador pendente",e);}}
+ function init(){ui();check();resume();window.addEventListener("online",check);document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible"){resume();check();}});setInterval(check,6*60*60*1000);}
  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
- window.addEventListener("online",check);
- document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check();});
- setInterval(check,3600000);
 })();
 </script>
 <script>
