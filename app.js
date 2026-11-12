@@ -383,6 +383,119 @@ async function getDictionaryEntry(term,moduleId){
 }
 
 
+async function getPortugueseDictionaryEntries(term){
+ var entries=await getDictionaryEntry(term);
+ return entries.filter(function(entry){
+  var module=modules.find(function(m){return m.id===entry.moduleId;});
+  return module&&isPortugueseModule(module);
+ });
+}
+function normalizeStudyWord(value){
+ return simplifyText(value).normalize("NFD").replace(/\p{M}/gu,"").toLocaleLowerCase("pt-BR").replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,"");
+}
+async function getOriginalTermsForWord(term){
+ var wanted=normalizeStudyWord(term);
+ if(!wanted)return [];
+ var db=await dbOpen(),bibles=modules.filter(function(m){return m.type==="bible";}),found=new Map();
+ function add(code,book,chapter,verse,moduleName){
+  code=String(code||"").toUpperCase().replace(/\s+/g,"");
+  if(!/^[GH]\d{1,5}$/.test(code))return;
+  if(!found.has(code))found.set(code,{code:code,language:code[0]==="G"?"greek":"hebrew",count:0,references:[],translations:[]});
+  var item=found.get(code);item.count++;
+  if(item.translations.indexOf(moduleName)<0)item.translations.push(moduleName);
+  var key=book+"/"+chapter+":"+verse;
+  if(item.references.length<20&&!item.references.some(function(r){return r.key===key;}))
+   item.references.push({key:key,book:book,chapter:Number(chapter),verse:Number(verse),translation:moduleName});
+ }
+ async function scanModule(module){
+  return new Promise(function(resolve,reject){
+   var tx=db.transaction("chapters","readonly"),index=tx.objectStore("chapters").index("moduleId");
+   var cursor=index.openCursor(IDBKeyRange.only(module.id));
+   cursor.onerror=function(){reject(cursor.error||Error("Falha ao consultar Bíblia instalada"));};
+   tx.onabort=function(){reject(tx.error||Error("Consulta de Strong interrompida"));};
+   cursor.onsuccess=function(){
+    var cur=cursor.result;
+    if(!cur){resolve();return;}
+    var row=cur.value,book=String(row.book||""),chapter=Number(row.chapter)||0;
+    (row.verses||[]).forEach(function(verse,i){
+     var source=String(typeof verse==="string"?verse:verse.text||verse.content||"");
+     if(!/<s>\s*[GH]?\s*\d{1,5}\s*<\/s>/i.test(source))return;
+     var matches=Array.from(source.matchAll(/<s>\s*([GH]?)\s*(\d{1,5})\s*<\/s>/gi)),position=0;
+     for(var j=0;j<matches.length;){
+      var first=matches[j],end=first.index+first[0].length,codes=[(first[1]||"").toUpperCase()+Number(first[2])],k=j+1;
+      while(k<matches.length&&!source.slice(end,matches[k].index).trim()){
+       codes.push((matches[k][1]||"").toUpperCase()+Number(matches[k][2]));
+       end=matches[k].index+matches[k][0].length;k++;
+      }
+      var prefix=source.slice(position,first.index).replace(/<br\s*\/?>/gi," ");
+      var plain=(new DOMParser().parseFromString(prefix,"text/html").body.textContent||"");
+      var tokens=Array.from(plain.matchAll(/[\p{L}\p{M}]+(?:[’'-][\p{L}\p{M}]+)*/gu));
+      var token=tokens.length?tokens[tokens.length-1][0]:"";
+      if(normalizeStudyWord(token)===wanted){
+       var verseNo=Number(typeof verse==="string"?i+1:verse.number||verse.verse)||i+1;
+       var fallback=canonical.indexOf(book)<39?"H":"G";
+       codes.forEach(function(code){add((code[0]||fallback)+code.slice(1),book,chapter,verseNo,module.name);});
+      }
+      position=end;j=k;
+     }
+    });
+    cur.continue();
+   };
+  });
+ }
+ for(var i=0;i<bibles.length;i++)await scanModule(bibles[i]);
+ return Array.from(found.values()).sort(function(a,b){
+  if(a.language!==b.language)return a.language==="greek"?-1:1;
+  return a.code.localeCompare(b.code,undefined,{numeric:true});
+ });
+}
+async function searchCommentaries(term,maxResults,shouldContinue){
+ var wanted=normalizeStudyWord(term),limit=Math.max(1,Math.min(200,Number(maxResults)||100));
+ if(!wanted)return {results:[],total:0,modulesSearched:0,scanned:0};
+ var chosen=modules.filter(function(m){return m.type==="commentary";}),db=await dbOpen();
+ var results=[],total=0,scanned=0,seen=new Set();
+ function active(){return typeof shouldContinue!=="function"||shouldContinue();}
+ function inspect(module,book,entry){
+  if(!entry||!hasCommentaryText(entry))return;
+  var text=repairModuleText(entry.text,module),plain=simplifyText(text);
+  if(!normalizeStudyWord(plain).includes(wanted))return;
+  var key=[module.id,book,entry.fromChapter,entry.fromVerse,entry.toChapter,entry.toVerse,plain.slice(0,120)].join("|");
+  if(seen.has(key))return;seen.add(key);total++;
+  if(results.length<limit)results.push({
+   moduleId:module.id,moduleName:module.name,book:book,
+   fromChapter:Number(entry.fromChapter||entry.chapter||0),
+   fromVerse:Number(entry.fromVerse||entry.verse||0),
+   toChapter:Number(entry.toChapter||entry.fromChapter||entry.chapter||0),
+   toVerse:Number(entry.toVerse||0),text:plain
+  });
+ }
+ async function scanStore(module,storeName,visitor){
+  return new Promise(function(resolve,reject){
+   var tx=db.transaction(storeName,"readonly"),index=tx.objectStore(storeName).index("moduleId");
+   var req=index.openCursor(IDBKeyRange.only(module.id));
+   req.onerror=function(){reject(req.error||Error("Falha ao pesquisar comentários"));};
+   tx.onabort=function(){reject(tx.error||Error("Pesquisa de comentários interrompida"));};
+   req.onsuccess=function(){
+    var cur=req.result;
+    if(!cur||!active()){resolve();return;}
+    visitor(cur.value);scanned++;cur.continue();
+   };
+  });
+ }
+ for(var i=0;i<chosen.length&&active();i++){
+  var module=chosen[i];
+  if(module.storage==="entries-v1"){
+   await scanStore(module,"commentaryEntries",function(row){inspect(module,row.book,row);});
+  }else{
+   await scanStore(module,"commentaries",function(row){
+    (row&&Array.isArray(row.entries)?row.entries:[]).forEach(function(entry){inspect(module,row.book,entry);});
+   });
+  }
+ }
+ return {results:results,total:total,modulesSearched:chosen.length,scanned:scanned};
+}
+
+
 /* Large MyBible commentary importer: rows are written in small transactions
    to an IndexedDB passage index. The whole 30k-row result is never materialized
    into a JS array. Older modules continue using the legacy store. */
@@ -769,7 +882,7 @@ document.addEventListener("click",function(e){
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
 });
-window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:getSearchCache,getSearchCacheChapter:getSearchCacheChapter,saveSearchCache:saveSearchCache,ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
+window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:getSearchCache,getSearchCacheChapter:getSearchCacheChapter,saveSearchCache:saveSearchCache,ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,getPortugueseDictionaryEntries:getPortugueseDictionaryEntries,getOriginalTermsForWord:getOriginalTermsForWord,searchCommentaries:searchCommentaries,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
 })();
 ;
 (function (global) {
