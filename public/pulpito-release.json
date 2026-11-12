@@ -1,7 +1,7 @@
 {
-  "source_sha": "03959b3c2e3bb3e6f495a790a4e246ad679ed235",
-  "version_code": 146,
-  "version_name": "1.0.146",
+  "source_sha": "319e9075fbe1620c7cb2abb995ea64ea4594fd1d",
+  "version_code": 147,
+  "version_name": "1.0.147",
   "apk_url": "https://pulpito-bible.onrender.com/downloads/pulpito-bible.apk",
-  "sha256": "440cf4b5bcb7e3269a8066538ce40a7b8b9cba5522cc3be48588f90b046c26c2"
+  "sha256": "669f27ca005f4746969afec3923230c297871874737c5686698179cf83e1ad7b"
 }
