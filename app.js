@@ -2663,8 +2663,70 @@ function pb2SearchHistory(term){
  var d=pb2Read(),items=Array.isArray(d.searchHistory)?d.searchHistory:[];
  d.searchHistory=[{query:q,at:new Date().toISOString()}].concat(items.filter(function(x){return x&&x.query.toLocaleLowerCase("pt-BR")!==q.toLocaleLowerCase("pt-BR");})).slice(0,35);pb2Write(d);
 }
+var pb2CommentaryResults=[];
+var pb2CommentaryReaderFocus=null;
+function pb2CloseCommentaryReader(){
+ var root=document.getElementById("pb2-commentary-reader");
+ if(root)root.remove();
+ document.body.classList.remove("pb2-commentary-reader-open");
+ if(pb2CommentaryReaderFocus&&pb2CommentaryReaderFocus.isConnected)pb2CommentaryReaderFocus.focus();
+ pb2CommentaryReaderFocus=null;
+}
+function pb2RenderCommentaryReader(){
+ var root=document.getElementById("pb2-commentary-reader");
+ var item=pb2CommentaryResults[pb2CommentaryReaderIndex];
+ if(!root||!item)return;
+ root.querySelector("#pb2-commentary-reader-module").textContent=item.module||"Comentário bíblico";
+ root.querySelector("#pb2-commentary-reader-reference").textContent=item.reference||"";
+ root.querySelector("#pb2-commentary-reader-position").textContent=(pb2CommentaryReaderIndex+1)+" de "+pb2CommentaryResults.length;
+ root.querySelector("#pb2-commentary-reader-text").textContent=item.text||"";
+ var previous=root.querySelector('[data-pb2-reader-action="previous"]');
+ var next=root.querySelector('[data-pb2-reader-action="next"]');
+ previous.disabled=pb2CommentaryReaderIndex<=0;
+ next.disabled=pb2CommentaryReaderIndex>=pb2CommentaryResults.length-1;
+ var scroller=root.querySelector("#pb2-commentary-reader-scroll");
+ if(scroller)scroller.scrollTop=0;
+}
+function pb2OpenCommentaryReader(index){
+ if(!Number.isInteger(index)||index<0||index>=pb2CommentaryResults.length)return;
+ pb2CloseCommentaryReader();
+ pb2CommentaryReaderIndex=index;
+ pb2CommentaryReaderFocus=document.activeElement;
+ var root=document.createElement("div");
+ root.id="pb2-commentary-reader";
+ root.className="modal-backdrop pb2-commentary-reader-backdrop";
+ root.setAttribute("role","presentation");
+ root.innerHTML='<section class="modal pb2-commentary-reader-dialog" role="dialog" aria-modal="true" aria-labelledby="pb2-commentary-reader-module">'+
+  '<header class="pb2-commentary-reader-header"><div class="pb2-commentary-reader-heading"><span class="eyebrow">LEITURA DO COMENTÁRIO</span><h2 id="pb2-commentary-reader-module"></h2><p id="pb2-commentary-reader-reference"></p></div><button type="button" class="btn slim" data-pb2-reader-action="close" aria-label="Fechar comentário">✕</button></header>'+
+  '<div class="pb2-commentary-reader-scroll" id="pb2-commentary-reader-scroll" tabindex="0"><div class="pb2-commentary-reader-text" id="pb2-commentary-reader-text"></div></div>'+
+  '<footer class="pb2-commentary-reader-footer"><span id="pb2-commentary-reader-position" aria-live="polite"></span><div class="pb2-commentary-reader-nav"><button type="button" class="btn" data-pb2-reader-action="previous">← Anterior</button><button type="button" class="btn primary" data-pb2-reader-action="next">Próximo →</button></div></footer>'+
+ '</section>';
+ root.addEventListener("click",function(event){
+  if(event.target===root){pb2CloseCommentaryReader();return;}
+  var button=event.target.closest("[data-pb2-reader-action]");
+  if(!button)return;
+  var action=button.getAttribute("data-pb2-reader-action");
+  if(action==="close"){pb2CloseCommentaryReader();return;}
+  if(action==="previous"&&pb2CommentaryReaderIndex>0){pb2CommentaryReaderIndex--;pb2RenderCommentaryReader();return;}
+  if(action==="next"&&pb2CommentaryReaderIndex<pb2CommentaryResults.length-1){pb2CommentaryReaderIndex++;pb2RenderCommentaryReader();}
+ });
+ root.addEventListener("keydown",function(event){
+  if(event.key==="Escape"){event.preventDefault();pb2CloseCommentaryReader();}
+ });
+ document.body.appendChild(root);
+ document.body.classList.add("pb2-commentary-reader-open");
+ pb2RenderCommentaryReader();
+ root.querySelector('[data-pb2-reader-action="close"]').focus();
+}
+document.addEventListener("click",function(event){
+ var result=event.target&&event.target.closest?event.target.closest("[data-pb2-commentary-index]"):null;
+ if(!result)return;
+ event.preventDefault();
+ pb2OpenCommentaryReader(Number(result.getAttribute("data-pb2-commentary-index")));
+});
 async function pb2SearchCommentaries(term,token){
  var el=document.getElementById("pb2-commentary-results");if(!el)return;
+ pb2CloseCommentaryReader();pb2CommentaryResults=[];
  var modules=window.PBModules&&window.PBModules.getInstalled().filter(function(m){return m.type==="commentary";})||[];
  if(!modules.length){el.innerHTML='<p class="subtitle">Nenhum comentário instalado.</p>';return;}
  el.innerHTML='<p class="subtitle">Consultando comentários instalados no capítulo atual...</p>';
@@ -2680,13 +2742,14 @@ async function pb2SearchCommentaries(term,token){
     var e=entries[i],key=e.moduleId+":"+e.fromChapter+":"+e.fromVerse+":"+e.toVerse+":"+String(e.text).slice(0,60);
     if(seen.has(key))continue;seen.add(key);
     var plain=bibleSearchText(e.text),hay=plain.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR");
-    if(hay.includes(normalized))found.push({module:e.moduleName,verse:v,text:plain});
+    if(hay.includes(normalized))found.push({module:e.moduleName,moduleId:e.moduleId,book:book,chapter:chapter,verse:v,reference:(books.find(function(b){return b.slug===book;})||activeBook).name+" "+chapter+":"+v,text:plain});
     if(found.length>=60)break;
    }
   }
   if(token!==pb2SearchToken)return;
   el=document.getElementById("pb2-commentary-results");if(!el)return;
-  el.innerHTML='<h3>Comentários encontrados neste capítulo ('+found.length+')</h3>'+(found.length?found.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.module)+'</strong><p>'+esc((books.find(function(b){return b.slug===book;})||activeBook).name+" "+chapter+":"+x.verse)+'</p><p>'+esc(x.text.slice(0,360))+'</p></div>';}).join(""):'<p class="subtitle">Nenhum comentário correspondente neste capítulo. A pesquisa global em todos os comentários ainda não está disponível.</p>');
+  pb2CommentaryResults=found.slice();
+  el.innerHTML='<h3>Comentários encontrados neste capítulo ('+found.length+')</h3>'+(found.length?found.map(function(x,index){return '<button type="button" class="pb2-commentary-result" data-pb2-commentary-index="'+index+'" aria-label="Abrir comentário '+esc(x.module)+' em '+esc(x.reference)+'"><strong>'+esc(x.module)+'</strong><span class="pb2-commentary-result-reference">'+esc(x.reference)+'</span><span class="pb2-commentary-result-preview">'+esc(x.text.slice(0,360))+(x.text.length>360?'…':'')+'</span><span class="pb2-commentary-result-hint">Toque para ler o comentário completo →</span></button>';}).join(""):'<p class="subtitle">Nenhum comentário correspondente neste capítulo. A pesquisa global em todos os comentários ainda não está disponível.</p>');
  }catch(error){if(token===pb2SearchToken){el=document.getElementById("pb2-commentary-results");if(el)el.textContent="Não foi possível consultar os comentários instalados: "+error.message;}}
 }
 document.addEventListener("submit",function(e){if(e.target&&e.target.id==="pb2-search-form"){e.preventDefault();var d=pb2Read();d.query=(document.getElementById("pb2-query").value||"").trim();d.filter=document.getElementById("pb2-filter").value;pb2Write(d);pb2SearchHistory(d.query);pb2RenderSearch();}});
