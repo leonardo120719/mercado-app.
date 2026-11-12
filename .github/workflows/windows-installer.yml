@@ -17,12 +17,12 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: ${{ runner.temp }}
         shell: pwsh
     steps:
       - name: Baixar o código em uma pasta compatível com Windows
         env:
           GH_TOKEN: ${{ github.token }}
+        working-directory: ${{ runner.temp }}
         run: |
           $source = Join-Path $env:RUNNER_TEMP 'pulpito-source'
           $credentials = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("x-access-token:$env:GH_TOKEN"))
@@ -35,6 +35,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Falha ao abrir a revisão do projeto.' }
 
       - name: Compilar o aplicativo Windows x64
+        working-directory: ${{ runner.temp }}
         run: |
           Set-Location (Join-Path $env:RUNNER_TEMP 'pulpito-source/windows')
           dotnet build PulpitoBible.csproj --configuration Release --output publish
@@ -47,6 +48,7 @@ jobs:
           }
 
       - name: Gerar instalador
+        working-directory: ${{ runner.temp }}
         run: |
           Set-Location (Join-Path $env:RUNNER_TEMP 'pulpito-source/windows')
           $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
@@ -58,6 +60,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar o instalador.' }
 
       - name: Testar instalação silenciosa
+        working-directory: ${{ runner.temp }}
         run: |
           Set-Location (Join-Path $env:RUNNER_TEMP 'pulpito-source/windows')
           $target = Join-Path $env:RUNNER_TEMP 'PulpitoBibleSetupTest'
