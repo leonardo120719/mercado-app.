@@ -27,6 +27,12 @@ jobs:
           ref: ${{ github.sha }}
           path: source
 
+      - name: Download signed APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: pulpito-bible-android-release-apk
+          path: release-apk
+
       - name: Obter site principal
         uses: actions/checkout@v4
         with:
@@ -47,6 +53,9 @@ jobs:
               exit 0
             fi
           fi
+          mkdir -p target/public/downloads
+          cp release-apk/app-release.apk target/public/downloads/pulpito-bible.apk
+          apk_sha256=$(sha256sum release-apk/app-release.apk | awk '{print $1}')
           assets=(app.js pulpito.html styles.css pulpito-sw.js pulpito-manifest.webmanifest
                   pulpito-acervo.json pulpito-crossrefs.json pulpito-icon-192.svg
                   pulpito-icon-512.svg pulpito-icon-official.svg)
@@ -61,11 +70,14 @@ jobs:
           sed 's|"/pulpito-acervo.json"$|"/pulpito-acervo.json", "/pulpito-crossrefs.json"|' \
             source/pulpito-sw.js > target/public/pulpito-web-sw.js
           jq -n --arg source_sha "$GITHUB_SHA" --argjson version_code "$VERSION_CODE" \
-            '{source_sha: $source_sha, version_code: $version_code}' > target/public/pulpito-release.json
+            --arg apk_url "https://pulpito-bible.onrender.com/downloads/pulpito-bible.apk" \
+            --arg sha256 "$apk_sha256" \
+            --arg version_name "1.0.$VERSION_CODE" \
+            '{source_sha: $source_sha, version_code: $version_code, version_name: $version_name, apk_url: $apk_url, sha256: $sha256}' > target/public/pulpito-release.json
           cd target
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -- "${assets[@]}" "${assets[@]/#/public/}" public/index.html public/pulpito-web-sw.js public/pulpito-release.json
+          git add -- "${assets[@]}" "${assets[@]/#/public/}" public/index.html public/pulpito-web-sw.js public/pulpito-release.json public/downloads/pulpito-bible.apk
           if ! git diff --cached --quiet; then
             git commit -m "Publica Púlpito Bible 1.0.$VERSION_CODE no site"
             git push origin HEAD:pulpito-bible
