@@ -450,52 +450,68 @@ async function getOriginalTermsForWord(term){
   return a.code.localeCompare(b.code,undefined,{numeric:true});
  });
 }
-async function searchCommentaries(term,maxResults,shouldContinue){
- var wanted=normalizeStudyWord(term),limit=Math.max(1,Math.min(200,Number(maxResults)||100));
- if(!wanted)return {results:[],total:0,modulesSearched:0,scanned:0};
+function normalizeCommentarySearch(text){
+ return normalizeStudyWord(text).replace(/\s+/g," ");
+}
+async function searchCommentaries(term,maxResults,shouldContinue,onProgress){
+ var wanted=normalizeCommentarySearch(term),limit=Math.max(1,Math.min(200,Number(maxResults)||100));
+ var results=[],total=0,scanned=0,modulesSearched=0,seen=new Set(),lastUpdate=0;
+ function snapshot(){return {results:results.slice(),total:total,modulesSearched:modulesSearched,scanned:scanned};}
+ if(!wanted)return snapshot();
+ await ready();
  var chosen=modules.filter(function(m){return m.type==="commentary";}),db=await dbOpen();
- var results=[],total=0,scanned=0,seen=new Set();
  function active(){return typeof shouldContinue!=="function"||shouldContinue();}
+ function report(force){
+  if(typeof onProgress!=="function"||!active()||(!force&&Date.now()-lastUpdate<200))return;
+  lastUpdate=Date.now();onProgress(snapshot());
+ }
  function inspect(module,book,entry){
-  if(!entry||!hasCommentaryText(entry))return;
-  var text=repairModuleText(entry.text,module),plain=simplifyText(text);
-  if(!normalizeStudyWord(plain).includes(wanted))return;
-  var key=[module.id,book,entry.fromChapter,entry.fromVerse,entry.toChapter,entry.toVerse,plain.slice(0,120)].join("|");
-  if(seen.has(key))return;seen.add(key);total++;
-  if(results.length<limit)results.push({
+  if(!entry?.text)return;
+  var raw=String(entry.text),plain;
+  if(!normalizeCommentarySearch(raw).includes(wanted)){
+   if(!/[&ÃÂâ]/.test(raw))return;
+   plain=simplifyText(repairModuleText(raw,module));
+   if(!normalizeCommentarySearch(plain).includes(wanted))return;
+  }
+  // An indexed record may be repeated for each chapter in its range.
+  var key=JSON.stringify([module.id,book,entry.fromChapter,entry.fromVerse,entry.toChapter,entry.toVerse,raw.length,raw.slice(0,120),raw.slice(-80)]);
+  if(seen.has(key))return;
+  seen.add(key);total++;
+  if(results.length>=limit)return;
+  results.push({
    moduleId:module.id,moduleName:module.name,book:book,
    fromChapter:Number(entry.fromChapter||entry.chapter||0),
    fromVerse:Number(entry.fromVerse||entry.verse||0),
    toChapter:Number(entry.toChapter||entry.fromChapter||entry.chapter||0),
-   toVerse:Number(entry.toVerse||0),text:plain
+   toVerse:Number(entry.toVerse||0),text:plain??simplifyText(repairModuleText(raw,module))
   });
  }
  async function scanStore(module,storeName,visitor){
-  return new Promise(function(resolve,reject){
-   var tx=db.transaction(storeName,"readonly"),index=tx.objectStore(storeName).index("moduleId");
-   var req=index.openCursor(IDBKeyRange.only(module.id));
-   req.onerror=function(){reject(req.error||Error("Falha ao pesquisar comentários"));};
-   tx.onabort=function(){reject(tx.error||Error("Pesquisa de comentários interrompida"));};
-   req.onsuccess=function(){
-    var cur=req.result;
-    if(!cur||!active()){resolve();return;}
-    visitor(cur.value);scanned++;cur.continue();
-   };
-  });
+  var prefix=module.id+"/",last=prefix,batchSize=256,count=0;
+  while(active()){
+   var store=db.transaction(storeName,"readonly").objectStore(storeName);
+   var rows=await request(store.getAll(IDBKeyRange.bound(last,prefix+"\uffff",true),batchSize));
+   if(!active()||!rows.length)break;
+   rows.forEach(function(row){visitor(row);scanned++;});
+   count+=rows.length;report();
+   if(rows.length<batchSize)break;
+   last=rows[rows.length-1].key;
+  }
+  return count;
  }
  for(var i=0;i<chosen.length&&active();i++){
   var module=chosen[i];
-  if(module.storage==="entries-v1"){
-   await scanStore(module,"commentaryEntries",function(row){inspect(module,row.book,row);});
-  }else{
-   await scanStore(module,"commentaries",function(row){
-    (row&&Array.isArray(row.entries)?row.entries:[]).forEach(function(entry){inspect(module,row.book,entry);});
-   });
-  }
+  async function scanIndexed(){return scanStore(module,"commentaryEntries",function(row){inspect(module,row.book,row);});}
+  async function scanGrouped(){return scanStore(module,"commentaries",function(row){
+   (Array.isArray(row.entries)?row.entries:[]).forEach(function(entry){inspect(module,row.book,entry);});
+  });}
+  if(module.storage==="entries-v1"){if(!await scanIndexed())await scanGrouped();}
+  else if(!await scanGrouped())await scanIndexed();
+  modulesSearched++;
+  report(true);
  }
- return {results:results,total:total,modulesSearched:chosen.length,scanned:scanned};
+ return snapshot();
 }
-
 
 /* Large MyBible commentary importer: rows are written in small transactions
    to an IndexedDB passage index. The whole 30k-row result is never materialized
@@ -2881,34 +2897,92 @@ function pb2CommentaryExcerpt(text,term){
  var start=Math.max(0,index-105),end=Math.min(source.length,index+String(term||"").length+210);
  return (start?"…":"")+source.slice(start,end)+(end<source.length?"…":"");
 }
+async function pb2RelatedCommentaries(term,active){
+ var pattern=bibleSearchPattern(term.trim().replace(/\s+/g," "));
+ var modules=window.PBModules,installed=modules.getInstalled().filter(function(m){return m.type==="bible";});
+ var versions=installed.map(function(m){return "local:"+m.id;});
+ if(versions.includes(state.version))versions=[state.version].concat(versions.filter(function(v){return v!==state.version;}));
+ var seen=new Set(),results=[],referencesChecked=0;
+ for(var version of versions){
+  if(!active()||results.length>=25||referencesChecked>=50)break;
+  var chapters=await modules.getBibleSearchChapters(version);
+  for(var chapter of chapters){
+   if(!active()||results.length>=25||referencesChecked>=50)break;
+   var matches=(chapter.verses||[]).flatMap(function(verse,index){
+    var text=typeof verse==="string"?verse:verse?.text||verse?.content||"";
+    var plain=text.replace(/<s>[^<]*<\/s>|<[^>]*>/gi,"");
+    pattern.lastIndex=0;
+    if(!plain.includes("&")&&!pattern.test(plain))return [];
+    pattern.lastIndex=0;
+    return pattern.test(bibleSearchText(text))?[Number(verse.number||verse.verse)||index+1]:[];
+   });
+   for(var verse of matches){
+    if(!active()||results.length>=25||referencesChecked>=50)break;
+    var ref=[chapter.book,chapter.chapter,verse].join("/");
+    if(seen.has(ref))continue;
+    seen.add(ref);
+    referencesChecked++;
+    var found=await modules.getCommentaries(chapter.book,chapter.chapter,verse);
+    found.forEach(function(item){
+     if(results.length>=25)return;
+     var key=JSON.stringify([item.moduleId,chapter.book,item.fromChapter,item.fromVerse,item.toChapter,item.toVerse,item.text]);
+     if(seen.has(key))return;
+     seen.add(key);
+     results.push(Object.assign({},item,{book:chapter.book,relatedVerse:verse,relatedChapter:chapter.chapter}));
+    });
+   }
+  }
+ }
+ return results;
+}
 async function pb2SearchCommentaries(term,token){
  var el=document.getElementById("pb2-commentary-results");if(!el)return;
  pb2CloseCommentaryReader();pb2CommentaryResults=[];
- var modules=window.PBModules&&window.PBModules.getInstalled().filter(function(m){return m.type==="commentary";})||[];
- if(!modules.length){el.innerHTML='<p class="subtitle">Nenhum comentário bíblico instalado. Instale módulos de comentários para pesquisar este conteúdo.</p>';return;}
- el.innerHTML='<p class="subtitle">Pesquisando “'+esc(term)+'” no texto completo de todos os comentários instalados…</p>';
- try{
-  var result=await window.PBModules.searchCommentaries(term,100,function(){
-   return token===pb2SearchToken&&!!document.getElementById("pb2-commentary-results");
-  });
-  if(token!==pb2SearchToken)return;
-  el=document.getElementById("pb2-commentary-results");if(!el)return;
+ function active(){return token===pb2SearchToken&&el===document.getElementById("pb2-commentary-results");}
+ function paint(result,pending){
+  if(!active())return;
   pb2CommentaryResults=result.results.map(function(item){
    return Object.assign({},item,{module:item.moduleName,reference:pb2CommentaryReference(item)});
   });
-  var heading='<h3>Comentários encontrados em todos os módulos ('+result.total+')</h3>'+
-   '<p class="subtitle">A palavra “'+esc(term)+'” foi procurada no conteúdo integral de '+result.modulesSearched+' módulo(s) instalado(s). '+result.scanned+' registro(s) examinados. Pesquisa local, inclusive offline.</p>';
-  var cards=pb2CommentaryResults.map(function(item,index){
-   return '<button type="button" class="pb2-commentary-result" data-pb2-commentary-index="'+index+'" aria-label="Abrir comentário '+esc(item.module)+' em '+esc(item.reference)+'">'+
-    '<strong>'+esc(item.module)+'</strong><span class="pb2-commentary-result-reference">'+esc(item.reference)+'</span>'+
-    '<span class="pb2-commentary-result-preview">'+esc(pb2CommentaryExcerpt(item.text,term))+'</span>'+
-    '<span class="pb2-commentary-result-hint">Contém “'+esc(term)+'” · Toque para ler o comentário completo →</span></button>';
+  var related=result.related===true;
+  var heading=related?'<p class="subtitle">Comentários sobre passagens em que a Bíblia instalada usa “'+esc(term)+'”.</p>':
+   '<p class="subtitle">'+(pending?'Pesquisando… ':'')+result.total+' resultado(s) · '+result.modulesSearched+' módulo(s) pesquisado(s) · '+result.scanned+' registro(s) consultado(s).</p>';
+  var groups=new Map();
+  pb2CommentaryResults.forEach(function(item,index){
+   if(!groups.has(item.moduleId))groups.set(item.moduleId,{name:item.module,items:[]});
+   var matchReference=related?pb2CommentaryReference({
+    book:item.book,fromChapter:item.relatedChapter,fromVerse:item.relatedVerse
+   }):"";
+   var label=related?'Palavra encontrada em '+esc(matchReference):'Correspondência no comentário';
+   groups.get(item.moduleId).items.push(
+    '<button type="button" class="pb2-commentary-result" data-pb2-commentary-index="'+index+'" aria-label="Abrir comentário '+esc(item.module)+' em '+esc(item.reference)+'">'+
+     '<strong>'+esc(item.reference)+'</strong>'+
+     '<span class="pb2-commentary-result-preview">'+esc(pb2CommentaryExcerpt(item.text,term))+'</span>'+
+     '<span class="pb2-commentary-result-hint">'+label+' · Ler comentário completo →</span></button>');
+  });
+  var cards=Array.from(groups.values()).map(function(group){
+   return '<section class="pb2-original-language-section"><h3>'+esc(group.name)+'</h3>'+group.items.join("")+'</section>';
   }).join("");
-  var empty='<p class="subtitle">Nenhum comentário instalado contém “'+esc(term)+'”. Tente outra palavra ou instale outros módulos de comentários.</p>';
+  var empty=pending?"":'<p class="subtitle">Nenhum comentário encontrado para “'+esc(term)+'”.</p>';
   var more=result.total>pb2CommentaryResults.length?'<p class="subtitle">Exibindo os primeiros '+pb2CommentaryResults.length+' resultados de '+result.total+'.</p>':"";
   el.innerHTML=heading+(cards||empty)+more;
+ }
+ el.innerHTML='<p class="subtitle">Pesquisando “'+esc(term)+'” nos comentários instalados…</p>';
+ try{
+  var result=await window.PBModules.searchCommentaries(term,100,active,function(progress){paint(progress,true);});
+  if(!active())return;
+  if(!result.modulesSearched){
+   el.textContent="Nenhum comentário bíblico instalado neste dispositivo.";
+   return;
+  }
+  if(!result.total){
+   el.textContent="Verificando comentários das passagens que contêm a palavra pesquisada…";
+   var related=await pb2RelatedCommentaries(term,active);
+   if(related.length){paint(Object.assign({},result,{results:related,total:related.length,related:true}),false);return;}
+  }
+  paint(result,false);
  }catch(error){
-  if(token===pb2SearchToken){el=document.getElementById("pb2-commentary-results");if(el)el.textContent="Não foi possível pesquisar os comentários instalados: "+error.message;}
+  if(active())el.textContent="Não foi possível pesquisar os comentários instalados: "+error.message;
  }
 }
 async function pb2SearchOriginalLanguages(term,token){
@@ -2973,11 +3047,12 @@ function pb2RenderSearch(){
  MAIN.innerHTML='<div class="content">'+title("pesquisa")+
  '<div class="card card-pad"><h2>Pesquisa inteligente</h2><form id="pb2-search-form" style="display:flex;gap:8px;align-items:center"><input id="pb2-query" class="field" type="search" style="flex:1;min-width:0;border-radius:28px" value="'+esc(query)+'" placeholder="Pesquise palavras, assuntos, passagens..." aria-label="Termo da pesquisa"><button class="btn primary" type="submit" aria-label="Pesquisar">🔍 Pesquisar</button></form>'+
  '<label>Pesquisar em <select id="pb2-filter" class="field">'+["todos","notas","historico","sermoes","planos"].map(function(x){return '<option value="'+x+'"'+(filter===x?' selected':'')+'>'+esc(x)+'</option>';}).join("")+'</select></label>'+
+ (q?'<p><a href="#pb2-commentary-section">Ver resultados dos comentários</a></p>':'')+
  '<div class="btn-row"><button class="btn" data-act="pb2-open-bible-search">🔍 Pesquisar textos bíblicos</button><button class="btn" data-act="pb2-backup">Exportar backup</button></div>'+
  '<h3>Histórico de pesquisas</h3><div class="btn-row" style="flex-wrap:wrap">'+history.slice(0,12).map(function(x){return '<button class="btn slim" data-pb2-search-history="'+esc(x.query)+'">🕘 '+esc(x.query)+'</button>';}).join("")+(history.length?'<button class="btn slim" data-act="pb2-search-clear">Limpar histórico</button>':'<p class="subtitle">Nenhuma pesquisa recente.</p>')+'</div></div>'+
  (q?'<div class="card card-pad" style="margin-top:12px"><h3>Meus estudos ('+rows.length+')</h3>'+rows.map(function(x){return '<div class="card card-pad" style="margin:8px 0"><strong>'+esc(x.title)+'</strong><small> · '+esc(x.type)+'</small><p>'+esc(String(x.body).slice(0,250))+'</p></div>';}).join("")+'</div>'+
  '<div class="card card-pad" style="margin-top:12px"><h2>Significado e idiomas originais</h2><p class="subtitle">A pesquisa segue esta ordem: português, grego e hebraico. Os resultados originais são vinculados aos códigos Strong encontrados nas Bíblias instaladas.</p><div id="pb2-original-results"></div></div>'+
- '<div class="card card-pad" style="margin-top:12px"><h2>Comentários bíblicos instalados</h2><p class="subtitle">A mesma palavra é procurada no conteúdo completo de todos os comentários instalados, independentemente do livro ou capítulo aberto.</p><div id="pb2-commentary-results"></div></div>':
+ '<div id="pb2-commentary-section" class="card card-pad" style="margin-top:12px;scroll-margin-top:110px"><h2>Comentários bíblicos instalados</h2><p class="subtitle">A mesma palavra é procurada no conteúdo completo de todos os comentários instalados, independentemente do livro ou capítulo aberto.</p><div id="pb2-commentary-results"></div></div>':
  '<p class="subtitle">Digite um termo e toque na lupa para pesquisar. Seu histórico fica salvo apenas neste dispositivo.</p>')+'</div>';
  if(q){var token=++pb2SearchToken;pb2SearchOriginalLanguages(query,token);pb2SearchCommentaries(query,token);}
 }
