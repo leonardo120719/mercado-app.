@@ -434,7 +434,7 @@ async function getOriginalTermsForWord(term){
       if(normalizeStudyWord(token)===wanted){
        var verseNo=Number(typeof verse==="string"?i+1:verse.number||verse.verse)||i+1;
        var fallback=canonical.indexOf(book)<39?"H":"G";
-       codes.forEach(function(code){add((code[0]||fallback)+code.slice(1),book,chapter,verseNo,module.name);});
+       codes.forEach(function(code){add(/^[GH]/.test(code)?code:fallback+code,book,chapter,verseNo,module.name);});
       }
       position=end;j=k;
      }
