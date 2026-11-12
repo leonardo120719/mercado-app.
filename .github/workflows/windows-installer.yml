@@ -17,13 +17,26 @@ jobs:
     timeout-minutes: 15
     defaults:
       run:
-        working-directory: windows
+        working-directory: ${{ runner.temp }}
         shell: pwsh
     steps:
-      - uses: actions/checkout@v4
+      - name: Baixar o código em uma pasta compatível com Windows
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $source = Join-Path $env:RUNNER_TEMP 'pulpito-source'
+          $credentials = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("x-access-token:$env:GH_TOKEN"))
+          Write-Output "::add-mask::$credentials"
+          git init $source
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao preparar a pasta do projeto.' }
+          git -C $source -c "http.extraHeader=AUTHORIZATION: basic $credentials" fetch --depth=1 "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY.git" $env:GITHUB_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao baixar o código do GitHub.' }
+          git -C $source checkout --detach FETCH_HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao abrir a revisão do projeto.' }
 
       - name: Compilar o aplicativo Windows x64
         run: |
+          Set-Location (Join-Path $env:RUNNER_TEMP 'pulpito-source/windows')
           dotnet build PulpitoBible.csproj --configuration Release --output publish
           if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o Púlpito Bible." }
           foreach ($file in @('PulpitoBible.exe','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')) {
@@ -35,6 +48,7 @@ jobs:
 
       - name: Gerar instalador
         run: |
+          Set-Location (Join-Path $env:RUNNER_TEMP 'pulpito-source/windows')
           $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $compiler)) {
             choco install innosetup --version=6.7.1 --yes --no-progress
@@ -45,6 +59,7 @@ jobs:
 
       - name: Testar instalação silenciosa
         run: |
+          Set-Location (Join-Path $env:RUNNER_TEMP 'pulpito-source/windows')
           $target = Join-Path $env:RUNNER_TEMP 'PulpitoBibleSetupTest'
           $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', ('/DIR="{0}"' -f $target))
           $setup = Start-Process -FilePath 'dist/Pulpito_Bible_Windows_Setup_x64.exe' -Wait -PassThru -ArgumentList $arguments
@@ -56,5 +71,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: pulpito-bible-windows-x64
-          path: windows/dist/Pulpito_Bible_Windows_Setup_x64.exe
+          path: ${{ runner.temp }}/pulpito-source/windows/dist/Pulpito_Bible_Windows_Setup_x64.exe
           if-no-files-found: error
