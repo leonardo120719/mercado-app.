@@ -2979,7 +2979,8 @@ async function pbDevPaint(){
  }
 }
 var pbPlanSelectedDays=new Map();
-var pbPlanMaxDays=3660;
+var pbPlanScopes={book:"Um livro",old:"Antigo Testamento",new:"Novo Testamento",bible:"Bíblia inteira"};
+var pbPlanDayMs=86400000;
 var pbPlanMoments=[
  {id:"morning",label:"Manhã",reflection:"Leia a passagem do dia. O que ela revela sobre Deus? Escolha uma atitude concreta para colocar em prática hoje.",prayer:"Senhor, abre meu entendimento e ajuda-me a viver hoje o que aprendo na tua Palavra."},
  {id:"evening",label:"Noite",reflection:"Releia a passagem. Em que momento ela orientou sua atitude hoje? O que você quer entregar a Deus antes de descansar?",prayer:"Senhor, obrigado pelo cuidado de hoje. Perdoa minhas falhas e ajuda-me a guardar tua Palavra no coração."}
@@ -2988,22 +2989,58 @@ function pbPlanPace(value){
  return Math.min(20,Math.max(1,Math.floor(Number(value)||1)));
 }
 function pbPlanDays(plan){
- var refs=plan.references||[],pace=pbPlanPace(plan.pace),days=[];
+ var refs=plan.references||[],pace=pbPlanPace(plan.pace);
  var duration=plan.durationDays;
- if(refs.length&&Number.isInteger(duration)&&duration>0&&duration<=pbPlanMaxDays){
-  if(duration<=refs.length){
-   return Array.from({length:duration},function(_,index){
-    return refs.slice(Math.floor(index*refs.length/duration),Math.floor((index+1)*refs.length/duration));
-   });
-  }
-  days=Array.from({length:duration},function(){return [];});
-  refs.forEach(function(ref,index){
-   days[Math.floor(index*(duration-1)/Math.max(1,refs.length-1))].push(ref);
-  });
-  return days;
+ var fixed=refs.length&&Number.isSafeInteger(duration)&&duration>0;
+ var length=fixed?duration:Math.ceil(refs.length/pace);
+ return {length:length,at:function(day){
+  if(!Number.isInteger(day)||day<0||day>=length)return undefined;
+  if(!fixed)return refs.slice(day*pace,(day+1)*pace);
+  if(duration<=refs.length)return refs.slice(Math.floor(day*refs.length/duration),Math.floor((day+1)*refs.length/duration));
+  var step=Math.max(1,refs.length-1),span=duration-1;
+  return refs.slice(Math.ceil(day*step/span),Math.ceil((day+1)*step/span));
+ }};
+}
+function pbPlanDates(unit,amount,now=new Date()){
+ if(!Number.isSafeInteger(amount)||amount<1)return null;
+ var start=Date.UTC(now.getFullYear(),now.getMonth(),now.getDate());
+ var end=start+(amount-1)*pbPlanDayMs;
+ if(unit==="months"){
+  var year=now.getFullYear(),month=now.getMonth()+amount;
+  var last=new Date(Date.UTC(year,month+1,0)).getUTCDate();
+  end=Date.UTC(year,month,Math.min(now.getDate(),last))-pbPlanDayMs;
  }
- for(var i=0;i<refs.length;i+=pace)days.push(refs.slice(i,i+pace));
- return days;
+ var finish=new Date(end);
+ if(!Number.isFinite(finish.getTime())||end<start)return null;
+ return {startDate:new Date(start).toISOString(),finishDate:finish.toISOString(),durationDays:(end-start)/pbPlanDayMs+1};
+}
+function pbPlanDateLabel(value){
+ return new Date(value).toLocaleDateString("pt-BR",{day:"numeric",month:"long",year:"numeric",timeZone:"UTC"});
+}
+function pbPlanDraft(){
+ var scope=document.getElementById("pb-plan-scope").value;
+ var book=booksFallback.find(function(item){return item.slug===document.getElementById("pb2-plan-book").value;});
+ var chosen=scope==="book"?(book?[book]:[]):booksFallback.filter(function(item){return scope==="bible"||item.testament===scope;});
+ var count=chosen.reduce(function(total,item){return total+item.chapters;},0);
+ var unit=document.getElementById("pb-plan-unit").value;
+ var pace=pbPlanPace(document.getElementById("pb2-plan-pace").value);
+ var dates=pbPlanDates(unit,unit==="pace"?Math.ceil(count/pace):Number(document.getElementById("pb-plan-amount").value));
+ return {scope:scope,book:book,chosen:chosen,count:count,unit:unit,pace:pace,dates:dates};
+}
+function pbPlanPreview(){
+ var draft=pbPlanDraft(),dates=draft.dates;
+ document.getElementById("pb-plan-book-field").hidden=draft.scope!=="book";
+ document.getElementById("pb-plan-pace-field").hidden=draft.unit!=="pace";
+ document.getElementById("pb-plan-amount-field").hidden=draft.unit==="pace";
+ document.getElementById("pb-plan-amount-label").textContent=draft.unit==="months"?"Quantidade de meses":"Quantidade de dias";
+ var preview=document.getElementById("pb-plan-preview");
+ if(!dates){preview.textContent="Informe uma quantidade inteira para calcular a leitura.";return;}
+ var days=dates.durationDays,low=Math.floor(draft.count/days),high=Math.ceil(draft.count/days);
+ var rhythm=draft.unit==="pace"?Math.min(draft.count,draft.pace)+" por dia":
+  low===0?"1 por dia de leitura, com "+(days-draft.count)+" dias de pausa":
+  (low===high?String(low):low+" a "+high)+" por dia";
+ preview.textContent=draft.count+" capítulos · "+rhythm+" · "+days+(days===1?" dia.":" dias.")+
+  " Início em "+pbPlanDateLabel(dates.startDate)+". Término previsto em "+pbPlanDateLabel(dates.finishDate)+".";
 }
 function pbPlanDayKeys(refs,day){
  return refs.length?refs:["@dia:"+day];
@@ -3045,7 +3082,7 @@ function pbPlanPaintDevotionals(modules){
   var module=modules.find(function(m){return m.id===selected;});
   if(!module){target.textContent="Devocional indisponível neste dispositivo.";return;}
   var day=Number(target.dataset.day);
-  var refs=(pbPlanDays(plan)[day]||[]).map(parseLinkedReference).filter(Boolean);
+  var refs=(pbPlanDays(plan).at(day)||[]).map(parseLinkedReference).filter(Boolean);
   var entries=module.entries.flatMap(function(entry,index){
    return entry.day===day+1||refs.some(function(ref){return ref.book===entry.book&&ref.chapter===entry.chapter;})?
     [pbDevOpenButton(module,entry,index)]:[];
@@ -3054,20 +3091,27 @@ function pbPlanPaintDevotionals(modules){
  });
 }
 function pbPlanSelectedDay(plan,days){
- var firstIncomplete=days.findIndex(function(refs,day){
-  return !refs.every(function(ref){return plan.done?.[ref];})||!pbPlanDayComplete(plan,refs,day);
- });
- return Math.min(pbPlanSelectedDays.get(plan.id)??(firstIncomplete<0?days.length-1:firstIncomplete),days.length-1);
+ var selected=pbPlanSelectedDays.get(plan.id);
+ if(Number.isInteger(selected)&&selected>=0)return Math.min(selected,days.length-1);
+ for(var day=0;day<days.length;day++){
+  var refs=days.at(day);
+  if(!refs.every(function(ref){return plan.done?.[ref];})||!pbPlanDayComplete(plan,refs,day))return day;
+ }
+ return days.length-1;
 }
 function pbPlanDailyCard(plan,days,selected){
  if(!days.length)return "";
- var refs=days[selected];
+ var refs=days.at(selected);
  var done=pbPlanMoments.filter(function(moment){return pbPlanMomentDone(plan,refs,selected,moment.id);}).length;
- return '<section aria-label="Devocional do plano"><h4>Devocional do Dia '+(selected+1)+'</h4>'+
- '<label>Dia do plano<select id="pb-plan-day-'+esc(plan.id)+'" class="field" data-pb-plan-day="'+esc(plan.id)+'">'+days.map(function(day,i){
+ var dayAttrs=' id="pb-plan-day-'+esc(plan.id)+'" class="field" data-pb-plan-day="'+esc(plan.id)+'"';
+ var dayControl=days.length>3660?'<input'+dayAttrs+' type="number" min="1" max="'+days.length+'" value="'+(selected+1)+'">':
+ '<select'+dayAttrs+'>'+Array.from({length:days.length},function(_,i){
+  var day=days.at(i);
   return '<option value="'+i+'"'+(i===selected?' selected':'')+'>Dia '+(i+1)+(day.length?'':' · Pausa')+
    (pbPlanDayComplete(plan,day,i)&&day.every(function(ref){return plan.done?.[ref];})?' · Concluído':'')+'</option>';
- }).join("")+'</select></label>'+
+ }).join("")+'</select>';
+ return '<section aria-label="Devocional do plano"><h4>Devocional do Dia '+(selected+1)+'</h4>'+
+ '<label>Dia do plano'+dayControl+'</label>'+
  (refs.length?'<p><strong>Leitura do dia</strong> '+refs.map(function(ref){return window.PBConnections.referenceButton(ref,ref);}).join(' · ')+'</p>':
   '<p>Dia de pausa na leitura. Aproveite para revisar uma passagem anterior.</p>')+
  '<div data-pb-plan-reading="'+esc(plan.id)+'" data-day="'+selected+'"></div>'+
@@ -3085,14 +3129,23 @@ function pb2RenderPlans(){
  '<p class="subtitle">Siga a leitura do dia e faça o devocional de manhã e à noite.</p>'+
  '<div class="card card-pad"><h3>Meus devocionais</h3><p>Os devocionais são instalados na Biblioteca de Módulos. Aqui você escolhe um devocional instalado e faz sua leitura.</p><div id="pb-dev-module-list">Carregando devocionais instalados...</div></div>'+
  '<div class="card card-pad"><h3>Devocional de hoje</h3><div id="pb-dev-today">Carregando...</div></div>'+ 
- '<div class="card card-pad"><label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Ex.: Evangelho de João"></label><label>Livro<select class="field" id="pb2-plan-book">'+books.map(function(b){return '<option value="'+esc(b.slug)+'">'+esc(b.name)+'</option>';}).join("")+'</select></label><label>Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label><fieldset><legend>Devocional do plano</legend><div id="pb-plan-new-picker" data-pb-plan-picker="">Carregando...</div></fieldset><button class="btn primary" data-act="pb2-plan-add">Criar plano</button></div>'+
+ '<div class="card card-pad"><label>Nome do plano<input class="field" id="pb2-plan-title" placeholder="Ex.: Evangelho de João"></label>'+
+ '<label>O que você quer ler?<select class="field" id="pb-plan-scope">'+Object.entries(pbPlanScopes).map(function(scope){return '<option value="'+scope[0]+'">'+scope[1]+'</option>';}).join("")+'</select></label>'+
+ '<label id="pb-plan-book-field">Livro<select class="field" id="pb2-plan-book">'+booksFallback.map(function(b){return '<option value="'+esc(b.slug)+'">'+esc(b.name)+'</option>';}).join("")+'</select></label>'+
+ '<label>Prazo<select class="field" id="pb-plan-unit"><option value="months">Meses</option><option value="days">Dias</option><option value="pace">Capítulos por dia</option></select></label>'+
+ '<label id="pb-plan-amount-field"><span id="pb-plan-amount-label">Quantidade de meses</span><input class="field" id="pb-plan-amount" type="number" min="1" step="1" inputmode="numeric"></label>'+
+ '<label id="pb-plan-pace-field" hidden>Capítulos por dia<input class="field" id="pb2-plan-pace" type="number" min="1" max="20" value="2"></label>'+
+ '<p id="pb-plan-preview" role="status"></p>'+
+ '<fieldset><legend>Devocional do plano</legend><div id="pb-plan-new-picker" data-pb-plan-picker="">Carregando...</div></fieldset><button class="btn primary" data-act="pb2-plan-add">Criar plano</button></div>'+
  plans.map(function(p){
  var refs=p.references||[],done=refs.filter(function(ref){return p.done?.[ref];}).length;
- var days=pbPlanDays(p),selected=pbPlanSelectedDay(p,days),displayedRefs=p.scope?(days[selected]||[]):refs;
+ var days=pbPlanDays(p),selected=pbPlanSelectedDay(p,days),displayedRefs=p.scope?(days.at(selected)||[]):refs;
+ var finish=p.startDate&&days.length?Date.parse(p.startDate)+(days.length-1)*pbPlanDayMs:NaN;
  return '<div class="card card-pad" style="margin-top:12px"><h3 id="pb-plan-'+esc(p.id)+'" tabindex="-1">'+esc(p.title||"Plano sem título")+'</h3><p>'+done+' de '+refs.length+' capítulos concluídos ('+Math.round(done/Math.max(1,refs.length)*100)+'%)</p>'+
  '<div class="btn-row"><button class="btn slim" data-act="pb2-plan-edit" data-plan-id="'+esc(p.id)+'">✏️ Editar</button><button class="btn slim" data-act="pb2-plan-delete" data-plan-id="'+esc(p.id)+'">🗑️ Excluir</button></div>'+
  (p.durationDays?'<p>Prazo do plano · '+days.length+(days.length===1?' dia':' dias')+'</p>':
   '<label>Ritmo diário<input class="field" type="number" min="1" max="20" data-pb2-pace="'+esc(p.id)+'" value="'+pbPlanPace(p.pace)+'"></label>')+
+ (Number.isFinite(finish)?'<p>Término previsto em '+esc(pbPlanDateLabel(finish))+'.</p>':'')+
  '<details><summary>Alterar devocional</summary><div data-pb-plan-picker="'+esc(p.id)+'">Carregando...</div></details>'+
  pbPlanDailyCard(p,days,selected)+
  '<div style="max-height:420px;overflow:auto">'+displayedRefs.map(function(ref){var devotional=(p.devotionals||{})[ref]||"";
@@ -3100,6 +3153,7 @@ function pb2RenderPlans(){
  (p.devotionalModule!==undefined||p.devotionalModules?'':'<div data-pb-dev-content data-book="'+esc(parseLinkedReference(ref)?.book||"")+'" data-chapter="'+esc(ref.split(" ").slice(-1)[0])+'"></div>')+
  '<label>Reflexão, oração e aplicação pessoal<textarea class="field" rows="4" data-pb2-devotional="'+esc(p.id)+'" data-ref="'+esc(ref)+'" placeholder="O que aprendi neste capítulo? Como aplicar?">'+esc(devotional)+'</textarea></label><small>Salvo ao sair do campo. Texto pessoal; nenhum conteúdo de terceiros é inserido automaticamente.</small></details>';
  }).join("")+'</div></div>';}).join("")+'</div>';
+ pbPlanPreview();
  pbDevPaint();
 }
 function pbWinRead(){var d=pb2Read();return Array.isArray(d.studyWindows)?d.studyWindows:[];}
@@ -3683,12 +3737,15 @@ document.addEventListener("click",function(ev){
  if(a==="pb2-plan-edit"){var id=el.dataset.planId,d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===id;});if(!p)return;var name=window.prompt("Nome do plano:",p.title||"");if(name===null)return;name=name.trim();if(!name){notify("O nome não pode ficar vazio.");return;}p.title=name;pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-plan-delete"){var id=el.dataset.planId,d=pb2Read(),p=(d.plans||[]).find(function(x){return x.id===id;});if(!p)return;if(!window.confirm('Excluir o plano "'+p.title+'", seu progresso e seus devocionais? Esta ação não pode ser desfeita.'))return;d.plans=d.plans.filter(function(x){return x.id!==id;});pb2Write(d);pb2RenderPlans();return;}
  if(a==="pb2-plan-add"){
-  var d=pb2Read(),book=books.find(function(b){return b.slug===document.getElementById("pb2-plan-book").value;});
-  if(!book)return;
-  var plan={id:pbWinEscapeId(),title:document.getElementById("pb2-plan-title").value.trim()||book.name,
-   pace:pbPlanPace(document.getElementById("pb2-plan-pace").value),
+  var d=pb2Read(),draft=pbPlanDraft();
+  if(!draft.count||!draft.dates){notify("Informe uma quantidade válida para o prazo do plano.");return;}
+  var title=document.getElementById("pb2-plan-title").value.trim()||(draft.scope==="book"?draft.book.name:pbPlanScopes[draft.scope]);
+  var plan={id:pbWinEscapeId(),title:title,pace:draft.pace,scope:draft.scope==="book"?undefined:draft.scope,
+   startDate:draft.dates.startDate,durationDays:draft.unit==="pace"?null:draft.dates.durationDays,
    devotionalModule:pbPlanSelectedDevotional(document.getElementById("pb-plan-new-picker")),
-   references:Array.from({length:book.chapters},function(_,i){return book.name+" "+(i+1);}),done:{}};
+   references:draft.chosen.flatMap(function(book){
+    return Array.from({length:book.chapters},function(_,i){return book.name+" "+(i+1);});
+   }),done:{}};
   d.plans=(d.plans||[]).concat(plan);
   if(pb2Write(d)){
    pb2RenderPlans();
@@ -3711,7 +3768,7 @@ document.addEventListener("click",function(ev){
  if(a==="pb-plan-moment"){
   var d=pb2Read(),plan=(d.plans||[]).find(function(p){return p.id===el.dataset.planId;});
   var day=Number(el.dataset.day),moment=el.dataset.moment;
-  var refs=plan&&pbPlanDays(plan)[day];
+  var refs=plan&&pbPlanDays(plan).at(day);
   if(!refs||!pbPlanMoments.some(function(item){return item.id===moment;}))return;
   var complete=!pbPlanMomentDone(plan,refs,day,moment);
   plan.dailyDevotional=plan.dailyDevotional||{};
@@ -3768,8 +3825,10 @@ document.addEventListener("click",function(ev){
 document.addEventListener("change",function(ev){var t=ev.target;if(t.id==="pb-graph-depth"||t.id==="pb-graph-filter"){pbGraphSession.depth=Math.max(1,Math.min(6,Number(document.getElementById("pb-graph-depth").value)||1));pbGraphSession.filter=document.getElementById("pb-graph-filter").value;pbGraphStore();pbShowGraphResults();return;}});
 document.addEventListener("change",function(ev){
  var target=ev.target;
+ if(["pb-plan-scope","pb-plan-unit","pb2-plan-book"].includes(target.id))pbPlanPreview();
  if(target.dataset.pbPlanDay){
-  pbPlanSelectedDays.set(target.dataset.pbPlanDay,Number(target.value));
+  if(target.type==="number"&&(!target.value||!target.reportValidity()))return;
+  pbPlanSelectedDays.set(target.dataset.pbPlanDay,Number(target.value)-(target.type==="number"?1:0));
   pb2RenderPlans();
   document.getElementById(target.id)?.focus({preventScroll:true});
  }
@@ -3790,6 +3849,7 @@ document.addEventListener("change",function(ev){
 document.addEventListener("change",function(ev){var t=ev.target;if(t.dataset.historicalFilter){historicalFilters[t.dataset.historicalFilter]=t.value;renderHistoricalDiary();}if(t.dataset.historicalField&&t.tagName==="SELECT"){var key=state.book+":"+state.chapter;state.historicalDiary=state.historicalDiary||{};state.historicalDiary[key]=state.historicalDiary[key]||{};state.historicalDiary[key][t.dataset.historicalField]=t.value;persist();}});
 document.addEventListener("input",function(ev){
  var t=ev.target;
+ if(t.id==="pb-plan-amount"||t.id==="pb2-plan-pace")pbPlanPreview();
  if(t.id==="tutor-answer"){var st=getStudy();st.answers[state.tutorStep]=t.value;state.studies[studyKey()]=st;persist();}
  if(t.dataset.sermon){state.sermon[t.dataset.sermon]=t.value;persist();}
  if(t.dataset.historicalFilter){historicalFilters[t.dataset.historicalFilter]=t.value;renderHistoricalDiary();return;}
