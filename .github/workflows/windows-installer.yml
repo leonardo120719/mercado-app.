@@ -1,0 +1,60 @@
+name: Púlpito Bible Windows
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [pulpito-bible-pwa]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows-installer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-installer:
+    runs-on: windows-2025
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: windows
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compilar o aplicativo Windows x64
+        run: |
+          dotnet build PulpitoBible.csproj --configuration Release --output publish
+          if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o Púlpito Bible." }
+          foreach ($file in @('PulpitoBible.exe','Microsoft.Web.WebView2.Core.dll','Microsoft.Web.WebView2.WinForms.dll')) {
+            if (-not (Test-Path "publish/$file")) { throw "Arquivo ausente: $file" }
+          }
+          if (-not (Get-ChildItem publish -Recurse -Filter WebView2Loader.dll)) {
+            throw 'WebView2Loader.dll ausente.'
+          }
+
+      - name: Gerar instalador
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $compiler)) {
+            choco install innosetup --version=6.7.1 --yes --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Falha ao instalar Inno Setup.' }
+          }
+          & $compiler Setup.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Falha ao gerar o instalador.' }
+
+      - name: Testar instalação silenciosa
+        run: |
+          $target = Join-Path $env:RUNNER_TEMP 'PulpitoBibleSetupTest'
+          $arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', ('/DIR="{0}"' -f $target))
+          $setup = Start-Process -FilePath 'dist/Pulpito_Bible_Windows_Setup_x64.exe' -Wait -PassThru -ArgumentList $arguments
+          if ($setup.ExitCode -ne 0 -or -not (Test-Path "$target/PulpitoBible.exe")) {
+            throw "Instalação de teste falhou: $($setup.ExitCode)"
+          }
+
+      - name: Disponibilizar instalador
+        uses: actions/upload-artifact@v4
+        with:
+          name: pulpito-bible-windows-x64
+          path: windows/dist/Pulpito_Bible_Windows_Setup_x64.exe
+          if-no-files-found: error
