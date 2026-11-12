@@ -2664,6 +2664,7 @@ function pb2SearchHistory(term){
  d.searchHistory=[{query:q,at:new Date().toISOString()}].concat(items.filter(function(x){return x&&x.query.toLocaleLowerCase("pt-BR")!==q.toLocaleLowerCase("pt-BR");})).slice(0,35);pb2Write(d);
 }
 var pb2CommentaryResults=[];
+var pb2CommentaryReaderIndex=0;
 var pb2CommentaryReaderFocus=null;
 function pb2CloseCommentaryReader(){
  var root=document.getElementById("pb2-commentary-reader");
