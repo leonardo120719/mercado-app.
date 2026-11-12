@@ -401,7 +401,7 @@ jobs:
             await github.rest.repos.createOrUpdateFileContents({
               owner, repo, path, branch: context.ref.replace("refs/heads/", ""),
               message: "Publica manifesto da atualização Púlpito Bible " + manifest.version_name,
-              content: Buffer.from(JSON.stringify(manifest, null, 2) + "\\n").toString("base64"),
+              content: Buffer.from(JSON.stringify(manifest, null, 2)).toString("base64"),
               ...(sha ? {sha} : {})
             });
       - name: Upload signed Android APK
