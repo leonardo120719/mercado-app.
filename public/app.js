@@ -1494,11 +1494,41 @@ function normalizeQuery(input){
   return /^[GH]\d{1,5}$/.test(strongCode(value));
  }))),reference:query.reference||session.config.readReference()};
 }
-function renderEntries(entries,selectedId,originalScript){
- return entries.slice().sort(function(a,b){return Number(b.moduleId===selectedId)-Number(a.moduleId===selectedId);}).map(function(entry){
-  return '<article class="pb-dict-entry"><div class="pb-dict-entry-title"><strong>'+linkText(entry.topic)+'</strong><small>'+esc(entry.moduleName)+'</small></div>'+
+function renderEntries(entries,originalScript){
+ return entries.map(function(entry){
+  return '<article class="pb-dict-entry"><div class="pb-dict-entry-title"><strong>'+linkText(entry.topic)+'</strong></div>'+
    '<div class="pb-dict-definition">'+linkText(entry.definition,originalScript)+'</div></article>';
  }).join("");
+}
+function renderModuleCards(query,byKey,selected){
+ var modules=dictionaryModules().slice().sort(function(a,b){
+  return Number(b.id===selected?.id)-Number(a.id===selected?.id);
+ });
+ var cards=[];
+ modules.forEach(function(module){
+  var sections=[];
+  if(query.word){
+   var normal=byKey.get(query.word);
+   if(normal&&normal.status==="fulfilled"){
+    var found=normal.value.find(function(entry){return entry.moduleId===module.id;});
+    if(found)sections.push('<section class="pb-dict-module-section"><h4>Português · '+linkText(found.topic)+'</h4>'+renderEntries([found],false)+'</section>');
+   }
+  }
+  query.codes.forEach(function(rawCode){
+   var code=strongCode(rawCode),result=byKey.get(code);
+   if(result&&result.status==="fulfilled"){
+    var found=result.value.find(function(entry){return entry.moduleId===module.id;});
+    if(found)sections.push('<section class="pb-dict-module-section"><h4>Strong · '+esc(code)+'</h4>'+renderEntries([found],true)+'</section>');
+   }
+  });
+  if(!sections.length)return;
+  var meta=[module.abbreviation,module.license].filter(Boolean).join(" · ");
+  cards.push('<article class="pb-dict-module-card'+(selected&&module.id===selected.id?' is-selected':'')+'">'+
+   '<header class="pb-dict-module-card-header"><div><span class="pb-dict-module-kicker">DICIONÁRIO INSTALADO</span><h3>'+esc(module.name)+'</h3>'+
+   (meta?'<p>'+esc(meta)+'</p>':'')+'</div>'+(selected&&module.id===selected.id?'<span class="pb-dict-module-current">Selecionado</span>':'')+'</header>'+
+   '<div class="pb-dict-module-card-content">'+sections.join("")+'</div></article>');
+ });
+ return cards.join("");
 }
 function lookup(input,opts){
  if(!session||!session.root.isConnected)return;
@@ -1516,26 +1546,21 @@ function lookup(input,opts){
  session.config.onQueryChange(query);
  labels();
  var serial=++requestSerial,selected=selectedModule();
- var heading=query.word?'<p class="pb-dict-queried-word">Português <strong>'+esc(query.word)+'</strong></p>':"";
+ var heading=query.word?'<p class="pb-dict-queried-word">Palavra pesquisada <strong>'+esc(query.word)+'</strong></p>':"";
  var codes=Array.from(new Set(query.codes.map(strongCode))),keys=query.word?[query.word].concat(codes):codes;
- target.innerHTML=heading+'<div class="pb-dict-loading">Consultando os dicionários instalados…</div>';
+ target.innerHTML=heading+'<div class="pb-dict-loading">Consultando cada dicionário separadamente…</div>';
  Promise.allSettled(keys.map(function(key){return global.PBModules.getDictionaryEntry(key);})).then(function(results){
   if(!session||serial!==requestSerial||!session.root.isConnected)return;
   var byKey=new Map(keys.map(function(key,i){return [key,results[i]];}));
-  function entries(key,empty){
-   var result=byKey.get(key);
-   if(result.status==="rejected")return '<p class="pb-dict-error">Falha ao consultar os verbetes de '+esc(key)+'.</p>';
-   return renderEntries(result.value,selected&&selected.id,key!==query.word)||'<p class="pb-dict-empty">'+empty+'</p>';
-  }
-  var normal=query.word?'<section><h3 class="pb-dict-section-title">Dicionários em português</h3>'+
-   entries(query.word,"Nenhum verbete para essa palavra nos dicionários instalados.")+'</section>':"";
-  var strong='<section><h3 class="pb-dict-section-title">Strong · Grego e hebraico</h3>';
-  if(!codes.length)strong+='<p class="pb-dict-empty">Esta palavra não tem um código Strong confirmado nesta tradução.</p>';
-  codes.forEach(function(code){
+  var failures=results.filter(function(result){return result.status==="rejected";}).length;
+  var strongInfo=codes.map(function(code){
    var id=query.codes.find(function(value){return strongCode(value)===code;});
-   strong+='<div><h4 class="pb-dict-section-title">'+esc(code)+'</h4>'+session.config.renderStrong(id,query.reference)+entries(code,"Nenhum verbete instalado para este código.")+'</div>';
-  });
-  target.innerHTML=heading+normal+strong+'</section>'+(!dictionaryModules().length?
+   return '<article class="pb-dict-strong-reference"><h3>Referência Strong · '+esc(code)+'</h3>'+session.config.renderStrong(id,query.reference)+'</article>';
+  }).join("");
+  var cards=renderModuleCards({word:query.word,codes:codes},byKey,selected);
+  var errors=failures?'<p class="pb-dict-error">'+failures+' consulta(s) não puderam ser concluídas.</p>':"";
+  var empty=!cards?'<div class="pb-dict-empty"><strong>Nenhum verbete correspondente foi encontrado.</strong><p>Os dicionários instalados foram consultados individualmente. Você pode escolher outro módulo no seletor acima ou instalar um novo dicionário.</p></div>':"";
+  target.innerHTML=heading+strongInfo+cards+errors+empty+(!dictionaryModules().length?
    '<button class="btn slim primary" data-page="modulos">⇩ Instalar dicionários</button>':"");
   var scroll=session.root.querySelector("#pb-dictionary-scroll");
   if(scroll){scroll.scrollTop=Number(session.config.readRestoreScroll())||0;session.config.onRestoreScroll();}
