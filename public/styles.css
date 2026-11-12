@@ -965,14 +965,6 @@ body.pb2-commentary-reader-open{overflow:hidden}
 .pb2-commentary-reader-heading .eyebrow{font-size:10px;letter-spacing:.12em;font-weight:800;color:var(--sub)}
 .pb2-commentary-reader-heading h2{font-size:19px;line-height:1.3;margin:5px 0}
 .pb2-commentary-reader-heading p{font-size:13px;font-weight:700;color:var(--brand);margin:0}
-.pb2-dictionary-reader-controls{
- flex:none;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:8px;
- padding:8px clamp(12px,3vw,22px);border-bottom:1px solid var(--border);background:var(--white);
-}
-.pb2-dictionary-reader-controls label{min-width:0;font-size:12px;color:var(--sub)}
-.pb2-dictionary-reader-controls select{width:100%;min-width:0;margin-top:4px}
-.pb-dictionary-modes{display:flex;gap:6px;flex:none;padding:4px 10px}
-.pb-dictionary-modes [aria-pressed="true"]{font-weight:700;border-color:var(--brand);color:var(--brand)}
 .pb2-commentary-reader-scroll{
  flex:1 1 auto;min-height:0;overflow-y:auto;overflow-x:hidden;
  padding:clamp(18px,3vw,32px);overscroll-behavior:contain;
