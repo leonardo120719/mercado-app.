@@ -1037,3 +1037,25 @@ body.pb2-commentary-reader-open{overflow:hidden}
  .pb-dict-module-card-content{padding:3px 13px 10px}
  .pb-dict-module-section .pb-dict-definition{font-size:12px;line-height:1.8}
 }
+
+
+/* Pesquisa inteligente: resultados linguísticos em etapas, separados por idioma e módulo. */
+.pb2-original-language-section{margin:18px 0;padding:14px;border:1px solid var(--border);border-radius:14px;background:var(--surface,#fff)}
+.pb2-original-language-section>h3{margin:0 0 12px;font-size:15px;color:var(--ink)}
+.pb2-original-entry{margin:9px 0;padding:12px;border:1px solid var(--border);border-radius:10px;background:var(--paper,#faf9f6)}
+.pb2-original-entry header,.pb2-original-term>header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.pb2-original-entry header strong{font-size:12px;color:var(--brand)}
+.pb2-original-entry header span{font-size:12px;font-weight:800}
+.pb2-original-entry>div{font-size:13px;line-height:1.75;white-space:pre-wrap;overflow-wrap:anywhere}
+.pb2-original-term{margin:12px 0;padding:13px;border:1px solid var(--border);border-radius:12px}
+.pb2-original-term>header{justify-content:flex-start}
+.pb2-original-script{font-size:18px;color:var(--brand);letter-spacing:.04em}
+.pb2-original-references{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.pb2-original-references .btn{font-size:11px}
+.pb2-original-note{font-size:12px;line-height:1.65;color:var(--sub);padding:10px;border-left:3px solid var(--brand);background:var(--paper)}
+.pb2-commentary-result-preview{white-space:normal}
+@media(max-width:600px){
+ .pb2-original-language-section{padding:11px}
+ .pb2-original-entry,.pb2-original-term{padding:10px}
+ .pb2-original-entry>div{font-size:12px;line-height:1.7}
+}
