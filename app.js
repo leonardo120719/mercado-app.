@@ -1,4 +1,64 @@
-window.PB_BUILD_ID = "pb-20261112-restaurar-dicionarios";
+window.PB_BUILD_ID = "pb-20261112-layout-duplo-v1";
+/* Global layout selector: the chosen appearance applies to every tool and reader. */
+(function(){
+ "use strict";
+ var KEY="pulpito-bible-layout-v1";
+ var allowed=["classic","premium"];
+ function read(){
+  try{var saved=localStorage.getItem(KEY);return allowed.indexOf(saved)>=0?saved:"classic";}
+  catch(e){return "classic";}
+ }
+ function apply(layout,save){
+  layout=allowed.indexOf(layout)>=0?layout:"classic";
+  document.documentElement.setAttribute("data-pb-layout",layout);
+  if(save){try{localStorage.setItem(KEY,layout);}catch(e){}}
+  var menu=document.getElementById("pb-layout-menu");
+  if(menu){
+   menu.querySelectorAll("[data-pb-layout-choice]").forEach(function(button){
+    var active=button.getAttribute("data-pb-layout-choice")===layout;
+    button.classList.toggle("active",active);
+    button.setAttribute("aria-pressed",active?"true":"false");
+    var mark=button.querySelector(".pb-layout-check");
+    if(mark)mark.textContent=active?"✓":"";
+   });
+  }
+  var toggle=document.getElementById("pb-layout-toggle");
+  if(toggle){
+   toggle.setAttribute("aria-label","Layout atual: "+(layout==="premium"?"Premium":"Clássico")+". Escolher layout");
+   toggle.setAttribute("aria-expanded",menu&&!menu.hidden?"true":"false");
+   var current=toggle.querySelector(".pb-layout-current");
+   if(current)current.textContent=layout==="premium"?"Premium":"Clássico";
+  }
+ }
+ function init(){
+  var toggle=document.getElementById("pb-layout-toggle");
+  var menu=document.getElementById("pb-layout-menu");
+  if(!toggle||!menu)return;
+  apply(read(),false);
+  toggle.addEventListener("click",function(event){
+   event.preventDefault();event.stopPropagation();
+   menu.hidden=!menu.hidden;
+   apply(document.documentElement.getAttribute("data-pb-layout"),false);
+  });
+  menu.addEventListener("click",function(event){
+   var choice=event.target.closest("[data-pb-layout-choice]");
+   if(!choice)return;
+   apply(choice.getAttribute("data-pb-layout-choice"),true);
+   menu.hidden=true;
+   apply(document.documentElement.getAttribute("data-pb-layout"),false);
+  });
+  document.addEventListener("click",function(event){
+   if(menu.hidden)return;
+   var control=event.target.closest(".pb-layout-control");
+   if(!control){menu.hidden=true;apply(document.documentElement.getAttribute("data-pb-layout"),false);}
+  });
+  document.addEventListener("keydown",function(event){
+   if(event.key==="Escape"&&!menu.hidden){menu.hidden=true;apply(document.documentElement.getAttribute("data-pb-layout"),false);toggle.focus();}
+  });
+ }
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});
+ else init();
+})();
 /* Bloqueio global prioritário: clique simples jamais inicia seleção. 
    Apenas o gesto de pressionar/segurar habilita o modo múltiplo. */
 document.addEventListener("click",function(e){
