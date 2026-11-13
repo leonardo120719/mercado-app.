@@ -1,9 +1,9 @@
-window.PB_BUILD_ID = "pb-20261113-premium-study-v2";
+window.PB_BUILD_ID = "pb-20261113-layout-academico-v1";
 /* Global layout selector: the chosen appearance applies to every tool and reader. */
 (function(){
  "use strict";
  var KEY="pulpito-bible-layout-v1";
- var allowed=["classic","premium"];
+ var allowed=["classic","premium","academic"];
  function read(){
   try{var saved=localStorage.getItem(KEY);return allowed.indexOf(saved)>=0?saved:"classic";}
   catch(e){return "classic";}
@@ -24,10 +24,10 @@ window.PB_BUILD_ID = "pb-20261113-premium-study-v2";
   }
   var toggle=document.getElementById("pb-layout-toggle");
   if(toggle){
-   toggle.setAttribute("aria-label","Layout atual: "+(layout==="premium"?"Premium":"Clássico")+". Escolher layout");
+   toggle.setAttribute("aria-label","Layout atual: "+(layout==="premium"?"Premium":layout==="academic"?"Acadêmico":"Clássico")+". Escolher layout");
    toggle.setAttribute("aria-expanded",menu&&!menu.hidden?"true":"false");
    var current=toggle.querySelector(".pb-layout-current");
-   if(current)current.textContent=layout==="premium"?"Premium":"Clássico";
+   if(current)current.textContent=layout==="premium"?"Premium":layout==="academic"?"Acadêmico":"Clássico";
   }
  }
  function init(){
