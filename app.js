@@ -1270,7 +1270,7 @@ function clearWordTextSelection(){
  try{var selection=global.getSelection();if(selection)selection.removeAllRanges();}catch(_){}
 }
 function activateBibleLink(node){
- var verseNode=node.closest(".reader-scripture [data-verse]"),verse=verseNode?Number(verseNode.dataset.verse):0;
+ var verseNode=node.closest(".reader-scripture [data-verse], .pb-mw-bible-verse[data-verse]"),verse=verseNode?Number(verseNode.dataset.verse):0;
  var wordNode=node;
  while(wordNode&&wordNode.matches(".strong-badge"))wordNode=wordNode.previousElementSibling;
  if(!wordNode||!wordNode.matches(".pb-linked-word, .strong-word"))wordNode=null;
