@@ -1286,3 +1286,354 @@ html[data-pb-layout="premium"] .pb-layout-toggle .pb-layout-current{color:#fff}
  html[data-pb-layout="premium"] .pb-top-shell .topbar-main{background:#07121e}
  html[data-pb-layout="premium"] .pb-top-shell .topnav{background:#0b1a29}
 }
+
+
+/* PREMIUM V2 — polished reading desk and unified study tools */
+html[data-pb-layout="premium"]{
+ --premium-bg:#07131f;--premium-panel:#102337;--premium-raised:#162d42;
+ --premium-line:#30495f;--premium-gold:#edc574;--premium-muted:#a7b8c6;
+ --premium-text:#edf3f7;--premium-shadow:0 16px 42px rgba(0,0,0,.28);
+}
+html[data-pb-layout="premium"] body{
+ background:radial-gradient(ellipse at 75% -10%,#183750 0%,#0a1927 40%,#07131f 78%);
+ color:var(--premium-text);font-family:"DM Sans",system-ui,sans-serif;
+}
+html[data-pb-layout="premium"] .workarea{background:linear-gradient(145deg,#0b1a28,#07131f)}
+html[data-pb-layout="premium"] .content{max-width:1580px;padding:clamp(20px,3vw,42px) clamp(14px,3vw,46px) 46px}
+html[data-pb-layout="premium"] .page-title{
+ color:#f7f3e9;font:400 clamp(25px,2.5vw,34px)/1.25 "Libre Baskerville",Georgia,serif;
+ letter-spacing:-.025em;
+}
+html[data-pb-layout="premium"] .page-title:after{
+ content:"";display:block;width:48px;height:3px;margin-top:12px;
+ border-radius:4px;background:linear-gradient(90deg,#f0cb7b,transparent);
+}
+html[data-pb-layout="premium"] h1,
+html[data-pb-layout="premium"] h2,
+html[data-pb-layout="premium"] h3,
+html[data-pb-layout="premium"] h4,
+html[data-pb-layout="premium"] .section-heading{color:#f2f5f7}
+html[data-pb-layout="premium"] .subtitle,
+html[data-pb-layout="premium"] .muted,
+html[data-pb-layout="premium"] .tiny,
+html[data-pb-layout="premium"] .feature-note,
+html[data-pb-layout="premium"] .label{color:var(--premium-muted)}
+html[data-pb-layout="premium"] .eyebrow,
+html[data-pb-layout="premium"] .feature-number{color:var(--premium-gold)}
+html[data-pb-layout="premium"] .card,
+html[data-pb-layout="premium"] .quick-action,
+html[data-pb-layout="premium"] .feature-item,
+html[data-pb-layout="premium"] .module-installed,
+html[data-pb-layout="premium"] .module-catalog-item,
+html[data-pb-layout="premium"] .module-comment,
+html[data-pb-layout="premium"] .pb2-commentary-result{
+ color:var(--premium-text);background:linear-gradient(145deg,#142b40,#0d1e2e);
+ border:1px solid var(--premium-line);border-radius:16px;box-shadow:var(--premium-shadow);
+}
+html[data-pb-layout="premium"] .card:hover,
+html[data-pb-layout="premium"] .quick-action:hover,
+html[data-pb-layout="premium"] .feature-item:hover{
+ border-color:#a9854a;box-shadow:0 18px 44px rgba(0,0,0,.34);
+}
+html[data-pb-layout="premium"] .quick-action{padding:17px;transition:transform .18s,border-color .18s}
+html[data-pb-layout="premium"] .quick-action:hover{transform:translateY(-2px)}
+html[data-pb-layout="premium"] .quick-icon{
+ width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#4b3920,#2c3032);
+ color:#f4d18a;border:1px solid #80643b;
+}
+html[data-pb-layout="premium"] .chip{
+ background:#1b3043;color:#dce6ed;border:1px solid #3a5268;border-radius:99px;
+}
+html[data-pb-layout="premium"] .chip.goldish{background:#3b2d1b;color:#f2d28e;border-color:#80643b}
+html[data-pb-layout="premium"] .chip.greenish{background:#17372f;color:#a9dfc4;border-color:#376d58}
+html[data-pb-layout="premium"] .rule,
+html[data-pb-layout="premium"] .app-footer{border-color:#2d4357}
+html[data-pb-layout="premium"] .app-footer{color:#8196a8}
+
+/* Premium button system */
+html[data-pb-layout="premium"] .btn,
+html[data-pb-layout="premium"] .reader-tool,
+html[data-pb-layout="premium"] .reader-icon,
+html[data-pb-layout="premium"] .header-action,
+html[data-pb-layout="premium"] .pb-split-toolbar-actions button,
+html[data-pb-layout="premium"] .pb-dictionary-nav button,
+html[data-pb-layout="premium"] .pb-mw-control{
+ color:#e6edf3;background:linear-gradient(180deg,#1c354b,#13283b);
+ border:1px solid #3b5369;border-radius:10px;
+ box-shadow:inset 0 1px rgba(255,255,255,.04),0 2px 6px rgba(0,0,0,.16);
+ transition:transform .16s,border-color .16s,background .16s;
+}
+html[data-pb-layout="premium"] .btn{min-height:41px;padding:10px 15px;font-weight:750}
+html[data-pb-layout="premium"] .btn:hover,
+html[data-pb-layout="premium"] .reader-tool:hover,
+html[data-pb-layout="premium"] .reader-icon:hover,
+html[data-pb-layout="premium"] .pb-mw-control:hover{
+ transform:translateY(-1px);border-color:#b68d4d;background:#29445b;
+}
+html[data-pb-layout="premium"] .btn.primary,
+html[data-pb-layout="premium"] .btn.gold,
+html[data-pb-layout="premium"] .pb-mw-primary{
+ color:#1a2833;border-color:#f0d18e;
+ background:linear-gradient(135deg,#f4d99b,#d6a84e 65%,#b98231);
+ box-shadow:0 5px 16px rgba(190,144,62,.22);
+}
+html[data-pb-layout="premium"] .btn.primary:hover,
+html[data-pb-layout="premium"] .btn.gold:hover{background:linear-gradient(135deg,#ffe5ad,#d9ad5b)}
+html[data-pb-layout="premium"] .btn.slim{min-height:34px;padding:7px 11px}
+html[data-pb-layout="premium"] .btn:disabled,
+html[data-pb-layout="premium"] button:disabled{opacity:.45;transform:none;box-shadow:none}
+html[data-pb-layout="premium"] button:focus-visible,
+html[data-pb-layout="premium"] a:focus-visible,
+html[data-pb-layout="premium"] input:focus-visible,
+html[data-pb-layout="premium"] select:focus-visible,
+html[data-pb-layout="premium"] textarea:focus-visible{outline:2px solid #efc979!important;outline-offset:3px!important}
+html[data-pb-layout="premium"] .step-tab{background:#142a3e;color:#c6d4df;border:1px solid #354e63;border-radius:10px}
+html[data-pb-layout="premium"] .step-tab.active{background:#44351f;color:#f4d58f;border-color:#a98448}
+
+/* Fields and menus */
+html[data-pb-layout="premium"] .field,
+html[data-pb-layout="premium"] .select,
+html[data-pb-layout="premium"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html[data-pb-layout="premium"] textarea,
+html[data-pb-layout="premium"] select{
+ color:#edf3f8;background:linear-gradient(180deg,#0a1a28,#102438);
+ border:1px solid #385168;border-radius:11px;min-height:42px;padding:10px 13px;
+}
+html[data-pb-layout="premium"] input::placeholder,
+html[data-pb-layout="premium"] textarea::placeholder{color:#8197a9}
+html[data-pb-layout="premium"] input[type="checkbox"],
+html[data-pb-layout="premium"] input[type="radio"]{accent-color:#dcb66d}
+html[data-pb-layout="premium"] .tip,
+html[data-pb-layout="premium"] .col-note{
+ color:#d9e5ed;background:#172f43;border:1px solid #3b5369;border-left:3px solid #dcb66d;border-radius:11px;
+}
+html[data-pb-layout="premium"] .top-menu-toggle{
+ color:#f1d18c;background:#193249;border:1px solid #5b6e80;border-radius:10px;
+}
+
+/* Reader command bar and Bible paper */
+html[data-pb-layout="premium"] .reader-active .workarea{background:#081521}
+html[data-pb-layout="premium"] .reader-active .topbar{
+ background:#07131f;border-color:#2a4055;box-shadow:0 8px 24px #0004;
+}
+html[data-pb-layout="premium"] .reader-commandbar{
+ background:rgba(14,32,48,.97);backdrop-filter:blur(15px);
+ border:1px solid #354e63;border-top:0;border-radius:0 0 16px 16px;
+ box-shadow:0 12px 30px #0005;padding:13px clamp(11px,2vw,22px);
+}
+html[data-pb-layout="premium"] .reader-brand{color:#f1d18e}
+html[data-pb-layout="premium"] .brand-small{
+ background:linear-gradient(145deg,#f3d38f,#b98031);color:#152636;border-radius:9px;
+}
+html[data-pb-layout="premium"] .reader-tagline,
+html[data-pb-layout="premium"] .reader-hint{color:#91a7b9}
+html[data-pb-layout="premium"] .reader-select,
+html[data-pb-layout="premium"] .reader-appearance select{
+ color:#edf3f8;background:#0b1d2c;border:1px solid #3d566c;border-radius:9px;
+}
+html[data-pb-layout="premium"] .reader-quicktools{border-color:#2e465b;gap:7px}
+html[data-pb-layout="premium"] .reader-tool{background:#152d42;border-color:#3b5369;border-radius:9px}
+html[data-pb-layout="premium"] .reader-tool.on{
+ color:#f4d58e;background:linear-gradient(135deg,#4a3820,#2d3031);border-color:#aa8548;
+}
+html[data-pb-layout="premium"] .reader-appearance{border-color:#2e465b}
+html[data-pb-layout="premium"] .reader-appearance label{color:#b9c8d4}
+html[data-pb-layout="premium"] .reader-paper{
+ --reader-bg:#f8f3e8;--reader-ink:#273847;--reader-rule:#d9c8a7;
+ border:1px solid #b38d50;border-radius:15px;box-shadow:0 17px 42px #0005;
+}
+html[data-pb-layout="premium"] .reader-paper.white{
+ --reader-bg:#fffefa;--reader-ink:#263847;--reader-rule:#dbe1e5;
+}
+html[data-pb-layout="premium"] .reader-paper.night{
+ --reader-bg:#101e2b;--reader-ink:#e7edf2;--reader-rule:#354a5e;border-color:#465d70;
+}
+html[data-pb-layout="premium"] .reader-paper-head{
+ color:#f6f0e4;background:linear-gradient(120deg,#10283d,#19374f);
+ border-color:#344d63;padding:16px 20px;
+}
+html[data-pb-layout="premium"] .reader-paper-head h1,
+html[data-pb-layout="premium"] .reader-paper-head h2{color:#faf5e9;font-size:21px}
+html[data-pb-layout="premium"] .reader-overline{color:#eac77d}
+html[data-pb-layout="premium"] .reader-module{
+ color:#1b2a35;background:linear-gradient(135deg,#f1d18e,#bd8736);border:1px solid #f3d99d;border-radius:7px;
+}
+html[data-pb-layout="premium"] .reader-paper-head .reader-favorite{
+ color:#f3d18b;background:#203a50;border:1px solid #806b48;border-radius:9px;
+}
+html[data-pb-layout="premium"] .reader-scripture{padding:clamp(20px,3vw,42px)}
+html[data-pb-layout="premium"] .reader-scripture .verse-list{line-height:2.05}
+html[data-pb-layout="premium"] .reader-scripture .verse-num{color:#a77730}
+html[data-pb-layout="premium"] .reader-scripture .verse-line.selected{background:#e5c67a70;border-radius:4px}
+html[data-pb-layout="premium"] .reader-scripture .verse-line.marked{box-shadow:inset 0 -5px #d4a64d99}
+html[data-pb-layout="premium"] .reader-scripture .strong-badge{
+ color:#1a2b38;background:linear-gradient(135deg,#f0d18b,#c28c3d);border-color:#a87a34;border-radius:5px;
+}
+html[data-pb-layout="premium"] .reader-paper.night .reader-scripture .verse-num{color:#efc878}
+html[data-pb-layout="premium"] .reader-note{color:#7c6c52;border-color:#d9c8a7}
+html[data-pb-layout="premium"] .reader-paper.night .reader-note{color:#aabcc9;border-color:#354a5e}
+html[data-pb-layout="premium"] .reader-actiondock{
+ color:#e9eff4;background:linear-gradient(145deg,#142c41,#0d1f30);
+ border:1px solid #344d62;border-radius:14px;box-shadow:0 12px 30px #0004;
+}
+html[data-pb-layout="premium"] .reader-reference span{color:#91a7b8}
+html[data-pb-layout="premium"] .reader-reference strong{color:#f0ce86}
+
+/* Independent comments / dictionary window */
+html[data-pb-layout="premium"] .pb-study-split{
+ background:#091725;border:1px solid #455c70;border-radius:15px;box-shadow:0 18px 48px #0005;
+}
+html[data-pb-layout="premium"] .pb-split-bible{background:#0e2030!important}
+html[data-pb-layout="premium"] .pb-split-resizer{
+ background:linear-gradient(90deg,#142d42,#263d51,#142d42);border-color:#41596e;
+}
+html[data-pb-layout="premium"] .pb-split-resizer span{
+ width:58px;height:4px;background:linear-gradient(90deg,#b8863c,#f2d18c,#b8863c);
+}
+html[data-pb-layout="premium"] .pb-split-comments,
+html[data-pb-layout="premium"] .pb-dictionary-pane{
+ color:#e8eff5!important;background:#0d1d2c!important;
+}
+html[data-pb-layout="premium"] .pb-split-bar,
+html[data-pb-layout="premium"] .pb-dictionary-bar{
+ min-height:46px;background:linear-gradient(110deg,#18344b,#0d2032)!important;
+ border-bottom:1px solid #3b5369!important;padding:5px 9px;
+}
+html[data-pb-layout="premium"] .pb-split-selector,
+html[data-pb-layout="premium"] .pb-dictionary-select{
+ color:#f2d28e!important;background:#26394d!important;border:1px solid #79613c!important;border-radius:9px!important;
+}
+html[data-pb-layout="premium"] .pb-split-ref{color:#cbd7e0}
+html[data-pb-layout="premium"] .pb-split-toolbar-actions{gap:4px}
+html[data-pb-layout="premium"] .pb-split-toolbar-actions button,
+html[data-pb-layout="premium"] .pb-dictionary-nav button{
+ color:#f0cc80!important;background:#1b354a!important;border:1px solid #415a70!important;border-radius:8px;
+}
+html[data-pb-layout="premium"] .pb-split-scroll,
+html[data-pb-layout="premium"] .pb-dictionary-scroll{
+ color:#e7eef4!important;background:#0c1b29!important;
+ padding-left:clamp(12px,2vw,24px);padding-right:clamp(12px,2vw,24px);
+}
+html[data-pb-layout="premium"] .pb-split-heading,
+html[data-pb-layout="premium"] .pb-dictionary-heading{
+ position:sticky;top:0;z-index:4;background:rgba(12,27,41,.97)!important;
+ border-bottom:1px solid #30485d!important;padding:13px 0 10px;backdrop-filter:blur(8px);
+}
+html[data-pb-layout="premium"] .pb-split-heading strong,
+html[data-pb-layout="premium"] .pb-dictionary-heading strong,
+html[data-pb-layout="premium"] .pb-dict-entry-title strong,
+html[data-pb-layout="premium"] .pb-dict-module-card-header h3{color:#f0cc80!important}
+html[data-pb-layout="premium"] .pb-split-heading span,
+html[data-pb-layout="premium"] .pb-dictionary-heading small{color:#9fb2c1!important}
+html[data-pb-layout="premium"] .pb-split-entry{border-color:#293f53!important;padding:15px 0 18px}
+html[data-pb-layout="premium"] .pb-split-entry-heading{color:#8dc9e1!important}
+html[data-pb-layout="premium"] .pb-split-entry-text,
+html[data-pb-layout="premium"] .pb-dict-definition{color:#e2eaf0!important;line-height:1.85}
+html[data-pb-layout="premium"] .pb-dict-entry{border-color:#293f53!important;padding:14px 0}
+html[data-pb-layout="premium"] .pb-dict-queried-word{color:#f1d08a!important}
+html[data-pb-layout="premium"] .pb-dict-inline-link{color:#92d0eb!important}
+html[data-pb-layout="premium"] .pb-dict-inline-link.pb-bible-reference{color:#a3d8b9!important}
+html[data-pb-layout="premium"] .pb-dictionary-search-row{background:#0d2031;border-color:#2e465b;padding:9px}
+html[data-pb-layout="premium"] .pb-dictionary-footer{background:#102438!important;border-color:#30485c!important}
+html[data-pb-layout="premium"] .pb-dictionary-picker,
+html[data-pb-layout="premium"] .pb-split-picker{
+ color:#e8eff5;background:#102438!important;border:1px solid #405a70!important;
+ box-shadow:0 16px 36px #0007;border-radius:0 0 12px 12px;
+}
+html[data-pb-layout="premium"] .pb-dict-choice,
+html[data-pb-layout="premium"] .pb-split-choice{
+ color:#e4edf3;background:#152d42!important;border:1px solid #354f65!important;border-radius:9px!important;
+}
+html[data-pb-layout="premium"] .pb-dict-choice.active,
+html[data-pb-layout="premium"] .pb-split-choice.active{
+ color:#f3d58f;background:#49381f!important;border-color:#ae894c!important;
+}
+html[data-pb-layout="premium"] .pb-dict-module-card{
+ color:#e8eff5;background:linear-gradient(145deg,#142b40,#0d1d2c)!important;border-color:#354d62!important;
+}
+html[data-pb-layout="premium"] .pb-dict-module-card-header{background:#172f44!important;border-color:#354c60!important}
+html[data-pb-layout="premium"] .pb-dict-module-kicker,
+html[data-pb-layout="premium"] .pb-dict-module-current{color:#efc97e!important}
+
+/* Multi-window layout */
+html[data-pb-layout="premium"] #pb-reader-multi-host.pb-mw-grid{
+ background:#091725;border:1px solid #3d566b;border-radius:15px;padding:9px;gap:9px;box-shadow:0 18px 46px #0005;
+}
+html[data-pb-layout="premium"] .pb-mw-pane{
+ color:#e8eff5;background:#102438;border:1px solid #3b5369;border-radius:12px;box-shadow:0 9px 25px #0004;overflow:hidden;
+}
+html[data-pb-layout="premium"] .pb-mw-pane-head{
+ color:#f0d08b;background:linear-gradient(110deg,#19364e,#102438);border-color:#3b5369;padding:8px 10px;
+}
+html[data-pb-layout="premium"] .pb-mw-pane-head select,
+html[data-pb-layout="premium"] .pb-mw-type{
+ color:#eaf1f6;background:#0b1d2c;border:1px solid #405970;border-radius:8px;
+}
+html[data-pb-layout="premium"] .pb-mw-control{color:#efcb80;border-radius:8px}
+html[data-pb-layout="premium"] .pb-mw-pane-body{color:#e8eff5;background:#0d1e2d}
+html[data-pb-layout="premium"] .pb-mw-entry,
+html[data-pb-layout="premium"] .pb-mw-result{color:#e8eff5;background:#142b40;border:1px solid #344e63;border-radius:9px}
+html[data-pb-layout="premium"] .pb-mw-ref-link{color:#a5d9bb}
+html[data-pb-layout="premium"] .pb-mw-menu{
+ color:#e8eff5;background:#102438;border:1px solid #405a70;border-radius:12px;box-shadow:var(--premium-shadow);
+}
+html[data-pb-layout="premium"] .pb-mw-menu button{color:#e8eff5;background:#152e43;border:1px solid #3b556b;border-radius:8px}
+html[data-pb-layout="premium"] .pb-mw-menu button.active{color:#f3d48e;background:#49381f;border-color:#ad884b}
+
+/* Search dialogs, Strong popup, commentary detail */
+html[data-pb-layout="premium"] .modal-backdrop,
+html[data-pb-layout="premium"] .strong-overlay{background:rgba(2,9,16,.8);backdrop-filter:blur(8px)}
+html[data-pb-layout="premium"] .modal,
+html[data-pb-layout="premium"] .strong-balloon,
+html[data-pb-layout="premium"] .pb2-commentary-reader-dialog{
+ color:#eaf1f6;background:linear-gradient(145deg,#142b40,#0c1d2c);
+ border:1px solid #455d72;border-radius:17px;box-shadow:0 28px 80px #0008;
+}
+html[data-pb-layout="premium"] .modal .panel-heading,
+html[data-pb-layout="premium"] .pb2-commentary-reader-header,
+html[data-pb-layout="premium"] .pb2-commentary-reader-footer{
+ background:#142b40;border-color:#344d62;
+}
+html[data-pb-layout="premium"] .pb2-commentary-reader-scroll{color:#e8eff5;background:#0d1e2d}
+html[data-pb-layout="premium"] .pb2-commentary-reader-text{color:#e5edf3;line-height:1.9}
+html[data-pb-layout="premium"] .pb2-commentary-reader-heading h2,
+html[data-pb-layout="premium"] .pb2-commentary-reader-module,
+html[data-pb-layout="premium"] .strong-original,
+html[data-pb-layout="premium"] .strong-balloon h3{color:#f1d08a}
+html[data-pb-layout="premium"] .strong-code{color:#192b38;background:linear-gradient(135deg,#f0d18c,#bd8738)}
+html[data-pb-layout="premium"] .strong-morph span{color:#dce7ee;background:#1b354a;border:1px solid #3b556b}
+html[data-pb-layout="premium"] .pb2-commentary-result-preview{color:#e5edf3}
+html[data-pb-layout="premium"] .pb2-commentary-result-reference,
+html[data-pb-layout="premium"] .pb2-commentary-result-hint{color:#efc97d}
+html[data-pb-layout="premium"] .pb2-original-entry,
+html[data-pb-layout="premium"] .pb2-original-term{color:#e8eff5;background:#102438;border-color:#354e63}
+html[data-pb-layout="premium"] .pb2-original-script{color:#f1cf83}
+html[data-pb-layout="premium"] .pb2-original-note{color:#b8c8d3;background:#172f43;border-color:#d3aa61}
+html[data-pb-layout="premium"] #toast{color:#f1d18d;background:#17344a;border:1px solid #79613e;box-shadow:0 12px 32px #0006}
+
+@media(max-width:720px){
+ html[data-pb-layout="premium"] .content{padding:20px 12px 30px}
+ html[data-pb-layout="premium"] .reader-commandbar{padding:10px;border-radius:0 0 12px 12px}
+ html[data-pb-layout="premium"] .reader-passage-control{min-width:100%;justify-content:stretch}
+ html[data-pb-layout="premium"] .reader-select.book-control,
+ html[data-pb-layout="premium"] .reader-select.version-control{flex:1;width:auto;min-width:0}
+ html[data-pb-layout="premium"] .reader-select.chapter-control{width:62px}
+ html[data-pb-layout="premium"] .reader-screen{padding-left:7px;padding-right:7px}
+ html[data-pb-layout="premium"] .reader-paper{border-radius:11px}
+ html[data-pb-layout="premium"] .reader-paper-head{padding:12px}
+ html[data-pb-layout="premium"] .reader-scripture{padding:18px 14px}
+ html[data-pb-layout="premium"] .pb-study-split{height:calc(100dvh - 180px);min-height:350px;border-radius:11px}
+ html[data-pb-layout="premium"] .pb-split-bar{min-height:43px;padding:4px}
+ html[data-pb-layout="premium"] .pb-split-selector{max-width:42%;font-size:10px;padding:6px}
+ html[data-pb-layout="premium"] .pb-split-toolbar-actions{gap:2px}
+ html[data-pb-layout="premium"] .pb-split-toolbar-actions button{min-width:29px;height:31px}
+ html[data-pb-layout="premium"] .pb-split-scroll{padding-left:11px;padding-right:11px}
+ html[data-pb-layout="premium"] .modal-backdrop{padding:0}
+ html[data-pb-layout="premium"] .modal,
+ html[data-pb-layout="premium"] .strong-balloon{width:100%;height:100dvh;max-height:100dvh;border-radius:0}
+}
+@media(prefers-reduced-motion:reduce){
+ html[data-pb-layout="premium"] *,html[data-pb-layout="premium"] *:before,html[data-pb-layout="premium"] *:after{
+  animation-duration:.01ms!important;transition-duration:.01ms!important;scroll-behavior:auto!important;
+ }
+}

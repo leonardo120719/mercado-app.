@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261112-layout-duplo-v1";
+window.PB_BUILD_ID = "pb-20261113-premium-study-v2";
 /* Global layout selector: the chosen appearance applies to every tool and reader. */
 (function(){
  "use strict";
