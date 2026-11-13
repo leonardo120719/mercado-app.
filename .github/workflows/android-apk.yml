@@ -412,7 +412,7 @@ jobs:
           if-no-files-found: error
 
   publish-site:
-    if: github.ref == 'refs/heads/pulpito-bible-pwa'
+    if: false # Esta compilação foi solicitada somente para o APK Android.
     needs: android-apk
     permissions:
       contents: write
