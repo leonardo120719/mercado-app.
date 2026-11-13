@@ -383,7 +383,7 @@ window.PBWindowUI.createReaderManager=function(env){
     var html=(data.verses||[]).map(function(v,i){
      var n=Number(v.number||v.verse)||i+1,txt=typeof v==="string"?v:(v.text||v.content||"");
      var rendered=version.startsWith("local:")?PBModules.renderVerse(txt,ref.book,env.state.showStrong):annotateVerse(txt,n,ref);
-     return '<p class="pb-mw-bible-verse"><button type="button" data-pbmw-open-verse="'+n+'" data-book="'+esc(ref.book)+'" data-chapter="'+ref.chapter+'">'+n+'</button> '+PBConnections.wrapHtml(rendered)+'</p>';
+     return '<p class="pb-mw-bible-verse" data-verse="'+n+'"><button type="button" data-pbmw-open-verse="'+n+'" data-book="'+esc(ref.book)+'" data-chapter="'+ref.chapter+'">'+n+'</button> '+PBConnections.wrapHtml(rendered)+'</p>';
     }).join("");
     paneResult(body,serial,html+'<small class="pb-mw-credit">'+esc(data.copyright||"Conteúdo da tradução selecionada")+'</small>');
    }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
