@@ -1059,3 +1059,230 @@ body.pb2-commentary-reader-open{overflow:hidden}
  .pb2-original-entry,.pb2-original-term{padding:10px}
  .pb2-original-entry>div{font-size:12px;line-height:1.7}
 }
+
+
+/* Púlpito Bible — two selectable global layouts. The Classic layout remains untouched.
+   Premium applies to every section, including dictionaries, comments, study panels and dialogs. */
+html[data-pb-layout="premium"]{
+ color-scheme:dark;
+ --bg:#07121d;
+ --paper:#0d1b29;
+ --white:#101f2e;
+ --ink:#edf3f8;
+ --sub:#a2b2c2;
+ --brand:#e8b65b;
+ --brand-deep:#07111b;
+ --brand-soft:#1b3043;
+ --gold:#efbd63;
+ --gold-soft:#3b2d1b;
+ --border:#293d50;
+ --shadow:0 16px 42px #0006;
+ background:var(--bg);
+}
+html[data-pb-layout="premium"] body{background:var(--bg);color:var(--ink)}
+html[data-pb-layout="premium"] .workarea{background:radial-gradient(ellipse at 80% 0%,#163047 0%,#0a1724 42%,#07121d 100%)}
+html[data-pb-layout="premium"] .content{max-width:1540px}
+html[data-pb-layout="premium"] .page-title,
+html[data-pb-layout="premium"] .section-heading,
+html[data-pb-layout="premium"] h1,
+html[data-pb-layout="premium"] h2,
+html[data-pb-layout="premium"] h3{color:#f4f7fb}
+html[data-pb-layout="premium"] .subtitle,
+html[data-pb-layout="premium"] .muted,
+html[data-pb-layout="premium"] .feature-note,
+html[data-pb-layout="premium"] .tiny{color:var(--sub)}
+html[data-pb-layout="premium"] .card,
+html[data-pb-layout="premium"] .quick-action,
+html[data-pb-layout="premium"] .module-installed,
+html[data-pb-layout="premium"] .module-catalog-item,
+html[data-pb-layout="premium"] .module-comment,
+html[data-pb-layout="premium"] .pb2-commentary-result{
+ background:linear-gradient(145deg,#132638,#0d1b29);
+ border-color:#2b4054;
+ color:var(--ink);
+ box-shadow:var(--shadow);
+}
+html[data-pb-layout="premium"] .card{border-radius:17px}
+html[data-pb-layout="premium"] .card:hover{border-color:#806638}
+html[data-pb-layout="premium"] .field,
+html[data-pb-layout="premium"] .select,
+html[data-pb-layout="premium"] input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+html[data-pb-layout="premium"] textarea,
+html[data-pb-layout="premium"] select{
+ background:#0a1927;color:#eef4fa;border-color:#344b60;
+}
+html[data-pb-layout="premium"] input::placeholder,
+html[data-pb-layout="premium"] textarea::placeholder{color:#8194a6}
+html[data-pb-layout="premium"] .btn{
+ background:#14283a;color:#e6edf4;border-color:#3a5064;
+}
+html[data-pb-layout="premium"] .btn:hover{background:#1d354a;border-color:#c49a4d;color:#fff}
+html[data-pb-layout="premium"] .btn.primary,
+html[data-pb-layout="premium"] .btn.gold{
+ background:linear-gradient(135deg,#f4cb78,#c99132);border-color:#e5b75e;color:#1b2027;
+}
+html[data-pb-layout="premium"] .chip{background:#172b3d;color:#d4e0e9;border-color:#3b5063}
+html[data-pb-layout="premium"] .chip.goldish{background:#3b2d1b;color:#f3ce85;border-color:#795c2f}
+html[data-pb-layout="premium"] .chip.greenish{background:#16372f;color:#a7ddc3;border-color:#2d6c57}
+html[data-pb-layout="premium"] .quick-icon{background:#3b2d1b;color:#f3c96e}
+html[data-pb-layout="premium"] .rule,
+html[data-pb-layout="premium"] .app-footer{border-color:var(--border)}
+html[data-pb-layout="premium"] .app-footer{color:#8296a9}
+html[data-pb-layout="premium"] .modal,
+html[data-pb-layout="premium"] .modal-backdrop>section{background:#101f2e;color:var(--ink);border-color:#344b60}
+html[data-pb-layout="premium"] .module-upload{background:#12283a;border-color:#425a70;color:var(--ink)}
+html[data-pb-layout="premium"] .module-rights{color:var(--sub)}
+html[data-pb-layout="premium"] .pb-bible-search-result{background:#122538;color:var(--ink);border-color:#344b60}
+html[data-pb-layout="premium"] .pb-bible-search-result strong{color:#e9bd6b}
+html[data-pb-layout="premium"] .pb-bible-search-result mark{background:#5a4522;color:#fff0c9}
+html[data-pb-layout="premium"] .pb2-commentary-result-reference,
+html[data-pb-layout="premium"] .pb2-commentary-result-hint{color:#e9bd6b}
+html[data-pb-layout="premium"] .pb2-commentary-result-preview{color:#e4ebf2}
+html[data-pb-layout="premium"] .pb2-commentary-reader-header,
+html[data-pb-layout="premium"] .pb2-commentary-reader-footer{background:#101f2e;border-color:#30465a}
+html[data-pb-layout="premium"] .pb2-commentary-reader-text{color:#e8eef4}
+html[data-pb-layout="premium"] .pb2-commentary-reader-heading p{color:#e9bd6b}
+html[data-pb-layout="premium"] .pb2-commentary-reader-nav .btn.primary{color:#17212a}
+
+/* Dark, readable Bible-study panes: commentary and dictionary remain independent scroll areas. */
+html[data-pb-layout="premium"] .pb-study-split,
+html[data-pb-layout="premium"] .pb-split-bible,
+html[data-pb-layout="premium"] .pb-split-comments,
+html[data-pb-layout="premium"] .pb-dictionary-pane{
+ background:#0c1b29!important;color:#e9f0f6!important;border-color:#2d4357!important;
+}
+html[data-pb-layout="premium"] .pb-split-bar,
+html[data-pb-layout="premium"] .pb-dictionary-bar{
+ background:#14283a!important;border-color:#31495e!important;color:#edf3f8!important;
+}
+html[data-pb-layout="premium"] .pb-split-selector,
+html[data-pb-layout="premium"] .pb-dictionary-select,
+html[data-pb-layout="premium"] .pb-dictionary-nav button{
+ background:#172d40!important;color:#edf3f8!important;border-color:#435b70!important;
+}
+html[data-pb-layout="premium"] .pb-split-heading,
+html[data-pb-layout="premium"] .pb-dictionary-heading{
+ background:#0c1b29!important;border-color:#30465a!important;
+}
+html[data-pb-layout="premium"] .pb-split-heading strong,
+html[data-pb-layout="premium"] .pb-dictionary-heading strong,
+html[data-pb-layout="premium"] .pb-dict-entry-title strong,
+html[data-pb-layout="premium"] .pb-dict-section-title{color:#efc36f!important}
+html[data-pb-layout="premium"] .pb-split-heading span,
+html[data-pb-layout="premium"] .pb-dictionary-heading small,
+html[data-pb-layout="premium"] .pb-dict-entry-title small{color:#9aabba!important}
+html[data-pb-layout="premium"] .pb-split-entry{border-color:#293f52!important}
+html[data-pb-layout="premium"] .pb-split-entry-heading{color:#79c4d8!important}
+html[data-pb-layout="premium"] .pb-split-entry-heading small{color:#93a9bb!important}
+html[data-pb-layout="premium"] .pb-split-entry-text,
+html[data-pb-layout="premium"] .pb-dict-definition{color:#e5edf4!important}
+html[data-pb-layout="premium"] .pb-dictionary-scroll{background:#0c1b29!important;color:#e8eef4!important}
+html[data-pb-layout="premium"] .pb-dict-entry{border-color:#2b4053!important}
+html[data-pb-layout="premium"] .pb-dict-queried-word{color:#e5edf4!important}
+html[data-pb-layout="premium"] .pb-dict-queried-word strong,
+html[data-pb-layout="premium"] .pb-comment-keyword{background:#243a4f;color:#f3cb7d}
+html[data-pb-layout="premium"] .pb-dict-entry-title .pb-dict-original,
+html[data-pb-layout="premium"] .pb-dict-definition .pb-dict-original{background:#3d2d1a;color:#f3cb7d}
+html[data-pb-layout="premium"] .pb-dict-inline-link{color:#8fc9ef;border-bottom-color:#5a9cc8}
+html[data-pb-layout="premium"] .pb-dict-inline-link.pb-bible-reference{color:#8fd2a7}
+html[data-pb-layout="premium"] .pb-dictionary-footer{background:#13283a;border-color:#30475a}
+html[data-pb-layout="premium"] .pb-dictionary-footer button,
+html[data-pb-layout="premium"] .pb-split-entry-actions button{background:#1a3044;color:#e5edf4;border-color:#455d72}
+html[data-pb-layout="premium"] .pb-split-picker,
+html[data-pb-layout="premium"] .pb-dictionary-picker{background:#101f2e;color:#eaf1f7;border-color:#3a5064}
+html[data-pb-layout="premium"] .pb-split-choice,
+html[data-pb-layout="premium"] .pb-dict-choice{background:#152a3d;color:#e7eef5;border-color:#30485d}
+html[data-pb-layout="premium"] .pb-split-choice.active,
+html[data-pb-layout="premium"] .pb-dict-choice.active{background:#3b2d1b;color:#f4d18a}
+html[data-pb-layout="premium"] .pb-split-choice.active .pb-split-code,
+html[data-pb-layout="premium"] .pb-split-choice.active .pb-split-longname,
+html[data-pb-layout="premium"] .pb-dict-choice.active .pb-dict-short,
+html[data-pb-layout="premium"] .pb-dict-choice.active .pb-dict-full{color:#f4d18a}
+html[data-pb-layout="premium"] .pb-split-loading,
+html[data-pb-layout="premium"] .pb-split-message,
+html[data-pb-layout="premium"] .pb-comment-error,
+html[data-pb-layout="premium"] .pb-dict-empty,
+html[data-pb-layout="premium"] .pb-dict-loading,
+html[data-pb-layout="premium"] .pb-dict-error{color:#a9bac9}
+html[data-pb-layout="premium"] .pb-split-message strong,
+html[data-pb-layout="premium"] .pb-dict-empty strong{color:#efc36f}
+
+/* Persistent layout chooser in the global toolbar. */
+.pb-layout-control{position:relative;display:inline-flex;align-items:center}
+.pb-layout-toggle{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-size:14px!important}
+.pb-layout-toggle span{font-size:11px;font-weight:700}
+.pb-layout-toggle .pb-layout-current{font-size:9px;font-weight:700;opacity:.78;font-style:normal}
+.pb-layout-menu{
+ position:absolute;right:0;top:calc(100% + 10px);z-index:1500;
+ width:min(310px,calc(100vw - 20px));padding:10px;
+ border:1px solid #38536a;border-radius:14px;background:#102236;
+ box-shadow:0 18px 48px #0008;color:#eef4fa;
+}
+.pb-layout-menu[hidden]{display:none!important}
+.pb-layout-menu-title{padding:8px 9px 10px;font-size:9px;letter-spacing:.13em;font-weight:800;color:#9eb2c5}
+.pb-layout-choice{
+ display:grid;grid-template-columns:30px minmax(0,1fr) 20px;gap:9px;align-items:center;
+ width:100%;padding:11px 10px;margin:4px 0;border:1px solid #344d62;border-radius:10px;
+ background:#142a3e;color:#edf3f8;text-align:left;
+}
+.pb-layout-choice:hover,.pb-layout-choice.active{background:#3a2d1c;border-color:#d8ad58}
+.pb-layout-choice-icon{width:28px;height:28px;display:grid;place-items:center;border-radius:8px;background:#203a50;color:#f1c56f;font-size:18px}
+.pb-layout-choice-copy{display:grid;gap:3px;min-width:0}
+.pb-layout-choice-copy strong{font-size:12px;color:#fff}
+.pb-layout-choice-copy small{font-size:10px;color:#aebdca;line-height:1.35}
+.pb-layout-check{color:#f2c66f;font-weight:900;text-align:center}
+html[data-pb-layout="premium"] .pb-layout-toggle{color:#f2c66f}
+html[data-pb-layout="premium"] .pb-layout-toggle .pb-layout-current{color:#fff}
+
+/* Premium desktop navigation becomes a left rail; tablet and phone keep a compact top bar. */
+@media(min-width:960px){
+ html[data-pb-layout="premium"] .pb-top-shell .workarea{margin-left:258px;width:calc(100% - 258px)}
+ html[data-pb-layout="premium"] .pb-top-shell .topbar,
+ html[data-pb-layout="premium"] body.reader-active .pb-top-shell .topbar{
+  position:fixed;inset:0 auto 0 0;width:258px;height:100dvh;min-height:100dvh;
+  display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+  padding:0;background:#07121e;border:0;border-right:1px solid #2a3e52;
+  box-shadow:12px 0 38px #0003;overflow-y:auto;overflow-x:hidden;
+ }
+ html[data-pb-layout="premium"] .pb-top-shell .topbar-main{
+  height:auto;min-height:0;display:flex;flex-direction:column;align-items:stretch;
+  justify-content:flex-start;gap:10px;padding:22px 16px 17px;border-bottom:1px solid #293e52;
+ }
+ html[data-pb-layout="premium"] .pb-top-shell .top-brand{font-size:15px;align-self:flex-start}
+ html[data-pb-layout="premium"] .pb-top-shell .header-context{display:block;margin:2px 0 3px;color:#9eb2c5;font-size:11px}
+ html[data-pb-layout="premium"] .pb-top-shell .header-tools{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:5px}
+ html[data-pb-layout="premium"] .pb-top-shell .topnav{
+  flex:1;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+  width:100%;height:auto;min-height:0;overflow-x:hidden;overflow-y:auto;
+  padding:15px 12px 20px;gap:6px;white-space:normal;
+ }
+ html[data-pb-layout="premium"] .pb-top-shell .topnav .nav-item{
+  display:flex;justify-content:flex-start;align-items:center;width:100%;height:auto;min-height:45px;
+  padding:10px 12px;border:1px solid transparent;border-radius:10px;
+  color:#b8c8d7;font-size:12px;text-align:left;
+ }
+ html[data-pb-layout="premium"] .pb-top-shell .topnav .nav-item.active{
+  color:#f7d58b;background:linear-gradient(100deg,#6e501f66,#2b2b2b33);
+  border-color:#9b773b;box-shadow:inset 3px 0 #efbd63;
+ }
+ html[data-pb-layout="premium"] .pb-top-shell .topnav .nav-icon{color:#e8bd6b;font-size:19px}
+ html[data-pb-layout="premium"] .pb-top-shell .top-menu{
+  position:fixed;left:268px;right:auto;top:12px;width:min(420px,calc(100vw - 280px));
+  border-radius:14px;background:#102236;border-color:#3b5369;
+ }
+ html[data-pb-layout="premium"] .pb-top-shell .app-footer{margin-left:30px;margin-right:30px}
+}
+@media(max-width:959px){
+ html[data-pb-layout="premium"] .pb-top-shell .topbar,
+ html[data-pb-layout="premium"] body.reader-active .pb-top-shell .topbar{background:#07121e;border-color:#2a3e52}
+ html[data-pb-layout="premium"] .pb-top-shell .topnav{background:#0b1a29}
+ html[data-pb-layout="premium"] .pb-top-shell .topnav .nav-item{color:#c6d4e0}
+ html[data-pb-layout="premium"] .pb-top-shell .topnav .nav-item.active{background:#3b2d1b;border-color:#9b773b;color:#f7d58b;box-shadow:inset 0 -2px #e8b65b}
+}
+@media(max-width:720px){
+ .pb-layout-toggle span{display:none}
+ .pb-layout-toggle .pb-layout-current{display:none}
+ .pb-layout-menu{right:-35px}
+ html[data-pb-layout="premium"] .pb-top-shell .topbar-main{background:#07121e}
+ html[data-pb-layout="premium"] .pb-top-shell .topnav{background:#0b1a29}
+}
