@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/svg+xml" sizes="192x192" href="/pulpito-icon-512.svg"><link rel="apple-touch-icon" href="/pulpito-icon-512.svg"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css?v=20261113-paineis-profissionais"></head>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/svg+xml" sizes="192x192" href="/pulpito-icon-512.svg"><link rel="apple-touch-icon" href="/pulpito-icon-512.svg"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css?v=20261114-central-comandos"></head>
 <body><div class="app-shell pb-top-shell"><div class="workarea">
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -15,6 +15,9 @@
         <button type="button" class="pb-layout-choice" data-pb-layout-choice="academic" aria-pressed="false"><span class="pb-layout-choice-icon">▥</span><span class="pb-layout-choice-copy"><strong>Acadêmico</strong><small>Estudo em painéis, inspirado no fluxo do Logos</small></span><span class="pb-layout-check"></span></button>
       </div>
     </div>
+    <button id="pb-command-trigger" class="header-action pb-command-trigger" type="button" data-pb-command-open aria-label="Central de Comandos" aria-haspopup="dialog" aria-controls="pb-command-dialog" aria-keyshortcuts="Control+K" title="Central de Comandos">
+      <span aria-hidden="true">⌘</span><span class="pb-command-trigger-label">Comandos</span>
+    </button>
     <button id="theme-toggle" class="header-action" title="Alternar tema" aria-label="Alternar tema">◐</button>
       <button id="font-down" class="header-action font-action" title="Diminuir fonte" aria-label="Diminuir fonte">A−</button>
       <button id="font-up" class="header-action font-action" title="Aumentar fonte" aria-label="Aumentar fonte">A+</button>
@@ -49,12 +52,26 @@
 </header>
 <main id="app-main" tabindex="-1"></main>
 <footer class="app-footer"><span>Púlpito Bible · Primeira versão de estudo</span><span>Conteúdo aberto com atribuição · <a href="https://api.midvash.com/pt-br" target="_blank" rel="noopener">Midvash</a> · <a href="https://github.com/STEPBible/STEPBible-Data" target="_blank" rel="noopener">STEPBible</a></span></footer></div></div>
+<dialog id="pb-command-dialog" class="pb-command-dialog" aria-labelledby="pb-command-title">
+  <header class="pb-command-header">
+    <h2 id="pb-command-title">Central de Comandos</h2>
+    <button type="button" class="pb-command-close" aria-label="Fechar Central de Comandos">×</button>
+  </header>
+  <div class="pb-command-search">
+    <input id="pb-command-search" type="text" enterkeyhint="go" autocomplete="off" autocapitalize="none" spellcheck="false" autofocus
+      placeholder="Pesquisar comandos…" aria-label="Pesquisar comandos" role="combobox" aria-autocomplete="list"
+      aria-expanded="false" aria-controls="pb-command-results">
+  </div>
+  <div class="pb-command-results" id="pb-command-results" role="listbox" aria-label="Comandos"></div>
+  <p class="pb-command-status" role="status" aria-live="polite"></p>
+  <footer class="pb-command-keys"><kbd>↑</kbd> <kbd>↓</kbd> Navegar <kbd>Enter</kbd> Executar <kbd>Esc</kbd> Fechar</footer>
+</dialog>
 <div id="toast" role="status" aria-live="polite"></div>
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js" crossorigin="anonymous" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.13.0/sql-wasm.js" crossorigin="anonymous" defer></script>
-<script src="./window-ui.js?v=20261113-paineis-profissionais" defer></script>
+<script src="./window-ui.js?v=20261114-central-comandos" defer></script>
 <script src="./split-study.js?v=20261113-paineis-profissionais" defer></script>
-<script src="./app.js?v=20261113-paineis-profissionais" defer></script><script>
+<script src="./app.js?v=20261114-central-comandos" defer></script><script>
 (function(){
   "use strict";
   var button=document.getElementById("pwa-install");
