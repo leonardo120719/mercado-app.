@@ -2310,6 +2310,7 @@ function attachSplitStudy(){
   onClose:closeStudyPanel,
   onSearch:openBibleSearch,
   onSermon:function(row){state.sermon.context+=(state.sermon.context?"\n\n":"")+row.moduleName+" — "+ref()+"\n"+row.text;persist();notify("Comentário inserido no sermão");},
+   onReference:function(reference){openLinkedReference(reference);},
   readRestoreScroll:function(){return pendingCommentScroll;},
   onRestoreScroll:function(){pendingCommentScroll=0;},
   notify:notify
