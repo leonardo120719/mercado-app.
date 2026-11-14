@@ -414,7 +414,7 @@ jobs:
           if-no-files-found: error
 
   publish-site:
-    if: false # Esta compilação foi solicitada somente para o APK Android.
+    if: success() # Publica o site junto com a compilação oficial do APK.
     needs: android-apk
     permissions:
       contents: write
