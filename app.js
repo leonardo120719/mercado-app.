@@ -1,4 +1,4 @@
-window.PB_BUILD_ID = "pb-20261113-paineis-profissionais";
+window.PB_BUILD_ID = "pb-20261114-central-comandos";
 /* Global layout selector: the chosen appearance applies to every tool and reader. */
 (function(){
  "use strict";
@@ -1155,10 +1155,11 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     const currentTheme=s.theme;
     document.body.classList.toggle("pb-toolbar-dark",currentTheme==="dark");
     document.documentElement.style.setProperty("--reading-size",s.fontSize+"px");
+    const commandTrigger='<button type="button" class="mtb-button mtb-command-trigger" data-pb-command-open aria-label="Central de Comandos" aria-haspopup="dialog" aria-controls="pb-command-dialog" aria-keyshortcuts="Control+K"><span class="mtb-glyph" aria-hidden="true">⌘</span></button>';
     let markup='';
-    if(mode==="selection")markup=selectionMarkup(s);
+    if(mode==="selection")markup=selectionMarkup(s)+(document.body.classList.contains("focus-reading")?commandTrigger:"");
     else if(mode==="fullscreen"){
-      markup='<div class="mtb-fullscreen">'+item("expand",s.expandFullScreen?"Fechar menu":"Abrir menu","☰","mtb-float")+item("search","Pesquisar na Bíblia","🔍")+windowsMarkup()+
+      markup='<div class="mtb-fullscreen">'+item("expand",s.expandFullScreen?"Fechar menu":"Abrir menu","☰","mtb-float")+item("search","Pesquisar na Bíblia","🔍")+windowsMarkup()+commandTrigger+
       (s.expandFullScreen?'<div class="mtb-fullmenu">'+item("exit-fullscreen","Sair da tela cheia","↙")+item("study","Modo estudo","α")+item("normal","Leitura normal","◫")+item("menu","Configurações","⚙")+'</div>':'')+'</div>';
     }else{
       markup='<div class="mtb-primary">'+navigationMarkup()+windowsMarkup()+
@@ -1166,9 +1167,9 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
         (mode==="study"?item("strong","Dicionário Strong","α")+item("comments","Comentários","▤")+item("notes","Notas pessoais","✎"):"")+item("search","Pesquisar na Bíblia","🔍")+
         item("menu","Mais ferramentas","⋮","mtb-compact")+
         '</div></div><div class="mtb-mode-strip"><button type="button" data-toolbar-mode="normal" '+(s.readingMode==="normal"?'class="active"':'')+'>Leitura</button><button type="button" data-toolbar-mode="study" '+(s.readingMode==="study"?'class="active"':'')+'>Estudo</button><button type="button" data-toolbar-mode="fullscreen">⛶ Tela cheia</button><span class="mtb-mode-hint">Toque no versículo para selecionar.</span></div>'+
-        (s.menuOpen?menuMarkup(s):'');
+        (document.body.classList.contains("focus-reading")?commandTrigger:"");
     }
-    mountRoot.innerHTML=markup;
+    mountRoot.innerHTML=markup+(s.menuOpen?menuMarkup(s):'');
     mountRoot.className="pb-global-toolbar "+("pb-mode-"+mode);
     mountRoot.setAttribute("aria-label",mode==="selection"?"Ações para versículos selecionados":"Ferramentas de leitura bíblica");
   }
@@ -2463,7 +2464,7 @@ function handleSermonAction(action,id){
  var item=list[index],heading="sermon-editor";
  switch(action){
  case "sermon-new":
-  if(!confirmSermonSwitch(list))return;
+  if(!confirmSermonSwitch(list))return false;
   state.sermon=Object.assign({},defaults.sermon);
   break;
  case "sermon-edit":
@@ -2502,9 +2503,10 @@ function handleSermonAction(action,id){
   notify("Sermão excluído.");
   break;
  }
- persist();
- renderSermon();
+ if(state.page!=="sermao")page("sermao");
+ else {persist();renderSermon();}
  document.getElementById(heading).focus();
+ return true;
 }
 var historicalFilters={term:"",book:"",period:"",theme:"",type:""};
 var historicalTabs=[["contexto","Contexto histórico"],["cronologia","Cronologia"],["cultura","Cultura e costumes"],["geografia","Geografia"],["sociedade","Povo e sociedade"],["aplicacoes","Aplicações"],["notas","Minhas anotações"]];
@@ -3552,7 +3554,10 @@ function render(){
  document.querySelectorAll(".nav-item").forEach(function(el){var active=el.dataset.page===state.page;el.classList.toggle("active",active);el.setAttribute("aria-current",active?"page":"false");});
  document.getElementById("page-location").textContent=TITLES[state.page]||"Púlpito Bible";
  document.documentElement.classList.toggle("dark",state.theme==="dark");document.body.classList.toggle("reader-active",state.page==="leitura");document.body.classList.toggle("focus-reading",!!state.focusMode&&state.page==="leitura");document.documentElement.style.setProperty("--reading-size",state.fontSize+"px");
- if(state.page!=="leitura"&&window.PBReaderMultiWindow)window.PBReaderMultiWindow.unmount();
+ if(state.page!=="leitura"){
+  document.body.classList.remove("pb-fullscreen");
+  if(window.PBReaderMultiWindow)window.PBReaderMultiWindow.unmount();
+ }
  if(state.page==="leitura")renderReader();
  if(state.page==="original")renderOriginal();
  if(state.page==="tutor")renderTutor();
@@ -3954,7 +3959,7 @@ document.addEventListener("click",function(ev){
  if(a==="toggle-parallel"){state.showParallel=!state.showParallel;persist();renderReader();return;}
  if(a==="reader-font-down"){state.fontSize=Math.max(14,state.fontSize-2);TS.actions.setFontSize(state.fontSize);persist();renderReader();return;}
  if(a==="reader-font-up"){state.fontSize=Math.min(28,state.fontSize+2);persist();renderReader();return;}
- if(a==="focus-mode"){state.focusMode=!state.focusMode;persist();renderReader();document.body.classList.toggle("focus-reading",state.focusMode);return;}
+ if(a==="focus-mode"){state.focusMode=!state.focusMode;document.body.classList.toggle("focus-reading",state.focusMode);persist();renderReader();return;}
  if(a==="prev-chapter"){if(state.chapter>1)setRef(state.book,state.chapter-1);return;}
  if(a==="next-chapter"){if(state.chapter<activeBook.chapters)setRef(state.book,state.chapter+1);return;}
  if(a==="retry"){loadChapter();return;}
@@ -4051,6 +4056,246 @@ window.PBReaderMultiWindow=PBReaderMultiWindow;
 
 
 render();readBooks();
+
+/* Central de Comandos — uses the same actions as the reader and navigation. */
+(function(){
+ "use strict";
+
+ const dialog=document.getElementById("pb-command-dialog");
+ if(!dialog || typeof dialog.showModal!=="function")return;
+
+ const input=document.getElementById("pb-command-search");
+ const list=document.getElementById("pb-command-results");
+ const status=dialog.querySelector(".pb-command-status");
+ const closeButton=dialog.querySelector(".pb-command-close");
+ const historyKey="pulpito-bible-recent-commands-v1";
+ const categories={
+  reader:["◫","Bíblia"], study:["α","Estudo"], tools:["◇","Ferramentas"],
+  sermon:["✎","Sermões"], windows:["▥","Painéis"], settings:["⚙","Configurações"]
+ };
+ const modalSelector='dialog[open], [aria-modal="true"], .modal-backdrop';
+ const triggerSelector="[data-pb-command-open]";
+ let recent=[];
+ try{
+  const stored=JSON.parse(localStorage.getItem(historyKey)||"[]");
+  if(Array.isArray(stored))recent=[...new Set(stored.filter(id=>typeof id==="string"))].slice(0,6);
+ }catch(error){}
+
+ function goTo(section,focusSelector){
+  page(section);
+  (focusSelector&&MAIN.querySelector(focusSelector)||MAIN).focus({preventScroll:true});
+ }
+
+ function inReader(action){
+  if(state.page!=="leitura")page("leitura");
+  return action();
+ }
+
+ function openStudyTool(type){
+  return inReader(function(){
+   const paneId=PBReaderMultiWindow.openTool(type,{
+    reference:{book:state.book,chapter:state.chapter,verse:state.selectedVerse||1}
+   });
+   const pane=document.getElementById(paneId+"-content");
+   (pane?.querySelector("[data-pbmw-term]")||pane||MAIN).focus();
+  });
+ }
+
+ function moduleRequired(type,label){
+  return function(){
+   return window.PBModules.getInstalled().some(module=>module.type===type)?"":label;
+  };
+ }
+
+ const commands=[
+  ["bible","Abrir Bíblia","reader","leitura bíblica tradução escrituras",()=>goTo("leitura")],
+  ["commentary","Abrir comentários","study","comentário bíblico exegese",()=>openStudyTool("commentary"),
+   moduleRequired("commentary","Instale um módulo de comentários em Módulos.")],
+  ["dictionary","Abrir dicionários","study","dicionário verbetes léxico",()=>openStudyTool("dictionary"),
+   moduleRequired("dictionary","Instale um módulo de dicionário em Módulos.")],
+  ["strong","Abrir Strong","study","línguas originais hebraico grego número concordância léxico",()=>openStudyTool("strong")],
+  ["new-sermon","Criar sermão","sermon","novo sermão esboço pregação homilética",()=>handleSermonAction("sermon-new")],
+  ["windows","Gerenciar painéis","windows","janelas adicionar organizar sincronizar",()=>goTo("paineis","#pb-win-kind")],
+  ["settings","Configurações de leitura","settings","preferências opções fonte tema versículos",()=>inReader(function(){
+   if(!TS.getState().menuOpen)TS.actions.toggleMenu();
+   document.querySelector(".mtb-menu button")?.focus();
+  })],
+  ["bible-search","Pesquisar na Bíblia","reader","buscar versículos palavra passagem",()=>inReader(openBibleSearch)],
+  ["modules","Abrir módulos","tools","biblioteca instalar tradução dicionários comentários",()=>goTo("modulos")],
+  ["sermons","Abrir sermões","sermon","esboços pregações biblioteca",()=>goTo("sermao")],
+  ["search","Abrir pesquisa inteligente","tools","buscar estudo",()=>goTo("pesquisa")],
+  ["map","Abrir mapa bíblico","tools","mapa inteligente referências",()=>goTo("mapa")],
+  ["notebook","Abrir meu caderno","tools","notas anotações favoritos",()=>goTo("caderno")],
+  ["history","Abrir diário histórico","tools","histórico estudo",()=>goTo("historico")],
+  ["coach","Abrir instrutor de sermões","sermon","preparação homilética",()=>goTo("instrutor")],
+  ["voice","Abrir assistente por voz","tools","microfone voz digitar",()=>goTo("voz")],
+  ["plans","Abrir planos de estudo","tools","leitura adaptativa",()=>goTo("planos")]
+ ].map(([id,label,category,terms,run,unavailable])=>({id,label,category,terms,run,unavailable}));
+
+ for(const count of [1,2,3,4]){
+  const label=count===1?"1 janela":count+" janelas";
+  commands.push({
+   id:"windows-"+count,label:"Layout de "+label,category:"windows",terms:"painéis dividir leitor",
+   run:()=>inReader(function(){
+    PBReaderMultiWindow.setLayout(count);
+    MAIN.focus({preventScroll:true});
+   })
+  });
+ }
+
+ for(const choice of document.querySelectorAll("[data-pb-layout-choice]")){
+  const layout=choice.dataset.pbLayoutChoice;
+  commands.push({
+   id:"layout-"+layout,label:"Layout "+choice.querySelector("strong").textContent,category:"settings",
+   terms:"aparência visual mudar alterar",
+   run:function(){
+    choice.click();
+    document.getElementById("pb-layout-toggle").focus({preventScroll:true});
+   }
+  });
+ }
+
+ const normalize=text=>text.normalize("NFD").replace(/\p{M}/gu,"").toLocaleLowerCase("pt-BR").trim();
+ for(const command of commands){
+  command.searchText=normalize([command.label,categories[command.category][1],command.terms].join(" "));
+ }
+
+ let opener=null;
+ let rows=[];
+ let active=-1;
+
+ function select(index,scroll){
+  list.children[active]?.setAttribute("aria-selected","false");
+  active=index;
+  const option=list.children[active];
+  if(option){
+   option.setAttribute("aria-selected","true");
+   input.setAttribute("aria-activedescendant",option.id);
+   if(scroll)option.scrollIntoView({block:"nearest"});
+  }else{
+   input.removeAttribute("aria-activedescendant");
+  }
+ }
+
+ function paint(){
+  const query=normalize(input.value);
+  const tokens=query?query.split(/\s+/):[];
+  rows=commands.filter(command=>tokens.every(token=>command.searchText.includes(token)))
+   .map(command=>({command,reason:command.unavailable?.()||""}));
+  if(query){
+   rows.sort((a,b)=>Number(b.command.searchText.startsWith(query))-Number(a.command.searchText.startsWith(query)));
+  }else{
+   const rank=row=>{
+    const index=row.reason?-1:recent.indexOf(row.command.id);
+    return index===-1?recent.length:index;
+   };
+   rows.sort((a,b)=>rank(a)-rank(b));
+  }
+  rows.sort((a,b)=>Number(Boolean(a.reason))-Number(Boolean(b.reason)));
+
+  list.innerHTML=rows.map(({command,reason},index)=>{
+   const [icon,category]=categories[command.category];
+   const detail=!query&&!reason&&recent.includes(command.id)?category+" · Recente":category;
+   return '<div id="pb-command-option-'+command.id+'" class="pb-command-option" role="option" data-command-index="'+index+
+    '" aria-disabled="'+Boolean(reason)+'" aria-selected="false"><span class="pb-command-icon" aria-hidden="true">'+icon+
+    '</span><span class="pb-command-copy"><strong>'+esc(command.label)+'</strong><small>'+esc(detail+(reason?" · "+reason:""))+'</small></span></div>';
+  }).join("");
+  active=-1;
+  select(rows.findIndex(row=>!row.reason),false);
+  list.scrollTop=0;
+  input.setAttribute("aria-expanded",String(Boolean(rows.length)));
+  status.textContent=rows.length
+   ?rows.length+(rows.length===1?" comando encontrado":" comandos encontrados")
+   :"Nenhum comando encontrado.";
+ }
+
+ function open(source){
+  if(dialog.open||document.querySelector(modalSelector))return false;
+  opener=source||document.activeElement;
+  input.value="";
+  paint();
+  dialog.showModal();
+  input.focus();
+  return true;
+ }
+
+ function close(){
+  if(!dialog.open)return;
+  dialog.close();
+  input.setAttribute("aria-expanded","false");
+  input.removeAttribute("aria-activedescendant");
+  const fallback=[...document.querySelectorAll(triggerSelector)].find(trigger=>trigger.getClientRects().length);
+  (opener?.isConnected?opener:fallback)?.focus({preventScroll:true});
+  opener=null;
+ }
+
+ function run(index){
+  const row=rows[index];
+  if(!row||row.reason)return;
+  const {command}=row;
+  if(command.unavailable?.()){
+   paint();
+   return;
+  }
+  close();
+  try{
+   if(command.run()===false)return;
+   recent=[command.id,...recent.filter(id=>id!==command.id)].slice(0,6);
+   try{localStorage.setItem(historyKey,JSON.stringify(recent));}catch(error){}
+  }catch(error){
+   console.error("Falha ao executar comando",command.id,error);
+   notify("Não foi possível executar o comando.");
+  }
+ }
+
+ input.addEventListener("input",paint);
+ input.addEventListener("keydown",function(event){
+  if(event.isComposing||event.keyCode===229||event.altKey||event.ctrlKey||event.metaKey)return;
+  if(event.key==="Enter"){
+   event.preventDefault();
+   if(!event.repeat)run(active);
+   return;
+  }
+  if(event.key!=="ArrowDown"&&event.key!=="ArrowUp")return;
+  event.preventDefault();
+  const step=event.key==="ArrowDown"?1:-1;
+  for(let offset=1;offset<=rows.length;offset++){
+   const index=(active+step*offset+rows.length*2)%rows.length;
+   if(!rows[index].reason){select(index,true);break;}
+  }
+ });
+ list.addEventListener("click",function(event){
+  const option=event.target.closest("[data-command-index]");
+  if(option)run(Number(option.dataset.commandIndex));
+ });
+ closeButton.addEventListener("click",close);
+ dialog.addEventListener("cancel",function(event){event.preventDefault();close();});
+
+ document.addEventListener("click",function(event){
+  const trigger=event.target.closest(triggerSelector);
+  if(trigger)open(trigger);
+ });
+
+ window.addEventListener("keydown",function(event){
+  if(event.isComposing||event.keyCode===229)return;
+  if(dialog.open&&event.key==="Escape"){
+   event.preventDefault();
+   event.stopImmediatePropagation();
+   close();
+  }
+ },true);
+
+ window.addEventListener("keydown",function(event){
+  if(event.isComposing||event.keyCode===229||event.defaultPrevented||event.repeat||event.key.toLowerCase()!=="k"||
+     !event.ctrlKey||event.metaKey||event.altKey||event.shiftKey)return;
+  if(event.target.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]'))return;
+  if(open()){
+   event.preventDefault();
+   event.stopImmediatePropagation();
+  }
+ });
+})();
+
 
 
 function startBuildUpdateWatcher(){

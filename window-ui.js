@@ -571,6 +571,7 @@ window.PBWindowUI.createReaderManager=function(env){
   }
   pane.scrollTop=0;pane.minimized=false;cfg.maxPaneId="";
   save();if(host)render();else renderReader();
+  return pane.id;
  }
  function referenceChanged(){
   if(!cfg.active)return;
