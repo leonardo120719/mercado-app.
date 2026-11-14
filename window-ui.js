@@ -358,6 +358,94 @@ window.PBWindowUI.createReaderManager=function(env){
  function termField(pane,placeholder){
   return '<div class="pb-mw-query"><input class="pb-mw-field" type="search" data-pbmw-term data-pane-id="'+esc(pane.id)+'" value="'+esc(pane.term||"")+'" placeholder="'+esc(placeholder)+'"><button type="button" data-pbmw-action="search" data-pane-id="'+esc(pane.id)+'">Consultar</button></div>';
  }
+
+ function contextAction(pane,action,label,icon){
+  return '<button type="button" class="pb-context-action" data-pbmw-action="'+action+'" data-pane-id="'+esc(pane.id)+'" title="'+esc(label)+'" aria-label="'+esc(label)+'"><span aria-hidden="true">'+icon+'</span><small>'+esc(label)+'</small></button>';
+ }
+ function contextToolbar(pane){
+  var controls=[];
+  if(pane.type==="bible"){
+   controls.push(contextAction(pane,"context-prev","Capítulo anterior","‹"));
+   controls.push(contextAction(pane,"context-next","Próximo capítulo","›"));
+   controls.push(contextAction(pane,"context-search","Pesquisar","⌕"));
+   controls.push(contextAction(pane,"context-bookmark","Marcar","☆"));
+   controls.push(contextAction(pane,"context-copy","Copiar","▣"));
+   controls.push(contextAction(pane,"context-compare","Comparar","⇄"));
+  }else if(pane.type==="commentary"){
+   controls.push(contextAction(pane,"context-module-prev","Módulo anterior","‹"));
+   controls.push(contextAction(pane,"context-module-next","Próximo módulo","›"));
+   controls.push(contextAction(pane,"search-commentary","Pesquisar comentários","⌕"));
+  }else if(pane.type==="dictionary"){
+   controls.push(contextAction(pane,"focus-term","Pesquisar termo","⌕"));
+   controls.push(contextAction(pane,"filter-module","Filtrar módulo","▽"));
+  }else if(pane.type==="strong"||pane.type==="original"){
+   controls.push(contextAction(pane,"strong-number","Número Strong","G/H"));
+   controls.push(contextAction(pane,"strong-original","Idioma original","α"));
+   controls.push(contextAction(pane,"strong-concordance","Concordância","≋"));
+   controls.push(contextAction(pane,"strong-lexicon","Léxico","▤"));
+  }
+  return controls.length?'<nav class="pb-context-toolbar" aria-label="Ferramentas de '+esc(typeLabel(pane.type))+'" data-context="'+esc(pane.type)+'">'+controls.join("")+'</nav>':"";
+ }
+ function commentarySearchField(pane){
+  return '<div class="pb-mw-query pb-mw-commentary-query"><input class="pb-mw-field" type="search" data-pbmw-commentary-term data-pane-id="'+esc(pane.id)+'" value="'+esc(pane.term||"")+'" placeholder="Pesquisar palavra nos comentários"><button type="button" data-pbmw-action="search-commentary" data-pane-id="'+esc(pane.id)+'">Pesquisar</button></div>';
+ }
+ function normalizeStrongCode(value){
+  var match=String(value||"").toUpperCase().match(/^([GH])0*(\d{1,5})[A-Z]?$/);
+  return match?match[1]+String(Number(match[2])):"";
+ }
+ function strongReferenceButton(word){
+  var match=String(word.book||"").match(/^(.+?)\s+(\d+):(\d+)$/);
+  if(!match)return "";
+  var book=env.books.find(function(item){return item.name.toLocaleLowerCase("pt-BR")===match[1].toLocaleLowerCase("pt-BR");});
+  if(!book)return "";
+  return '<button type="button" class="pb-mw-ref-link" data-pbmw-open-ref data-book="'+esc(book.slug)+'" data-chapter="'+Number(match[2])+'" data-verse="'+Number(match[3])+'">'+esc(word.book)+'</button>';
+ }
+ function strongViewMarkup(pane,ref){
+  var term=String(pane.term||"").trim(),code=normalizeStrongCode(term);
+  var rows=words.filter(function(word){
+   if(code)return normalizeStrongCode(word.code)===code||normalizeStrongCode(word.id)===code;
+   var passage=String(word.book||"");
+   return passage.indexOf(ref.name+" "+ref.chapter+":")===0;
+  });
+  var view=pane.strongView||"lexicon";
+  if(view==="original"){
+   return rows.length?rows.map(function(word){
+    return '<article class="pb-mw-entry pb-mw-strong-entry"><small>'+(String(word.code).charAt(0)==="H"?"HEBRAICO":"GREGO")+' · IDIOMA ORIGINAL</small><strong class="pb-dict-original" dir="auto">'+esc(word.label)+'</strong><p>'+esc(word.reading||"")+' · Lema: '+esc(word.lemma||"")+'</p><p>'+esc(word.type||"")+' · '+esc(word.tense||"")+' · '+esc(word.voice||"")+'</p><p>'+esc(word.meaning||"")+'</p>'+strongReferenceButton(word)+'</article>';
+   }).join(""):'<p class="pb-mw-empty">Informe um número Strong ou abra uma passagem com formas originais catalogadas.</p>';
+  }
+  if(view==="concordance"){
+   return rows.length?'<p class="pb-mw-context-note">'+rows.length+' ocorrência(s) disponíveis na base alinhada deste aplicativo.</p>'+rows.map(function(word){
+    return '<article class="pb-mw-entry"><strong>'+esc(word.code)+' · '+esc(word.label)+'</strong><p>'+esc(word.lemma||"")+' — '+esc(word.meaning||"")+'</p>'+strongReferenceButton(word)+'</article>';
+   }).join(""):'<p class="pb-mw-empty">Nenhuma ocorrência correspondente foi encontrada na base Strong disponível.</p>';
+  }
+  var match=term.match(/^[GH]0*\d{1,5}[A-Z]?$/),forms=match?renderStrongEntry(term,ref):"";
+  var lookup=match?term.replace(/^([GH])0*(\d{1,5})[A-Z]?$/,"$1$2"):term;
+  return Promise.resolve(PBModules.getDictionaryEntry(lookup,pane.moduleId||undefined)).then(function(lexicon){
+   return forms+(lexicon.length?lexicon.map(function(item){return '<article class="pb-mw-entry"><strong>'+esc(item.moduleName||"Léxico")+'</strong><p>'+esc(item.definition||item.text||"")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Nenhum verbete lexical encontrado nos módulos instalados.</p>');
+  });
+ }
+ async function runCommentarySearch(pane){
+  var field=host&&host.querySelector('[data-pbmw-commentary-term][data-pane-id="'+pane.id+'"]');
+  var term=String(field?field.value:pane.term||"").trim();
+  if(!term){notify("Digite um termo para pesquisar nos comentários.");return;}
+  pane.term=term;pane.searchMode=true;pane.searchResults=[];
+  var serial=(pane.searchSerial||0)+1;pane.searchSerial=serial;
+  save();renderPane(pane);
+  try{
+   var result=await PBModules.searchCommentaries(term,100,function(){return pane.searchSerial===serial;});
+   if(pane.searchSerial!==serial)return;
+   pane.searchResults=result.results||[];
+   pane.searchTotal=result.total||0;
+   renderPane(pane);
+   notify(pane.searchTotal+" resultado(s) nos comentários.");
+  }catch(error){if(pane.searchSerial===serial)notify("Falha na pesquisa dos comentários: "+error.message);}
+ }
+ function cyclePaneModule(pane,kind,delta){
+  var options=moduleOptions(kind),index=options.findIndex(function(module){return module.id===pane.moduleId;});
+  if(!options.length){notify("Nenhum módulo "+(kind==="commentary"?"de comentário":"de dicionário")+" instalado.");return;}
+  pane.moduleId=options[(index+delta+options.length)%options.length].id;
+  pane.searchMode=false;pane.searchResults=null;save();renderPane(pane);
+ }
  function paneResult(body,serial,html){
   if(body&&body.isConnected&&serials[body.dataset.pbmwBody]===serial){
    var old=body.querySelector(".pb-mw-result");if(old)old.innerHTML=html;
@@ -371,7 +459,7 @@ window.PBWindowUI.createReaderManager=function(env){
   var tabId=pane.activeTabId;
   if(pane.book!==ref.book||pane.chapter!==ref.chapter){savedScroll=0;pane.scrollTop=0;}
   pane.book=ref.book;pane.chapter=ref.chapter;pane.verse=ref.verse;
-  body.innerHTML=referenceControls(pane)+'<div class="pb-mw-ref-label">'+esc(ref.name+" "+ref.chapter+":"+ref.verse)+'</div><div class="pb-mw-result"><div class="pb-mw-pane-loading">Carregando…</div></div>';
+  body.innerHTML=contextToolbar(pane)+referenceControls(pane)+'<div class="pb-mw-ref-label">'+esc(ref.name+" "+ref.chapter+":"+ref.verse)+'</div><div class="pb-mw-result"><div class="pb-mw-pane-loading">Carregando…</div></div>';
   if(pane.type==="bible"&&pane.id===primaryId&&columns){body.innerHTML="";body.appendChild(columns);readerReady();return;}
   if(pane.type==="bible"){
    var version=pane.moduleId||"bpm",opts=versionOptions(version);
@@ -388,10 +476,19 @@ window.PBWindowUI.createReaderManager=function(env){
     paneResult(body,serial,html+'<small class="pb-mw-credit">'+esc(data.copyright||"Conteúdo da tradução selecionada")+'</small>');
    }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
   }else if(pane.type==="commentary"){
-   body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"commentary"));
-   try{var rows=await PBModules.getCommentaries(ref.book,ref.chapter,ref.verse,pane.moduleId||undefined);
-    paneResult(body,serial,rows.length?rows.map(function(x){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+'</strong><p>'+esc(x.text||"")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Nenhum comentário disponível para esta passagem.</p>');
-   }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
+   body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"commentary")+commentarySearchField(pane));
+   if(pane.searchMode&&Array.isArray(pane.searchResults)){
+    paneResult(body,serial,pane.searchResults.length?pane.searchResults.map(function(x,i){
+     var book=env.books.find(function(item){return item.slug===x.book;});
+     var label=(book?book.name:x.book)+" "+(x.fromChapter||1)+(x.fromVerse?":"+x.fromVerse:"");
+     return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+' · '+esc(label)+'</strong><p>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button><button type="button" data-pbmw-open-ref data-book="'+esc(x.book)+'" data-chapter="'+Number(x.fromChapter||1)+'" data-verse="'+Number(x.fromVerse||1)+'">Abrir passagem</button></div></article>';
+    }).join(""):'<p class="pb-mw-empty">Nenhum comentário encontrado para este termo.</p>');
+   }else{
+    try{var rows=await PBModules.getCommentaries(ref.book,ref.chapter,ref.verse,pane.moduleId||undefined);
+     pane.commentRows=rows;
+     paneResult(body,serial,rows.length?rows.map(function(x,i){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+'</strong><p>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button></div></article>';}).join(""):'<p class="pb-mw-empty">Nenhum comentário disponível para esta passagem.</p>');
+    }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
+   }
   }else if(pane.type==="dictionary"){
    body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"dictionary")+termField(pane,"Palavra ou expressão"));
    if(!pane.term)paneResult(body,serial,'<p class="pb-mw-empty">Digite uma palavra para consultar os dicionários instalados.</p>');
@@ -399,18 +496,16 @@ window.PBWindowUI.createReaderManager=function(env){
     paneResult(body,serial,entries.length?entries.map(function(x){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||x.term||pane.term)+'</strong><p>'+esc(x.text||x.definition||"")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Nenhum verbete encontrado nos módulos instalados.</p>');
    }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
   }else if(pane.type==="strong"||pane.type==="original"){
-   body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"dictionary")+termField(pane,"Código Strong (G25/H3068) ou palavra"));
-   var term=String(pane.term||"").trim().toUpperCase(),match=term.match(/^[GH]0*\d{1,5}[A-Z]?$/);
-   if(term){
-    var forms=match?renderStrongEntry(term,ref):"";
+   body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"dictionary")+termField(pane,"Número Strong (G25/H3068) ou palavra"));
+   var term=String(pane.term||"").trim();
+   if(!term&&!(pane.strongView&&pane.strongView!=="lexicon")){
+    var relevant=words.filter(function(w){return String(w.book||"").indexOf(ref.name+" "+ref.chapter+":")===0;});
+    paneResult(body,serial,relevant.length?relevant.map(function(w){return '<article class="pb-mw-entry"><strong>'+esc(w.label)+' · '+esc(w.code)+'</strong><p>'+esc(w.reading||"")+' — '+esc(w.meaning||"")+'</p>'+strongReferenceButton(w)+'</article>';}).join(""):'<p class="pb-mw-empty">Não há formas originais catalogadas para este capítulo. Informe um código Strong para consultar o léxico.</p>');
+   }else{
     try{
-     var code=match?term.replace(/^([GH])0*(\d{1,5})[A-Z]?$/,"$1$2"):term;
-     var lexicon=await PBModules.getDictionaryEntry(code,pane.moduleId||undefined);
-     paneResult(body,serial,forms+(lexicon.length?lexicon.map(function(x){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName)+'</strong><p>'+esc(x.definition)+'</p></article>';}).join(""):'<p class="pb-mw-empty">Nenhum verbete nos módulos instalados.</p>'));
-    }catch(error){paneResult(body,serial,forms+'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
-   }
-   else{var relevant=words.filter(function(w){return String(w.book||"").indexOf(ref.name+" "+ref.chapter+":")===0;});
-    paneResult(body,serial,relevant.length?relevant.map(function(w){return '<article class="pb-mw-entry"><strong>'+esc(w.label)+' · '+esc(w.code)+'</strong><p>'+esc(w.reading||"")+' — '+esc(w.meaning||"")+'</p></article>';}).join(""):'<p class="pb-mw-empty">Não há formas originais catalogadas para este capítulo. Informe um código Strong para consultar o léxico.</p>');
+     var output=await strongViewMarkup(pane,ref);
+     paneResult(body,serial,output);
+    }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
    }
   }else if(pane.type==="crossrefs"){
    try{
@@ -550,6 +645,42 @@ window.PBWindowUI.createReaderManager=function(env){
     return;
    }
    var act=target.dataset.pbmwAction,id=target.dataset.paneId,pane=cfg.panes.find(function(p){return p.id===id;});
+   if(pane&&(act==="context-prev"||act==="context-next")){
+    var currentRef=referenceFor(pane),book=env.books.find(function(item){return item.slug===currentRef.book;})||env.activeBook;
+    var chapter=currentRef.chapter+(act==="context-next"?1:-1);
+    if(chapter<1||chapter>Number(book.chapters||150)){notify("Não há outro capítulo nesta direção.");return;}
+    if(pane.id===primaryId){setRef(currentRef.book,chapter,1);return;}
+    pane.linked=false;pane.chapter=chapter;pane.verse=1;pane.scrollTop=0;save();renderPane(pane);return;
+   }
+   if(pane&&act==="context-search"){if(env.onSearch)env.onSearch();else notify("Pesquisa bíblica indisponível.");return;}
+   if(pane&&act==="context-bookmark"){if(env.onBookmark)env.onBookmark(referenceFor(pane));else notify("Marcação indisponível.");return;}
+   if(pane&&act==="context-copy"){
+    var copyBody=host&&host.querySelector('[data-pbmw-body="'+id+'"] .pb-mw-result');
+    var copyText=(referenceFor(pane).name+" "+referenceFor(pane).chapter+"\n"+(copyBody?copyBody.innerText:"")).trim();
+    if(copyText&&navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(copyText).then(function(){notify("Texto do capítulo copiado.");}).catch(function(){notify("Não foi possível copiar o texto.");});
+    else notify("Não há texto disponível para copiar.");
+    return;
+   }
+   if(pane&&act==="context-compare"){
+    var alternatives=versionOptions(pane.moduleId).filter(function(item){return item[0]!==pane.moduleId;});
+    if(!alternatives.length){notify("Instale outra tradução para comparar.");return;}
+    openTool("bible",{moduleId:alternatives[0][0],reference:referenceFor(pane)});return;
+   }
+   if(pane&&act==="context-module-prev"){cyclePaneModule(pane,"commentary",-1);return;}
+   if(pane&&act==="context-module-next"){cyclePaneModule(pane,"commentary",1);return;}
+   if(pane&&act==="search-commentary"){runCommentarySearch(pane);return;}
+   if(pane&&act==="focus-term"){var termInput=host&&host.querySelector('[data-pbmw-term][data-pane-id="'+id+'"]');if(termInput)termInput.focus();return;}
+   if(pane&&act==="filter-module"){var moduleInput=host&&host.querySelector('[data-pbmw-module][data-pane-id="'+id+'"]');if(moduleInput)moduleInput.focus();return;}
+   if(pane&&act==="strong-number"){var strongInput=host&&host.querySelector('[data-pbmw-term][data-pane-id="'+id+'"]');if(strongInput)strongInput.focus();return;}
+   if(pane&&(act==="strong-original"||act==="strong-concordance"||act==="strong-lexicon")){
+    pane.strongView=act==="strong-original"?"original":act==="strong-concordance"?"concordance":"lexicon";save();renderPane(pane);return;
+   }
+   if(pane&&act==="insert-commentary"){
+    var row=(pane.searchMode?pane.searchResults:pane.commentRows)||[],entry=row[Number(target.dataset.resultIndex)];
+    if(entry){var source=entry.moduleName||"Comentário",passage=entry.book?(entry.book+" "+(entry.fromChapter||1)+(entry.fromVerse?":"+entry.fromVerse:"")):(referenceFor(pane).name+" "+referenceFor(pane).chapter);env.state.sermon.context+=(env.state.sermon.context?"\n\n":"")+source+" — "+passage+"\n"+entry.text;persist();notify("Comentário inserido no sermão.");}
+    return;
+   }
+   if(pane&&act==="search-commentary-clear"){pane.searchMode=false;pane.searchResults=null;pane.term="";save();renderPane(pane);return;}
    if(act==="sync"&&pane){
     captureScroll();pane.linked=!pane.linked;
     if(pane.linked){pane.book=env.state.book;pane.chapter=env.state.chapter;pane.verse=env.state.selectedVerse||1;pane.scrollTop=0;}
