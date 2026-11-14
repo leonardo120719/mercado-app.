@@ -1112,6 +1112,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
       '<div class="pb-mw-menu" id="pb-mw-menu" role="group" aria-label="Janelas bíblicas" hidden>'+
       [1,2,3,4].map(n=>'<button type="button" data-pbmw-layout="'+n+'" aria-pressed="'+(layout.active&&layout.count===n)+'"><span class="pb-mw-layout-preview" aria-hidden="true">'+ '<i></i>'.repeat(n)+'</span>'+n+(n===1?' janela':' janelas')+'</button>').join("")+
       '<div class="pb-mw-menu-divider"></div><button type="button" data-pbmw-orientation>Posição de 2 janelas <small id="pb-mw-orientation-label">'+(layout.orientation==="horizontal"?"Lado a lado":"Empilhadas")+'</small></button>'+
+      '<div class="pb-mw-menu-divider"></div><button type="button" data-pbmw-save-layout>▣ Salvar organização atual</button><button type="button" data-pbmw-restore-layout>↶ Restaurar organização salva</button>'+
       (layout.active?'<button type="button" data-pbmw-exit>Voltar ao leitor tradicional</button>':'')+'</div></div>';
   }
   function menuMarkup(s){
