@@ -2387,3 +2387,21 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
  .pb-command-dialog{margin:max(8px,env(safe-area-inset-top)) auto auto}
 }
 @media(pointer:coarse){.pb-command-keys{display:none}}
+
+
+/* Advanced workspace: drag reorder, floating windows and nested split controls. */
+#pb-reader-multi-host.has-floating{position:relative;z-index:20;overflow:visible!important}
+#pb-reader-multi-host .pb-mw-pane.is-floating{
+ position:absolute!important;z-index:30;left:18px;top:96px;width:min(440px,calc(100vw - 28px));height:min(620px,calc(100dvh - 130px));
+ min-width:260px;min-height:220px;max-width:calc(100vw - 16px);max-height:calc(100dvh - 16px);
+ resize:both;overflow:hidden;box-shadow:0 16px 42px rgba(0,0,0,.3);border:2px solid var(--brand,#17614a);border-radius:10px
+}
+#pb-reader-multi-host .pb-mw-pane.is-floating .pb-mw-pane-body{overflow:auto}
+.pb-mw-drag-handle{flex:none;width:28px;height:30px;border:1px solid #66727a;border-radius:5px;background:#414c54;color:#fff;font-size:18px;cursor:grab;touch-action:none}
+.pb-mw-drag-handle:active{cursor:grabbing}
+#pb-reader-multi-host .pb-mw-pane.is-pinned>.pb-mw-pane-head{border-bottom:2px solid #c7a65e}
+#pb-reader-multi-host .pb-mw-pane.is-drop-target{outline:3px dashed var(--brand,#17614a);outline-offset:-5px}
+#pb-reader-multi-host .pb-mw-control:disabled{opacity:.35;cursor:not-allowed}
+@media(max-width:720px){
+ #pb-reader-multi-host .pb-mw-pane.is-floating{position:relative!important;left:auto!important;top:auto!important;width:100%;height:min(62dvh,560px);resize:none;margin:8px 0}
+}
