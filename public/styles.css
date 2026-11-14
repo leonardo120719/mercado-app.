@@ -2269,3 +2269,20 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
  #pb-reader-multi-host[data-count="3"]:not(.pb-mw-maximized),
  #pb-reader-multi-host[data-count="4"]:not(.pb-mw-maximized){min-height:740px}
 }
+
+/* PROMPT 05 — compact contextual toolbars for independent study panes. */
+.pb-context-toolbar{display:flex;align-items:stretch;gap:4px;padding:5px 7px;margin:0 0 8px;overflow-x:auto;overscroll-behavior-x:contain;border:1px solid var(--border,#dce4e0);border-radius:9px;background:var(--paper,#fffdfa);scrollbar-width:thin}
+.pb-context-action{display:inline-flex;flex:0 0 auto;min-width:54px;min-height:42px;align-items:center;justify-content:center;flex-direction:column;gap:2px;padding:4px 7px;border:1px solid transparent;border-radius:7px;background:transparent;color:var(--ink,#1b3032);font:inherit;cursor:pointer}
+.pb-context-action span{font-size:17px;line-height:19px;font-weight:700}
+.pb-context-action small{font-size:9px;line-height:12px;white-space:nowrap;color:var(--sub,#6e7c7d)}
+.pb-context-action:hover,.pb-context-action:focus-visible{background:var(--brand-soft,#e9f2f0);border-color:var(--border,#dce4e0);outline:none}
+.pb-mw-commentary-query{margin:6px 0 10px}
+.pb-mw-entry-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+.pb-mw-entry-actions button{border:1px solid var(--border,#dce4e0);border-radius:6px;background:var(--brand-soft,#e9f2f0);color:var(--brand-deep,#103944);padding:7px 9px;font-size:11px;font-weight:650}
+.pb-mw-context-note{font-size:11px;color:var(--sub,#6e7c7d);margin:5px 0 9px}
+.pb-mw-strong-entry>small{display:block;font-size:9px;letter-spacing:.08em;color:var(--sub,#6e7c7d);margin-bottom:5px}
+@media(max-width:720px){.pb-context-toolbar{gap:2px;padding:4px;margin-left:-2px;margin-right:-2px}.pb-context-action{min-width:48px;min-height:40px;padding:3px 5px}.pb-context-action small{font-size:8px}}
+.pb-toolbar-dark .pb-context-toolbar{background:#252d33;border-color:#45525a}
+.pb-toolbar-dark .pb-context-action{color:#f1f4f5}
+.pb-toolbar-dark .pb-context-action small{color:#b9c4ca}
+.pb-toolbar-dark .pb-context-action:hover,.pb-toolbar-dark .pb-context-action:focus-visible{background:#344b58;border-color:#52636c}

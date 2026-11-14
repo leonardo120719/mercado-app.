@@ -1140,6 +1140,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
       item("comments-verse","Comentários","▤")+item("note","Minha anotação","✎")+
       item("explain-verse","Explicar","✧")+item("sermon-verse","Sermão","▤")+item("copy","Copiar","▣")+
       item("highlight","Marcar","▨")+
+      item("compare","Comparar traduções","⇄")+
       item("clear","Limpar seleção","×")+
       '</div>'+
       (s.paletteOpen?'<div class="mtb-palette" role="group" aria-label="Escolher cor de marcação">'+
@@ -1185,6 +1186,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
       case "menu":actions.toggleMenu();return;
       case "highlight":actions.togglePalette();return;
       case "clear":actions.clearSelection();mountConfig.onAction("selection-cleared");return;
+      case "compare":mountConfig.onAction("compare");return;
       case "font":actions.toggleMenu();return;
       case "font-up":actions.setFontSize(state.fontSize+1);mountConfig.onAction("font-changed");return;
       case "font-down":actions.setFontSize(state.fontSize-1);mountConfig.onAction("font-changed");return;
@@ -2130,6 +2132,7 @@ function toolbarAction(action){
  case "explain-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;persist();}page("tutor");return;}
  case "sermon-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;state.sermon.context+=(state.sermon.context?"\\n\\n":"")+activeBook.name+" "+state.chapter+":"+n;persist();notify("Versículo adicionado ao sermão");}return;}
  case "copy":shareOrCopy(false);return;
+ case "compare":state.showParallel=!state.showParallel;persist();renderReader();notify(state.showParallel?"Comparação de traduções ativada.":"Comparação de traduções fechada.");return;
  case "share":shareOrCopy(true);return;
  case "note":{var n=selectionNumbers();if(n.length){state.selectedVerse=n[0];persist();}noteModal();return;}
  case "audio":audioToolbarAction();return;
