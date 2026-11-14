@@ -31,6 +31,25 @@ function choices(query){
  }).join("");
 }
 function showChoices(query){if(!current)return;var e=current.root.querySelector("#pb-split-choices");if(e)e.innerHTML=choices(query);}
+
+async function searchCommentary(){
+ if(!current)return;
+ var field=current.root.querySelector("#pb-split-search"),term=String(field&&field.value||"").trim();
+ if(!term){current.config.notify("Digite um termo para pesquisar nos comentários.");return;}
+ var active=current,token=(active.searchToken||0)+1;active.searchToken=token;
+ var target=active.root.querySelector("#pb-split-content");
+ if(target)target.textContent="Pesquisando nos comentários instalados…";
+ try{
+  var result=await global.PBModules.searchCommentaries(term,100,function(){return current===active&&active.searchToken===token;});
+  if(current!==active||active.searchToken!==token)return;
+  active.searchResults=result.results||[];
+  if(target)target.innerHTML=active.searchResults.length?active.searchResults.map(function(row,index){
+   var label=row.book+" "+(row.fromChapter||1)+(row.fromVerse?":"+row.fromVerse:"");
+   return '<article class="pb-split-entry"><div class="pb-split-entry-heading"><strong>'+esc(row.moduleName||"Comentário")+' · '+esc(label)+'</strong></div><div class="pb-split-entry-text">'+esc(row.text||"")+'</div><div class="pb-split-entry-actions"><button data-pbsplit="sermon-search" data-index="'+index+'" type="button">▤ Inserir no sermão</button><button data-pbsplit="open-search-ref" data-index="'+index+'" type="button">Abrir passagem</button></div></article>';
+  }).join(""):'<div class="pb-split-message">Nenhum comentário encontrado para este termo.</div>';
+  current.config.notify((result.total||0)+" resultado(s) nos comentários.");
+ }catch(error){if(current===active&&active.searchToken===token&&target)target.textContent="Falha na pesquisa: "+error.message;}
+}
 function menu(force){
  if(!current)return;
  var picker=current.root.querySelector("#pb-split-picker"),button=current.root.querySelector("#pb-split-menu-button");
@@ -142,6 +161,7 @@ function handler(event){
  event.preventDefault();event.stopPropagation();
  switch(btn.dataset.pbsplit){
  case "menu":menu();return;
+ case "search-commentary":searchCommentary();return;
  case "bible-search":if(c.config.onSearch)c.config.onSearch();return;
  case "dictionary":menu(false);if(c.config.onDictionary)c.config.onDictionary();return;
  case "close":c.config.onClose();return;
@@ -155,6 +175,15 @@ function handler(event){
  case "sermon":{
   var row=c.rows[Number(btn.dataset.index)];
   if(row)c.config.onSermon(row);return;
+ }
+ case "sermon-search":{
+  var row=(c.searchResults||[])[Number(btn.dataset.index)];
+  if(row)c.config.onSermon(row);return;
+ }
+ case "open-search-ref":{
+  var row=(c.searchResults||[])[Number(btn.dataset.index)];
+  if(row&&c.config.onReference)c.config.onReference(row.book+" "+(row.fromChapter||1)+(row.fromVerse?":"+row.fromVerse:""));
+  return;
  }
  case "copy":{
   var item=c.rows[Number(btn.dataset.index)];
@@ -248,7 +277,7 @@ function attach(config){
  bottom.innerHTML='<header class="pb-split-bar">'+
  '<button id="pb-split-menu-button" type="button" class="pb-split-selector" data-pbsplit="menu" aria-expanded="false" aria-controls="pb-split-picker">▤ <span id="pb-split-name">Comentários</span> <b>⌄</b></button>'+
  '<strong class="pb-split-ref" id="pb-split-ref"></strong><button class="pb-split-switch-dictionary" type="button" data-pbsplit="dictionary" aria-label="Abrir dicionários" title="Mostrar dicionários">α <span>Dicionários</span></button><div class="pb-split-toolbar-actions">'+
- '<button data-pbsplit="bible-search" type="button" aria-label="Pesquisar na Bíblia" title="Pesquisar na Bíblia">🔍</button><button data-pbsplit="prev" type="button" aria-label="Módulo anterior">‹</button><button data-pbsplit="next" type="button" aria-label="Próximo módulo">›</button>'+
+ '<input id="pb-split-search" type="search" aria-label="Pesquisar nos comentários" placeholder="Pesquisar comentário…"><button data-pbsplit="search-commentary" type="button" aria-label="Pesquisar nos comentários" title="Pesquisar nos comentários">⌕</button><button data-pbsplit="bible-search" type="button" aria-label="Pesquisar na Bíblia" title="Pesquisar na Bíblia">🔍</button><button data-pbsplit="prev" type="button" aria-label="Módulo anterior">‹</button><button data-pbsplit="next" type="button" aria-label="Próximo módulo">›</button>'+
  '<button data-pbsplit="close" type="button" aria-label="Fechar a janela de comentários">×</button></div></header>'+
  '<div class="pb-split-picker" id="pb-split-picker" hidden>'+
  '<div class="pb-split-picker-heading"><strong>Comentários instalados</strong><span>'+installed().length+' módulos</span></div>'+
