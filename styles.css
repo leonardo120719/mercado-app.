@@ -2500,3 +2500,27 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
 @media(prefers-reduced-motion:reduce){
  .pb-top-shell *,#pb-reader-multi-host *{scroll-behavior:auto!important;transition-duration:.01ms!important;animation-duration:.01ms!important}
 }
+
+/* Chapter toolbar pinned below the app navigation. */
+.pb-global-toolbar{position:sticky;top:0;z-index:75;scroll-margin-top:0}
+.reader-active .pb-global-toolbar{position:sticky;top:0;z-index:75}
+.reader-commandbar{scroll-margin-top:0}
+@media(min-width:1100px){
+ .pb-top-shell{--pb-sidebar-width:258px}
+ .pb-top-shell .workarea{width:calc(100% - var(--pb-sidebar-width));margin-left:var(--pb-sidebar-width);transition:width .16s ease,margin-left .16s ease}
+ .pb-top-shell .topbar,.reader-active .pb-top-shell .topbar{width:var(--pb-sidebar-width);transition:width .16s ease}
+ .pb-top-shell .pb-sidebar-resize{position:fixed;left:calc(var(--pb-sidebar-width) - 8px);top:45%;z-index:110;width:17px;height:76px;border:1px solid #d8b676;background:#153d5c;color:#f5d58c;border-radius:0 9px 9px 0;box-shadow:3px 0 12px #06192c55;display:grid;place-items:center;font-size:20px;font-weight:800;cursor:col-resize;touch-action:none;transition:left .16s ease}
+ .pb-top-shell .pb-sidebar-resize:hover{background:#285b7a}
+ body.pb-sidebar-collapsed .pb-top-shell .topbar-main{padding-left:9px;padding-right:9px;align-items:center}
+ body.pb-sidebar-collapsed .pb-top-shell .top-brand-word,body.pb-sidebar-collapsed .pb-top-shell .header-context,body.pb-sidebar-collapsed .pb-top-shell .header-tools .header-action span,body.pb-sidebar-collapsed .pb-top-shell .topnav .nav-item>span:not(.nav-icon){display:none!important}
+ body.pb-sidebar-collapsed .pb-top-shell .top-brand{justify-content:center}
+ body.pb-sidebar-collapsed .pb-top-shell .topnav{padding-left:7px;padding-right:7px;align-items:stretch}
+ body.pb-sidebar-collapsed .pb-top-shell .topnav .nav-item{justify-content:center;padding:10px 4px;min-height:46px}
+ body.pb-sidebar-collapsed .pb-top-shell .topnav .nav-icon{width:auto;flex:none;font-size:20px}
+ body.pb-sidebar-collapsed .pb-top-shell .header-tools{justify-content:center;flex-wrap:wrap}
+ body.pb-sidebar-collapsed .pb-top-shell .top-menu{left:76px;right:auto}
+}
+@media(min-width:721px) and (max-width:1099px){.pb-global-toolbar,.reader-active .pb-global-toolbar{top:58px}}
+@media(max-width:720px){.pb-global-toolbar,.reader-active .pb-global-toolbar{top:54px}}
+.pb-sidebar-resize{display:none}
+@media(prefers-reduced-motion:reduce){.pb-top-shell .workarea,.pb-top-shell .topbar,.pb-top-shell .pb-sidebar-resize{transition:none!important}}
