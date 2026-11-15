@@ -91,8 +91,8 @@
   button.setAttribute("aria-expanded",String(open));
   button.setAttribute("aria-label",open?"Fechar navegação":"Abrir navegação");
  }
- button.addEventListener("click",function(){
-  if(tablet.matches||mobile.matches)toggle();
+ button.addEventListener("click",function(event){
+  if(tablet.matches||mobile.matches){event.preventDefault();event.stopImmediatePropagation();toggle();}
  });
  menu.addEventListener("click",function(event){
   if(event.target.closest("[data-page]")){
