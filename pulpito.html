@@ -49,6 +49,7 @@
 <button class="nav-item" type="button" data-page="projeto"><span class="nav-icon" aria-hidden="true">⌘</span><span>Recursos e evolução</span></button>
     </div>
   </div>
+  <button id="pb-sidebar-resize" class="pb-sidebar-resize" type="button" aria-label="Arraste para redimensionar a barra lateral ou toque para recolher/expandir" title="Arraste para redimensionar · toque para recolher/expandir"><span aria-hidden="true">‹</span></button>
 </header>
 <main id="app-main" tabindex="-1"></main>
 <footer class="app-footer"><span>Púlpito Bible · Primeira versão de estudo</span><span>Conteúdo aberto com atribuição · <a href="https://api.midvash.com/pt-br" target="_blank" rel="noopener">Midvash</a> · <a href="https://github.com/STEPBible/STEPBible-Data" target="_blank" rel="noopener">STEPBible</a></span></footer></div></div>
@@ -121,6 +122,26 @@
  });
  window.addEventListener("resize",sync,{passive:true});
  window.addEventListener("orientationchange",sync,{passive:true});
+
+ var sideHandle=document.getElementById("pb-sidebar-resize"),sideRoot=document.querySelector(".pb-top-shell");
+ if(sideHandle&&sideRoot){
+  var sideWidth=258,drag=null;
+  try{sideWidth=Number(localStorage.getItem("pb-sidebar-width"))||258;}catch(e){}
+  function applySideWidth(width){
+   sideWidth=Math.max(72,Math.min(340,width));
+   sideRoot.style.setProperty("--pb-sidebar-width",sideWidth+"px");
+   document.body.classList.toggle("pb-sidebar-collapsed",sideWidth<=88);
+   sideHandle.querySelector("span").textContent=sideWidth<=88?"›":"‹";
+   sideHandle.setAttribute("aria-label",sideWidth<=88?"Expandir barra lateral":"Recolher ou redimensionar barra lateral");
+  }
+  applySideWidth(sideWidth);
+  sideHandle.addEventListener("pointerdown",function(e){if(!window.matchMedia("(min-width:1100px)").matches)return;e.preventDefault();drag={x:e.clientX,width:sideWidth,moved:false};try{sideHandle.setPointerCapture(e.pointerId);}catch(_){}});
+  sideHandle.addEventListener("pointermove",function(e){if(!drag)return;var delta=e.clientX-drag.x;if(Math.abs(delta)>5)drag.moved=true;if(drag.moved)applySideWidth(drag.width+delta);});
+  function finishSideDrag(){if(!drag)return;if(!drag.moved)applySideWidth(sideWidth<=88?258:72);try{localStorage.setItem("pb-sidebar-width",String(sideWidth));}catch(e){}drag=null;}
+  sideHandle.addEventListener("pointerup",finishSideDrag);sideHandle.addEventListener("pointercancel",finishSideDrag);sideHandle.addEventListener("lostpointercapture",finishSideDrag);
+  window.addEventListener("resize",function(){if(!window.matchMedia("(min-width:1100px)").matches)sideRoot.style.removeProperty("--pb-sidebar-width");else applySideWidth(sideWidth);},{passive:true});
+ }
+
  sync();
 })();
 </script>
