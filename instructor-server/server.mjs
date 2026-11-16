@@ -67,7 +67,7 @@ createServer(async (req, res) => {
       if (!res.destroyed && !req.destroyed) reply(400, {error:"Dados de estudo inválidos."});
       return;
     }
-    if (!input || typeof input.reference !== "string" || !input.reference.trim() || input.reference.length > 100) {
+    if (!input || typeof input.reference !== "string" || !input.reference.trim() || input.reference.length > 1000) {
       return reply(400, {error:"Selecione uma passagem bíblica."});
     }
     const sermon = input.sermon && typeof input.sermon === "object" ? input.sermon : {};

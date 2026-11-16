@@ -1139,7 +1139,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     return '<div class="mtb-selection">'+
       '<span class="mtb-count">'+s.currentVerseSelection.length+' selecionado(s)</span>'+
       item("comments-verse","Comentários","▤")+item("note","Minha anotação","✎")+
-      item("explain-verse","Explicar","✧")+item("sermon-verse","Sermão","▤")+item("copy","Copiar","▣")+
+      item("explain-verse","Instrutor","✧")+item("sermon-verse","Sermão","▤")+item("copy","Copiar","▣")+
       item("highlight","Marcar","▨")+
       item("compare","Comparar traduções","⇄")+
       item("clear","Limpar seleção","×")+
@@ -1841,7 +1841,7 @@ function renderStudyActivity(){
  return '<section class="card card-pad" style="margin-top:16px"><h2 class="section-heading">Meu histórico automático de estudos</h2><p class="subtitle">Últimos 7 dias: '+weekly.length+' acessos registrados. Pesquise acima para localizar leituras e pesquisas anteriores.</p>'+
  (rows.length?rows.slice(0,120).map(function(r,i){var d=new Date(r.at),book=books.find(function(b){return b.slug===r.book;})||booksFallback.find(function(b){return b.slug===r.book;});return '<button type="button" class="btn" style="display:block;width:100%;text-align:left;margin:8px 0;white-space:normal" data-study-activity="'+i+'"><strong>'+esc(r.label)+'</strong><small style="display:block">'+esc(d.toLocaleString("pt-BR"))+' · '+esc(r.type)+' · '+esc((book&&book.name||r.book)+" "+r.chapter+(r.verse?":"+r.verse:""))+'</small></button>';}).join(""):'<p class="subtitle">O histórico começa a ser registrado a partir desta versão.</p>')+'</section>';
 }
-function page(s){if(state.page==="pesquisa"&&s!=="pesquisa")pb2CloseSearchReader();clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="leitura")window.PBVerseComments.invalidate();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
+function page(s){if(s!=="instrutor")pbInstructorSelection=null;if(state.page==="pesquisa"&&s!=="pesquisa")pb2CloseSearchReader();clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="leitura")window.PBVerseComments.invalidate();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
@@ -2131,7 +2131,7 @@ function toolbarAction(action){
   if(n){showCommentaryPanel(n);window.PBSplitStudy.menu(true);}
   return;
  }
- case "explain-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;persist();}page("tutor");return;}
+ case "explain-verse":pbOpenInstructorSelection();return;
  case "sermon-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;state.sermon.context+=(state.sermon.context?"\\n\\n":"")+activeBook.name+" "+state.chapter+":"+n;persist();notify("Versículo adicionado ao sermão");}return;}
  case "copy":shareOrCopy(false);return;
  case "compare":state.showParallel=!state.showParallel;persist();renderReader();notify(state.showParallel?"Comparação de traduções ativada.":"Comparação de traduções fechada.");return;
@@ -2337,7 +2337,7 @@ function renderReader(){
  (state.showParallel?'<article class="reader-paper second '+esc(state.readerTheme)+'"><div class="reader-paper-head"><select id="parallel-version-select" class="reader-select"><option value="alm1911"'+(other==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(other==="bpm"?" selected":"")+'>BPM</option><option value="onbv"'+(other==="onbv"?" selected":"")+'>ONBV</option><option value="nva"'+(other==="nva"?" selected":"")+'>NVA</option>'+window.PBModules.bibleOptions(other)+'</select><h2>Tradução paralela</h2></div><div id="parallel-body" class="reader-scripture"><div class="loader">Carregando versão paralela…</div></div></article>':"")+'</div>'+
  (state.showCrossRefs?'<section class="card card-pad reader-extras"><div class="caps">REFERÊNCIAS CRUZADAS</div><h2 class="section-heading">Passagens relacionadas</h2><p class="feature-note">Sugestões temáticas iniciais, não geradas automaticamente por um comentário externo.</p><div class="row">'+(state.book==="john"&&state.chapter===15?'<button class="btn slim" data-ref-open="João 6:56">João 6:56</button><button class="btn slim" data-ref-open="Gálatas 5:22">Gálatas 5:22</button>':'<button class="btn slim" data-ref-open="João 1:1">João 1:1</button>')+'</div></section></div>':"")+
   
- '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-page="tutor">✧ Interpretar</button></div></div></section>';
+ '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-act="pb-instructor-selection">✧ Instrutor</button></div></div></section>';
  if(state.splitStudy)attachSplitStudy();
  if(state.dictionaryOpen)attachDictionaryStudy();
  mountAppToolbar();
@@ -3702,13 +3702,51 @@ function pbCoachTiming(minutes){
 }
 
 var pbInstructorConnection={endpoint:"",code:""};
+
+var pbInstructorSelection=null;
+var pbInstructorSelectionQuestion="Explique o texto selecionado. Mostre a ideia central no contexto, as palavras e os verbos relevantes no original, as referências cruzadas e, se houver, comentários verificáveis dos Pais da Igreja.";
+function pbInstructorReference(bookName,chapter,numbers){
+ var ranges=[];
+ for(var number of numbers){
+  var last=ranges[ranges.length-1];
+  if(last&&number===last[1]+1)last[1]=number;
+  else ranges.push([number,number]);
+ }
+ return bookName+" "+chapter+":"+ranges.map(function(range){
+  return range[0]===range[1]?String(range[0]):range[0]+"–"+range[1];
+ }).join(", ");
+}
+function pbOpenInstructorSelection(){
+ var numbers=selectionNumbers();
+ if(!numbers.length){
+  notify("Selecione um ou mais versículos para o Instrutor.");
+  return;
+ }
+ var text=selectedVerseText();
+ pbInstructorSelection={
+  book:state.book,chapter:state.chapter,numbers:numbers,version:state.version,
+  reference:pbInstructorReference(activeBook.name,state.chapter,numbers),text:text
+ };
+ state.selectedVerse=numbers[0];
+ page("instrutor");
+ var form=document.getElementById("pb-instructor-ai");
+ if(!form)return;
+ if(pbInstructorConnection.endpoint&&pbInstructorConnection.code&&typeof form.requestSubmit==="function")form.requestSubmit();
+ else{
+  var field=pbInstructorConnection.endpoint?form.elements.code:form.elements.endpoint;
+  field.focus();
+ }
+}
+
 function pbInstructorMarkup(){
- return '<section class="card card-pad"><h2>Estudar com o Instrutor IA</h2><p>Passagem em estudo: <strong>'+esc(activeBook.name+" "+state.chapter+":"+(state.selectedVerse||1))+'</strong></p>'+
+ var selection=pbInstructorSelection;
+ var reference=selection?selection.reference:activeBook.name+" "+state.chapter+":"+(state.selectedVerse||1);
+ return '<section class="card card-pad"><h2>Estudar com o Instrutor IA</h2><p>Passagem em estudo: <strong>'+esc(reference)+'</strong></p>'+(selection?.text?'<details><summary>Texto selecionado</summary><p style="white-space:pre-wrap">'+esc(selection.text.slice(0,3500))+'</p>'+(selection.text.length>3500?'<p>A consulta usa os primeiros 3.500 caracteres da seleção.</p>':'')+'</details>':'')+
   '<form id="pb-instructor-ai"><details'+(pbInstructorConnection.endpoint?"":" open")+'><summary>Conexão do Instrutor</summary><div class="row">'+
   '<label>Endereço do serviço <input name="endpoint" class="field" type="url" required value="'+esc(pbInstructorConnection.endpoint)+'" placeholder="https://"></label>'+
   '<label>Código de acesso <input name="code" class="field" type="password" required autocomplete="off" value="'+esc(pbInstructorConnection.code)+'"></label></div></details>'+
-  '<label>Pergunta sobre a passagem<textarea name="question" class="editor" maxlength="1200" placeholder="Ex.: Qual a diferença entre ver e entrar no Reino?"></textarea></label>'+
-  '<button class="btn primary" type="submit">Estudar passagem</button></form><div id="pb-instructor-answer" aria-live="polite"></div></section>';
+  '<label>Pergunta sobre a passagem<textarea name="question" class="editor" maxlength="1200" placeholder="Ex.: Qual a diferença entre ver e entrar no Reino?">'+esc(selection?pbInstructorSelectionQuestion:"")+'</textarea></label>'+
+  '<button class="btn primary" type="submit">'+(selection?"Explicar seleção":"Estudar passagem")+'</button></form><div id="pb-instructor-answer" aria-live="polite"></div></section>';
 }
 function pbInstructorAnswer(parts){
  return parts.map(function(part){
@@ -3726,7 +3764,7 @@ function pbInstructorAnswer(parts){
   return '<div style="white-space:pre-wrap;overflow-wrap:anywhere">'+html+'</div>';
  }).join("");
 }
-async function pbInstructorRelated(book,chapter,verse){
+async function pbInstructorRelated(book,chapter,numbers){
  try{
   var data=pbGraphCache;
   if(!data){
@@ -3737,8 +3775,12 @@ async function pbInstructorRelated(book,chapter,verse){
   var index=pbGraphBuildIndex(data);
   pbGraphCache=data;
   var bookNumber=booksFallback.findIndex(function(entry){return entry.slug===book;})+1;
-  var matches=index.adj.get(pbGraphId([bookNumber,chapter,verse]))||[];
-  return matches.slice(0,10).map(function(item){return pbGraphReference(pbGraphNode(item.to))+" — "+item.description+" (Midvash)";});
+  var matches=numbers.slice(0,20).flatMap(function(number){
+   return (index.adj.get(pbGraphId([bookNumber,chapter,number]))||[]).slice(0,6);
+  });
+  return Array.from(new Set(matches.map(function(item){
+   return pbGraphReference(pbGraphNode(item.to))+" — "+item.description+" (Midvash)";
+  }))).slice(0,10);
  }catch(error){return [];}
 }
 document.addEventListener("submit",async function(event){
@@ -3754,16 +3796,20 @@ document.addEventListener("submit",async function(event){
  }
  var code=form.elements.code.value,question=form.elements.question.value.trim();
  pbInstructorConnection={endpoint:endpoint.origin,code:code};
- var book=state.book,chapter=state.chapter,verse=state.selectedVerse||1,version=state.version;
- var reference=activeBook.name+" "+chapter+":"+verse;
+ var selection=pbInstructorSelection;
+ var book=selection?.book||state.book,chapter=selection?.chapter||state.chapter,verse=selection?.numbers[0]||state.selectedVerse||1,version=selection?.version||state.version;
+ var reference=selection?.reference||activeBook.name+" "+chapter+":"+verse;
  button.disabled=true;
  answer.textContent="Consultando a passagem e pesquisando fontes…";
  try{
-  var chapterTask=version.startsWith("local:")?PBModules.getChapter(version,book,chapter):loadOnlineBibleChapter(version,book,chapter);
-  var loaded=await Promise.all([chapterTask.catch(function(){return null;}),pbInstructorRelated(book,chapter,verse)]);
-  var verses=loaded[0]?.verses||[];
-  var line=verses.find(function(entry,index){return (typeof entry==="string"?index+1:Number(entry.number||entry.verse)||index+1)===verse;});
-  var studyText=typeof line==="string"?line:line?.text||line?.content||"";
+  var chapterTask=selection?.text?Promise.resolve(null):version.startsWith("local:")?PBModules.getChapter(version,book,chapter):loadOnlineBibleChapter(version,book,chapter);
+  var loaded=await Promise.all([chapterTask.catch(function(){return null;}),pbInstructorRelated(book,chapter,selection?.numbers||[verse])]);
+  var studyText=selection?.text||(loaded[0]?.verses||[]).map(function(entry,index){
+   var number=typeof entry==="string"?index+1:Number(entry.number||entry.verse)||index+1;
+   if(!(selection?.numbers||[verse]).includes(number))return "";
+   var verseText=typeof entry==="string"?entry:entry.text||entry.content||"";
+   return number+" — "+String(verseText).replace(/<[^>]*>/g,"");
+  }).filter(Boolean).join("\n");
   var result=await fetch(new URL("/api/instrutor",endpoint.origin),{
    method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+code},
    body:JSON.stringify({reference:reference,text:studyText.slice(0,3500),question:question,related:loaded[1]}),
@@ -4142,6 +4188,7 @@ document.addEventListener("click",function(ev){
  if(a==="pb-graph-path"){var from=document.getElementById("pb-graph-from").value,to=document.getElementById("pb-graph-to").value;var parse=function(v){var p=parseRef(v);if(!p)return null;return pbGraphId([books.findIndex(function(b){return b.slug===p.book;})+1,p.ch,p.verse||1]);};var x=parse(from),y=parse(to);var path=x&&y&&pbGraphPath(x,y);var out=document.getElementById("pb-graph-results");if(out){var box=document.createElement("div");box.className="card card-pad";box.textContent=path?"Caminho documentado: "+path.map(function(id){return pbGraphReference(pbGraphNode(id));}).join(" → "):"Nenhum caminho encontrado na base local entre essas passagens.";out.prepend(box);}return;}
  if(a==="pb-voice-start"){pbVoiceStart();return;}
  if(a==="pb-voice-text"){pbVoiceCommand(document.getElementById("pb-voice-text").value);return;}
+ if(a==="pb-instructor-selection"){pbOpenInstructorSelection();return;}
  if(a.startsWith("pb-sermon-chat-")){pbSermonChatAction(a,el);return;}
  if(a==="pb-coach-save"){
   var duration=document.getElementById("pb-coach-minutes");
