@@ -1,13 +1,13 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v65-instructor-ai";
+const CACHE_NAME = "pulpito-bible-shell-v66-sermon-chat";
 const APP_SHELL = [
   "/",
   "/pulpito.html",
-  "/styles.css?v=20261116-top-shortcuts",
+  "/styles.css?v=20261116-sermon-chat",
   "/window-ui.js?v=20261115-responsive-navigation",
   "/split-study.js?v=20261113-paineis-profissionais",
-  "/app.js?v=20261116-instructor-ai",
+  "/app.js?v=20261116-sermon-chat",
   "/pulpito-manifest.webmanifest",
   "/pulpito-acervo.json"
 ];

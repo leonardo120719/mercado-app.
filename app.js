@@ -2429,18 +2429,141 @@ function renderExercises(){
  MAIN.innerHTML='<div class="content">'+title("exercicios")+'<p class="subtitle">Aprenda praticando: gramática, métodos de observação, Strong, contexto e aplicação. Cada resposta recebe uma explicação.</p><div class="card card-pad" style="margin-bottom:18px"><div class="panel-heading"><h2 class="section-heading">Seu progresso</h2><span class="chip goldish">'+count+'/'+questions.length+' respondidas · '+correct+' acertos</span></div><div class="progress"><div class="progress-fill" style="width:'+(count/questions.length*100)+'%"></div></div><button class="btn slim" data-act="reset-exercises">Refazer exercícios</button></div>'+
  questions.map(function(q,i){var a=ans[i];return '<div class="card question-card"><span class="eyebrow">QUESTÃO '+(i+1)+' / '+questions.length+'</span><h3 style="font-size:15px;line-height:1.6">'+esc(q.q)+'</h3>'+q.opts.map(function(o,j){return '<button class="option'+(a===j?" selected":"")+(a!==undefined&&j===q.correct?" correct":"")+(a===j&&a!==q.correct?" incorrect":"")+'" data-answer="'+i+":"+j+'">'+String.fromCharCode(65+j)+'. '+esc(o)+'</button>';}).join("")+(a!==undefined?'<div class="feedback"><strong>'+(a===q.correct?"✓ Resposta correta.":"Veja a explicação:")+'</strong> '+esc(q.why)+'</div>':"")+'</div>';}).join("")+'</div>';
 }
+
+var pbSermonChat={open:false,turns:[],selection:null,pending:false,error:""};
+var pbSermonChatFields={context:"Contexto",introduction:"Introdução",point1:"Tópico 1",point2:"Tópico 2",application:"Aplicação",conclusion:"Conclusão"};
+function pbSermonChatMarkup(){
+ return '<aside id="pb-sermon-chat" class="card card-pad pb-sermon-chat" aria-labelledby="pb-sermon-chat-title"'+(pbSermonChat.open?"":" hidden")+'>'+
+  '<div class="panel-heading"><h2 id="pb-sermon-chat-title" class="section-heading">Instrutor IA</h2><button type="button" class="btn slim" data-act="pb-sermon-chat-close">Recolher</button></div>'+
+  '<p class="feature-note">Passagem: '+esc(String(state.sermon.reference||'').trim()||ref())+'</p>'+
+  '<div id="pb-sermon-chat-messages" class="pb-sermon-chat-messages" role="log" aria-label="Conversa com o Instrutor" tabindex="0"></div>'+
+  '<form id="pb-sermon-chat-form"><details'+(pbInstructorConnection.endpoint?"":" open")+'><summary>Conexão do Instrutor</summary>'+
+  '<label>Endereço do serviço<input name="endpoint" type="url" class="field" required value="'+esc(pbInstructorConnection.endpoint)+'" placeholder="https://"></label>'+
+  '<label>Código de acesso<input name="code" type="password" class="field" required value="'+esc(pbInstructorConnection.code)+'" autocomplete="off"></label></details>'+
+  '<p id="pb-sermon-chat-selection" class="feature-note"></p>'+
+  '<label>Pergunte sobre o sermão<textarea class="editor" name="question" maxlength="1200" required placeholder="Esta aplicação tem base na passagem?"></textarea></label>'+
+  '<button type="submit" class="btn primary"'+(pbSermonChat.pending?" disabled":"")+'>Enviar pergunta</button>'+
+  '<p id="pb-sermon-chat-status" role="status"></p></form></aside>';
+}
+function pbSermonChatPaint(scroll){
+ var chat=pbSermonChat,log=document.getElementById("pb-sermon-chat-messages");
+ var form=document.getElementById("pb-sermon-chat-form");
+ if(!log||!form)return;
+ log.innerHTML=chat.turns.map(function(turn,index){
+  if(turn.role==="user")return '<article><strong>Você</strong><p>'+esc(turn.text)+'</p></article>';
+  return '<article><strong>Instrutor · '+esc(turn.reference)+'</strong>'+pbInstructorAnswer(turn.parts)+
+   '<label>Inserir em <select class="field" data-chat-target="'+index+'">'+Object.entries(pbSermonChatFields).map(function(entry){
+    return '<option value="'+entry[0]+'"'+(entry[0]===turn.field?" selected":"")+'>'+entry[1]+'</option>';
+   }).join("")+'</select></label><div class="row"><button class="btn slim" type="button" data-act="pb-sermon-chat-insert" data-turn="'+index+'">Inserir no sermão</button>'+
+   '<button class="btn slim" type="button" data-act="pb-sermon-chat-note" data-turn="'+index+'">Salvar no caderno</button></div></article>';
+ }).join("");
+ document.getElementById("pb-sermon-chat-selection").textContent=chat.selection?
+  "Trecho selecionado: "+chat.selection.text:"A pergunta acompanha a passagem do sermão. Se quiser incluir um trecho, selecione o texto no editor.";
+ document.getElementById("pb-sermon-chat-status").textContent=chat.pending?"Consultando o Instrutor…":chat.error;
+ form.querySelector('button[type="submit"]').disabled=chat.pending;
+ if(scroll)log.scrollTop=log.scrollHeight;
+}
+function pbSermonChatAction(action,button){
+ var chat=pbSermonChat,panel=document.getElementById("pb-sermon-chat");
+ if(!panel)return;
+ if(action==="pb-sermon-chat-open"||action==="pb-sermon-chat-close"){
+  chat.open=action==="pb-sermon-chat-open";
+  panel.hidden=!chat.open;
+  var workspace=panel.closest(".pb-sermon-editor-layout");
+  workspace.classList.toggle("has-chat",chat.open);
+  var trigger=document.querySelector('[data-act="pb-sermon-chat-open"]');
+  trigger.setAttribute("aria-expanded",String(chat.open));
+  if(chat.open){pbSermonChatPaint(true);panel.querySelector('[name="question"]').focus();}
+  else trigger.focus();
+  return;
+ }
+ var index=Number(button.dataset.turn),turn=chat.turns[index];
+ if(!turn||turn.role!=="assistant")return;
+ if(action==="pb-sermon-chat-note"){
+  state.notes.unshift({ref:turn.reference,text:turn.text,when:Date.now()});
+  persist();
+  notify("Resposta salva no caderno.");
+  return;
+ }
+ var field=panel.querySelector('[data-chat-target="'+index+'"]')?.value;
+ if(!Object.prototype.hasOwnProperty.call(pbSermonChatFields,field))return;
+ var editor=MAIN.querySelector('[data-sermon="'+field+'"]');
+ if(!editor)return;
+ var previous=editor.value;
+ editor.value=previous+(previous.trim()?"\n\n":"")+turn.text;
+ state.sermon[field]=editor.value;
+ persist();
+ notify("Resposta inserida em "+pbSermonChatFields[field]+".");
+}
+function pbSermonCaptureSelection(field){
+ if(state.page!=="sermao"||!field?.matches?.("[data-sermon]"))return;
+ var selected=field.value.slice(field.selectionStart,field.selectionEnd).trim();
+ pbSermonChat.selection=selected?{field:field.dataset.sermon,text:selected.slice(0,1800)}:null;
+ var label=document.getElementById("pb-sermon-chat-selection");
+ if(label)label.textContent=selected?"Trecho selecionado: "+pbSermonChat.selection.text:"Selecione um trecho no editor para incluí-lo na pergunta.";
+}
+document.addEventListener("select",function(event){pbSermonCaptureSelection(event.target);});
+document.addEventListener("focusout",function(event){pbSermonCaptureSelection(event.target);});
+document.addEventListener("submit",async function(event){
+ var form=event.target;
+ if(form.id!=="pb-sermon-chat-form")return;
+ event.preventDefault();
+ var chat=pbSermonChat,question=form.elements.question.value.trim();
+ if(chat.pending||!question)return;
+ var endpoint;
+ try{endpoint=new URL(form.elements.endpoint.value);}catch(error){}
+ if(!endpoint||endpoint.protocol!=="https:"||endpoint.username||endpoint.password){
+  chat.error="Informe o endereço HTTPS do serviço do Instrutor.";
+  pbSermonChatPaint();
+  return;
+ }
+ var code=form.elements.code.value;
+ pbInstructorConnection={endpoint:endpoint.origin,code:code};
+ var reference=(String(state.sermon.reference||'').trim()||ref()).slice(0,100);
+ var selection=chat.selection,theme=String(state.sermon.title||'').slice(0,200);
+ var history=chat.turns.slice(-6).map(function(turn){return {role:turn.role,text:turn.text.slice(0,650)};});
+ var turn={role:"user",text:question};
+ chat.pending=true;
+ chat.error="";
+ chat.turns.push(turn);
+ form.elements.question.value="";
+ pbSermonChatPaint(true);
+ try{
+  var response=await fetch(new URL("/api/instrutor",endpoint.origin),{
+   method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+code},
+   body:JSON.stringify({reference:reference,question:question,sermon:{theme:theme,excerpt:selection?.text||"",field:pbSermonChatFields[selection?.field]||""},history:history}),
+   signal:AbortSignal.timeout(130000)
+  });
+  var result=await response.json();
+  if(!response.ok||!Array.isArray(result.passages))throw Error(result.error||"Não foi possível consultar o Instrutor.");
+  chat.turns.push({role:"assistant",reference:reference,field:selection?.field,parts:result.passages,text:result.passages.map(function(part){return part.text;}).join("\n\n")});
+  if(result.incomplete)chat.error="A resposta foi interrompida antes de terminar.";
+ }catch(error){
+  chat.turns.pop();
+  chat.error=error.name==="TimeoutError"?"O Instrutor demorou a responder. Tente novamente.":error.message;
+  var liveForm=document.getElementById("pb-sermon-chat-form");
+  if(chat===pbSermonChat&&liveForm&&!liveForm.elements.question.value)liveForm.elements.question.value=question;
+ }finally{
+  chat.pending=false;
+  if(chat===pbSermonChat)pbSermonChatPaint(true);
+ }
+});
+function pbSermonChatReset(){
+ pbSermonChat={open:false,turns:[],selection:null,pending:false,error:""};
+}
+
 function renderSermon(){
  var s=state.sermon,list=pb2Read().sermons||[];
  var editing=list.some(function(item){return item.id===s.id;});
  trackStudyActivity("Sermão",s.title||activeBook.name+" "+state.chapter,"Criador de sermões");
  MAIN.innerHTML='<div class="content sermon-workspace">'+title("sermao")+
- '<div class="row"><button class="btn" data-act="sermon-new">Novo sermão</button><button class="btn" data-act="sermon-library">Sermões salvos ('+list.length+')</button></div>'+
- '<section class="card card-pad" aria-labelledby="sermon-editor"><div class="panel-heading"><h2 class="section-heading" id="sermon-editor" tabindex="-1">'+(editing?"Editar sermão":"Criar sermão")+'</h2><span class="chip greenish">Rascunho local</span></div><div class="sermon-grid">'+
+ '<div class="row"><button class="btn" data-act="sermon-new">Novo sermão</button><button class="btn" data-act="sermon-library">Sermões salvos ('+list.length+')</button><button type="button" class="btn primary" data-act="pb-sermon-chat-open" aria-controls="pb-sermon-chat" aria-expanded="'+pbSermonChat.open+'">Perguntar ao Instrutor</button></div>'+
+ '<div class="pb-sermon-editor-layout'+(pbSermonChat.open?" has-chat":"")+'"><section class="card card-pad" aria-labelledby="sermon-editor"><div class="panel-heading"><h2 class="section-heading" id="sermon-editor" tabindex="-1">'+(editing?"Editar sermão":"Criar sermão")+'</h2><span class="chip greenish">Rascunho local</span></div><div class="sermon-grid">'+
  [["title","Tema"],["reference","Texto bíblico"],["context","Contexto histórico e literário"],["introduction","Introdução"],["point1","Tópico 1 · Exposição"],["point2","Tópico 2 · Exposição"],["application","Aplicação"],["conclusion","Conclusão"]].map(function(a,i){return '<label class="'+(i>=2?"full":"")+'">'+esc(a[1])+(i>=2?'<textarea class="editor" data-sermon="'+a[0]+'" placeholder="Escreva aqui…">'+esc(s[a[0]]||"")+'</textarea>':'<input class="field" data-sermon="'+a[0]+'" value="'+esc(s[a[0]]||"")+'">')+'</label>';}).join("")+'</div><div class="row">'+
  '<button class="btn primary" data-act="sermon-save">'+(editing?"Salvar alterações":"Salvar sermão")+'</button>'+
  '<button class="btn" data-act="sermon-from-ref">Usar passagem atual</button>'+
  '<button class="btn" data-act="sermon-copy">Copiar esboço</button>'+
- '<button class="btn" data-act="sermon-export">Exportar .txt</button></div></section>'+
+ '<button class="btn" data-act="sermon-export">Exportar .txt</button></div></section>'+pbSermonChatMarkup()+'</div>'+
  '<section class="card card-pad" aria-labelledby="sermon-library"><div class="panel-heading"><h2 class="section-heading" id="sermon-library" tabindex="-1">Sermões salvos</h2><button class="btn slim" data-act="pb2-backup">Exportar backup</button></div>'+
  (list.length?list.map(function(item){
   var name=item.title||"Sem título", id=esc(item.id);
@@ -2451,6 +2574,7 @@ function renderSermon(){
    '<div class="row"><button class="btn slim" data-act="sermon-edit" data-sermon-id="'+id+'" aria-label="'+esc("Editar "+name)+'">Editar</button>'+
    '<button class="btn slim" data-act="sermon-delete" data-sermon-id="'+id+'" aria-label="'+esc("Excluir "+name)+'">Excluir</button></div></article>';
  }).join(""):'<p>Nenhum sermão salvo.</p>')+'</section></div>';
+ pbSermonChatPaint(pbSermonChat.open);
 }
 function confirmSermonSwitch(list){
  var saved=list.find(function(item){return item.id===state.sermon.id;})||defaults.sermon;
@@ -2466,6 +2590,7 @@ function handleSermonAction(action,id){
  switch(action){
  case "sermon-new":
   if(!confirmSermonSwitch(list))return false;
+  pbSermonChatReset();
   state.sermon=Object.assign({},defaults.sermon);
   break;
  case "sermon-edit":
@@ -2474,6 +2599,7 @@ function handleSermonAction(action,id){
    return;
   }
   if(!confirmSermonSwitch(list))return;
+  pbSermonChatReset();
   state.sermon=Object.assign({},defaults.sermon,item);
   break;
  case "sermon-save":
@@ -2499,7 +2625,7 @@ function handleSermonAction(action,id){
   if(!item||!window.confirm('Excluir o sermão "'+(item.title||"Sem título")+'"?'))return;
   db.sermons=list.filter(function(saved){return saved.id!==id;});
   if(!pb2Write(db))return;
-  if(state.sermon.id===id)state.sermon=Object.assign({},defaults.sermon);
+  if(state.sermon.id===id){pbSermonChatReset();state.sermon=Object.assign({},defaults.sermon);}
   heading="sermon-library";
   notify("Sermão excluído.");
   break;
@@ -4016,6 +4142,7 @@ document.addEventListener("click",function(ev){
  if(a==="pb-graph-path"){var from=document.getElementById("pb-graph-from").value,to=document.getElementById("pb-graph-to").value;var parse=function(v){var p=parseRef(v);if(!p)return null;return pbGraphId([books.findIndex(function(b){return b.slug===p.book;})+1,p.ch,p.verse||1]);};var x=parse(from),y=parse(to);var path=x&&y&&pbGraphPath(x,y);var out=document.getElementById("pb-graph-results");if(out){var box=document.createElement("div");box.className="card card-pad";box.textContent=path?"Caminho documentado: "+path.map(function(id){return pbGraphReference(pbGraphNode(id));}).join(" → "):"Nenhum caminho encontrado na base local entre essas passagens.";out.prepend(box);}return;}
  if(a==="pb-voice-start"){pbVoiceStart();return;}
  if(a==="pb-voice-text"){pbVoiceCommand(document.getElementById("pb-voice-text").value);return;}
+ if(a.startsWith("pb-sermon-chat-")){pbSermonChatAction(a,el);return;}
  if(a==="pb-coach-save"){
   var duration=document.getElementById("pb-coach-minutes");
   if(!duration.value||!duration.checkValidity()){duration.focus();notify("Informe uma duração inteira entre 10 e 90 minutos.");return;}
