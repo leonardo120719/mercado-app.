@@ -2524,3 +2524,46 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
 @media(max-width:720px){.pb-global-toolbar,.reader-active .pb-global-toolbar{top:54px}}
 .pb-sidebar-resize{display:none}
 @media(prefers-reduced-motion:reduce){.pb-top-shell .workarea,.pb-top-shell .topbar,.pb-top-shell .pb-sidebar-resize{transition:none!important}}
+
+/* Keep the section shortcuts above the reader controls on touch layouts. */
+@media (width < 1100px) {
+ .pb-top-shell {
+  --pb-brand-row-size: 58px;
+  --pb-shortcut-row-size: 46px;
+  --pb-header-size: calc(var(--pb-brand-row-size) + var(--pb-shortcut-row-size) + 2px);
+ }
+ .pb-top-shell .topbar-main {
+  flex: 0 0 var(--pb-brand-row-size);
+  height: var(--pb-brand-row-size);
+  min-height: var(--pb-brand-row-size);
+ }
+ .pb-top-shell .topnav {
+  display: flex;
+  flex: 0 0 var(--pb-shortcut-row-size);
+  height: var(--pb-shortcut-row-size);
+  min-height: var(--pb-shortcut-row-size);
+  padding: 1px 5px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+ }
+ .pb-top-shell .topnav .nav-item {
+  min-height: 40px;
+ }
+ .pb-top-shell .top-menu {
+  top: var(--pb-header-size);
+  max-height: calc(100dvh - var(--pb-header-size));
+ }
+ .reader-active .pb-top-shell .pb-global-toolbar {
+  top: var(--pb-header-size);
+ }
+ body.focus-reading .pb-top-shell .pb-global-toolbar,
+ body.pb-fullscreen .pb-top-shell .pb-global-toolbar {
+  top: 0;
+ }
+}
+@media (max-width: 720px) {
+ .pb-top-shell { --pb-brand-row-size: 54px; }
+}
+@media (max-width: 720px) and (orientation: landscape) {
+ .pb-top-shell { --pb-brand-row-size: 48px; }
+}
