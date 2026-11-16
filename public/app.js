@@ -3543,12 +3543,68 @@ async function pbVoiceStart(){
  }catch(error){pbVoiceStatus("Microfone indisponível: "+error.message);}
 }
 
+
+var pbCoachFormats={
+ expositivo:{label:"Expositivo",focus:"Siga o argumento da passagem. Cada tópico deve nascer de uma parte do texto."},
+ textual:{label:"Textual",focus:"Mostre como as palavras e frases do texto-base sustentam os pontos do sermão."},
+ tematico:{label:"Temático",focus:"Defina o tema e examine cada passagem em seu próprio contexto antes de relacioná-las."}
+};
+var pbCoachLevels={basico:"Básico",intermediario:"Intermediário",avancado:"Avançado"};
+var pbCoachSteps=[
+ ["reference","Passagem bíblica","Delimite a passagem e leia o trecho anterior e o seguinte."],
+ ["context","Análise bíblica","Identifique o gênero literário, os destinatários e o propósito da passagem."],
+ ["title","Tema","Resuma em uma frase a verdade central que a igreja deve lembrar."],
+ ["introduction","Introdução","Apresente a situação que o texto ajuda a compreender e conduza a igreja à leitura."],
+ ["point1","Primeiro tópico","Mostre onde o ponto aparece no texto e explique seu significado."],
+ ["point2","Segundo tópico","Mostre como o segundo ponto desenvolve a ideia central da passagem."],
+ ["application","Aplicação","Proponha uma resposta concreta que a igreja possa colocar em prática."],
+ ["conclusion","Conclusão","Retome a ideia central e faça um convite claro à resposta."]
+];
+function pbCoachSettings(raw){
+ raw=raw||{};
+ var minutes=Number(raw.minutes);
+ return {
+  format:Object.prototype.hasOwnProperty.call(pbCoachFormats,raw.format)?raw.format:"expositivo",
+  level:Object.prototype.hasOwnProperty.call(pbCoachLevels,raw.level)?raw.level:"avancado",
+  minutes:Number.isInteger(minutes)&&minutes>=10&&minutes<=90?minutes:30
+ };
+}
+function pbCoachTiming(minutes){
+ var introduction=Math.round(minutes*.13),application=Math.round(minutes*.20),conclusion=Math.round(minutes*.10);
+ var exposition=minutes-introduction-application-conclusion,first=Math.ceil(exposition/2);
+ return [["Introdução",introduction],["Primeiro tópico",first],["Segundo tópico",exposition-first],["Aplicação",application],["Conclusão",conclusion]];
+}
 function pbRenderCoach(){
- var db=pb2Read(),notes=db.coach||"",sermon=state.sermon||{};
- var fields=["title","reference","context","introduction","point1","point2","application","conclusion"];
- var completed=fields.filter(function(k){return String(sermon[k]||"").trim().length>=12;});
- var score=Math.round(completed.length/fields.length*100);
- MAIN.innerHTML='<div class="content">'+title("instrutor")+'<p class="subtitle">Instrutor de preparação homilética: verificação estrutural do rascunho, não avaliação teológica automática.</p><div class="card card-pad"><h2>'+esc(sermon.title||"Sermão sem título")+'</h2><p>Estrutura preenchida: '+score+'% ('+completed.length+'/'+fields.length+' campos).</p>'+fields.map(function(k){return '<p>'+(completed.includes(k)?"✓":"○")+' '+esc(k)+'</p>';}).join("")+'<label>Observações do ensaio<textarea id="pb-coach-notes" class="editor" style="width:100%;min-height:150px">'+esc(notes)+'</textarea></label><div class="btn-row"><button class="btn primary" data-act="pb-coach-save">Salvar avaliação</button><button class="btn" data-act="pb-coach-sermon">Editar sermão</button></div><p class="subtitle">Confira contexto, exegese e referências nas fontes bíblicas antes de pregar.</p></div></div>';
+ var db=pb2Read(),sermon=state.sermon||{},settings=pbCoachSettings(db.coachSettings);
+ var complete=function(key){return String(sermon[key]||"").trim().length>0;};
+ var count=pbCoachSteps.filter(function(step){return complete(step[0]);}).length;
+ var options=function(entries,selected){
+  return entries.map(function(entry){
+   return '<option value="'+esc(entry[0])+'"'+(entry[0]===selected?" selected":"")+'>'+esc(entry[1])+'</option>';
+  }).join("");
+ };
+ var depth={
+  basico:"Leia a passagem inteira e escreva com suas palavras o que ela ensina.",
+  intermediario:"Divida a passagem em partes e explique como cada uma contribui para a ideia central.",
+  avancado:"Trace o argumento do autor, compare traduções e explique por que a interpretação escolhida é sustentada pelo contexto."
+ };
+ var guide=pbCoachSteps.map(function(step){
+  return '<li><div class="row"><strong>'+esc(step[1])+'</strong> · '+(complete(step[0])?"Preenchido":"A preparar")+
+   '<button class="btn slim" data-act="pb-coach-sermon" data-coach-field="'+step[0]+'" aria-label="'+esc("Editar "+step[1])+'">Editar</button></div><p>'+esc(step[2])+'</p></li>';
+ }).join("");
+ MAIN.innerHTML='<div class="content">'+title("instrutor")+
+  '<section class="card card-pad"><h2>'+esc(sermon.title||"Sermão sem título")+'</h2>'+
+  '<p>'+esc(sermon.reference||"Passagem ainda não escolhida")+' · '+count+' de '+pbCoachSteps.length+' campos preenchidos</p>'+
+  '<div class="row"><label>Tipo de sermão <select class="field" id="pb-coach-format">'+options(Object.entries(pbCoachFormats).map(function(e){return [e[0],e[1].label];}),settings.format)+'</select></label>'+
+  '<label>Duração em minutos <input class="field" id="pb-coach-minutes" type="number" min="10" max="90" step="1" value="'+settings.minutes+'"></label>'+
+  '<label>Nível <select class="field" id="pb-coach-level">'+options(Object.entries(pbCoachLevels),settings.level)+'</select></label>'+
+  '<button class="btn primary" data-act="pb-coach-save">Atualizar plano</button></div>'+
+  '<p>'+esc(pbCoachFormats[settings.format].focus)+'</p><p>'+esc(depth[settings.level])+'</p></section>'+
+  '<section class="card card-pad"><h2>Roteiro de preparação</h2><ol>'+guide+'</ol></section>'+
+  '<section class="card card-pad"><h2>Divisão sugerida dos '+settings.minutes+' minutos</h2><ul>'+
+  pbCoachTiming(settings.minutes).map(function(item){return '<li>'+esc(item[0])+' · '+item[1]+' min</li>';}).join("")+
+  '</ul><label>Observações do ensaio<textarea id="pb-coach-notes" class="editor" style="width:100%;min-height:150px">'+esc(db.coach||"")+'</textarea></label>'+
+  '<div class="row"><button class="btn primary" data-act="pb-coach-save">Salvar plano e observações</button></div></section></div>';
 }
 
 function render(){
@@ -3883,8 +3939,28 @@ document.addEventListener("click",function(ev){
  if(a==="pb-graph-path"){var from=document.getElementById("pb-graph-from").value,to=document.getElementById("pb-graph-to").value;var parse=function(v){var p=parseRef(v);if(!p)return null;return pbGraphId([books.findIndex(function(b){return b.slug===p.book;})+1,p.ch,p.verse||1]);};var x=parse(from),y=parse(to);var path=x&&y&&pbGraphPath(x,y);var out=document.getElementById("pb-graph-results");if(out){var box=document.createElement("div");box.className="card card-pad";box.textContent=path?"Caminho documentado: "+path.map(function(id){return pbGraphReference(pbGraphNode(id));}).join(" → "):"Nenhum caminho encontrado na base local entre essas passagens.";out.prepend(box);}return;}
  if(a==="pb-voice-start"){pbVoiceStart();return;}
  if(a==="pb-voice-text"){pbVoiceCommand(document.getElementById("pb-voice-text").value);return;}
- if(a==="pb-coach-save"){var d=pb2Read();d.coach=document.getElementById("pb-coach-notes").value;pb2Write(d);notify("Avaliação salva");return;}
- if(a==="pb-coach-sermon"){page("sermao");return;}
+ if(a==="pb-coach-save"){
+  var duration=document.getElementById("pb-coach-minutes");
+  if(!duration.value||!duration.checkValidity()){duration.focus();notify("Informe uma duração inteira entre 10 e 90 minutos.");return;}
+  var data=pb2Read();
+  data.coachSettings=pbCoachSettings({
+   format:document.getElementById("pb-coach-format").value,
+   level:document.getElementById("pb-coach-level").value,
+   minutes:duration.value
+  });
+  data.coach=document.getElementById("pb-coach-notes").value;
+  if(pb2Write(data)){pbRenderCoach();document.querySelector('[data-act="pb-coach-save"]').focus();notify("Plano do sermão salvo.");}
+  return;
+ }
+ if(a==="pb-coach-sermon"){
+  var field=el.dataset.coachField;
+  page("sermao");
+  if(pbCoachSteps.some(function(step){return step[0]===field;})){
+   var input=MAIN.querySelector('[data-sermon="'+field+'"]');
+   if(input)input.focus();
+  }
+  return;
+ }
  if(a==="pb2-backup"){pb2Backup();return;}
  if(a==="pb2-search"){var d=pb2Read();d.query=document.getElementById("pb2-query").value.trim();d.filter=document.getElementById("pb2-filter").value;pb2Write(d);pb2SearchHistory(d.query);pb2RenderSearch();return;}
  if(a==="pb2-search-clear"){var d=pb2Read();d.searchHistory=[];pb2Write(d);pb2RenderSearch();return;}
