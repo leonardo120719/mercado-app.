@@ -3574,6 +3574,83 @@ function pbCoachTiming(minutes){
  var exposition=minutes-introduction-application-conclusion,first=Math.ceil(exposition/2);
  return [["Introdução",introduction],["Primeiro tópico",first],["Segundo tópico",exposition-first],["Aplicação",application],["Conclusão",conclusion]];
 }
+
+var pbInstructorConnection={endpoint:"",code:""};
+function pbInstructorMarkup(){
+ return '<section class="card card-pad"><h2>Estudar com o Instrutor IA</h2><p>Passagem em estudo: <strong>'+esc(activeBook.name+" "+state.chapter+":"+(state.selectedVerse||1))+'</strong></p>'+
+  '<form id="pb-instructor-ai"><details'+(pbInstructorConnection.endpoint?"":" open")+'><summary>Conexão do Instrutor</summary><div class="row">'+
+  '<label>Endereço do serviço <input name="endpoint" class="field" type="url" required value="'+esc(pbInstructorConnection.endpoint)+'" placeholder="https://"></label>'+
+  '<label>Código de acesso <input name="code" class="field" type="password" required autocomplete="off" value="'+esc(pbInstructorConnection.code)+'"></label></div></details>'+
+  '<label>Pergunta sobre a passagem<textarea name="question" class="editor" maxlength="1200" placeholder="Ex.: Qual a diferença entre ver e entrar no Reino?"></textarea></label>'+
+  '<button class="btn primary" type="submit">Estudar passagem</button></form><div id="pb-instructor-answer" aria-live="polite"></div></section>';
+}
+function pbInstructorAnswer(parts){
+ return parts.map(function(part){
+  var glyphs=Array.from(part.text||""),position=0,html="";
+  var citations=(part.annotations||[]).filter(function(item){
+   return item.type==="url_citation"&&/^https:\/\//i.test(item.url)&&Number.isInteger(item.start_index)&&Number.isInteger(item.end_index);
+  }).sort(function(a,b){return a.start_index-b.start_index;});
+  citations.forEach(function(source){
+   if(source.start_index<position||source.end_index<=source.start_index||source.end_index>glyphs.length)return;
+   html+=esc(glyphs.slice(position,source.start_index).join(""));
+   html+='<a class="btn slim" target="_blank" rel="noopener noreferrer" href="'+esc(source.url)+'">'+esc(source.title||source.url)+'</a>';
+   position=source.end_index;
+  });
+  html+=esc(glyphs.slice(position).join(""));
+  return '<div style="white-space:pre-wrap;overflow-wrap:anywhere">'+html+'</div>';
+ }).join("");
+}
+async function pbInstructorRelated(book,chapter,verse){
+ try{
+  var data=pbGraphCache;
+  if(!data){
+   var response=await fetch("./pulpito-crossrefs.json",{signal:AbortSignal.timeout(6000)});
+   if(!response.ok)return [];
+   data=await response.json();
+  }
+  var index=pbGraphBuildIndex(data);
+  pbGraphCache=data;
+  var bookNumber=booksFallback.findIndex(function(entry){return entry.slug===book;})+1;
+  var matches=index.adj.get(pbGraphId([bookNumber,chapter,verse]))||[];
+  return matches.slice(0,10).map(function(item){return pbGraphReference(pbGraphNode(item.to))+" — "+item.description+" (Midvash)";});
+ }catch(error){return [];}
+}
+document.addEventListener("submit",async function(event){
+ var form=event.target;
+ if(form.id!=="pb-instructor-ai")return;
+ event.preventDefault();
+ var answer=document.getElementById("pb-instructor-answer"),button=form.querySelector('button[type="submit"]');
+ if(!answer||button.disabled)return;
+ var endpoint=new URL(form.elements.endpoint.value);
+ if(endpoint.protocol!=="https:"||endpoint.username||endpoint.password){
+  answer.textContent="Informe um endereço HTTPS válido, sem credenciais na URL.";
+  return;
+ }
+ var code=form.elements.code.value,question=form.elements.question.value.trim();
+ pbInstructorConnection={endpoint:endpoint.origin,code:code};
+ var book=state.book,chapter=state.chapter,verse=state.selectedVerse||1,version=state.version;
+ var reference=activeBook.name+" "+chapter+":"+verse;
+ button.disabled=true;
+ answer.textContent="Consultando a passagem e pesquisando fontes…";
+ try{
+  var chapterTask=version.startsWith("local:")?PBModules.getChapter(version,book,chapter):loadOnlineBibleChapter(version,book,chapter);
+  var loaded=await Promise.all([chapterTask.catch(function(){return null;}),pbInstructorRelated(book,chapter,verse)]);
+  var verses=loaded[0]?.verses||[];
+  var line=verses.find(function(entry,index){return (typeof entry==="string"?index+1:Number(entry.number||entry.verse)||index+1)===verse;});
+  var studyText=typeof line==="string"?line:line?.text||line?.content||"";
+  var result=await fetch(new URL("/api/instrutor",endpoint.origin),{
+   method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+code},
+   body:JSON.stringify({reference:reference,text:studyText.slice(0,3500),question:question,related:loaded[1]}),
+   signal:AbortSignal.timeout(130000)
+  });
+  var data=await result.json();
+  if(!result.ok)throw Error(data.error||"Não foi possível consultar o Instrutor.");
+  answer.innerHTML='<h3>'+esc(reference)+'</h3>'+pbInstructorAnswer(data.passages)+(data.incomplete?"<p>A resposta foi interrompida antes de terminar.</p>":"");
+ }catch(error){
+  answer.textContent=error.name==="TimeoutError"?"A pesquisa excedeu o tempo disponível. Tente novamente.":error.message||"Falha na consulta.";
+ }finally{button.disabled=false;}
+});
+
 function pbRenderCoach(){
  var db=pb2Read(),sermon=state.sermon||{},settings=pbCoachSettings(db.coachSettings);
  var complete=function(key){return String(sermon[key]||"").trim().length>0;};
@@ -3592,7 +3669,7 @@ function pbRenderCoach(){
   return '<li><div class="row"><strong>'+esc(step[1])+'</strong> · '+(complete(step[0])?"Preenchido":"A preparar")+
    '<button class="btn slim" data-act="pb-coach-sermon" data-coach-field="'+step[0]+'" aria-label="'+esc("Editar "+step[1])+'">Editar</button></div><p>'+esc(step[2])+'</p></li>';
  }).join("");
- MAIN.innerHTML='<div class="content">'+title("instrutor")+
+ MAIN.innerHTML='<div class="content">'+title("instrutor")+pbInstructorMarkup()+
   '<section class="card card-pad"><h2>'+esc(sermon.title||"Sermão sem título")+'</h2>'+
   '<p>'+esc(sermon.reference||"Passagem ainda não escolhida")+' · '+count+' de '+pbCoachSteps.length+' campos preenchidos</p>'+
   '<div class="row"><label>Tipo de sermão <select class="field" id="pb-coach-format">'+options(Object.entries(pbCoachFormats).map(function(e){return [e[0],e[1].label];}),settings.format)+'</select></label>'+
