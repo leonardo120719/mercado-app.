@@ -1888,7 +1888,7 @@ function renderStudyActivity(){
  return '<section class="card card-pad" style="margin-top:16px"><h2 class="section-heading">Meu histórico automático de estudos</h2><p class="subtitle">Últimos 7 dias: '+weekly.length+' acessos registrados. Pesquise acima para localizar leituras e pesquisas anteriores.</p>'+
  (rows.length?rows.slice(0,120).map(function(r,i){var d=new Date(r.at),book=books.find(function(b){return b.slug===r.book;})||booksFallback.find(function(b){return b.slug===r.book;});return '<button type="button" class="btn" style="display:block;width:100%;text-align:left;margin:8px 0;white-space:normal" data-study-activity="'+i+'"><strong>'+esc(r.label)+'</strong><small style="display:block">'+esc(d.toLocaleString("pt-BR"))+' · '+esc(r.type)+' · '+esc((book&&book.name||r.book)+" "+r.chapter+(r.verse?":"+r.verse:""))+'</small></button>';}).join(""):'<p class="subtitle">O histórico começa a ser registrado a partir desta versão.</p>')+'</section>';
 }
-function page(s){if(state.page==="pesquisa"&&s!=="pesquisa")pb2CloseSearchReader();clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="leitura")window.PBVerseComments.invalidate();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
+function page(s){if(state.page!==s&&pb2SearchReader)pb2CloseSearchReader();clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="leitura")window.PBVerseComments.invalidate();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
@@ -2605,13 +2605,20 @@ function renderHistoricalDiary(){
 function noteArchive(note,reason){
  return {id:crypto.randomUUID(),note:Object.assign({},note),reason:reason,archivedAt:Date.now()};
 }
-function commitNotebook(notes,archive){
- var next=Object.assign({},state,{notes:notes,noteArchive:archive});
+function commitNotebook(notes,archive,undo){
+ var previous=undo===null?null:{notes:state.notes,archive:state.noteArchive};
+ var next=Object.assign({},state,{notes:notes,noteArchive:archive,noteUndo:previous});
  try{localStorage.setItem(STORE_KEY,JSON.stringify(next));}
  catch(error){notify("Não foi possível salvar a alteração. Confira o espaço disponível no aparelho.");return false;}
  state.notes=notes;
  state.noteArchive=archive;
+ state.noteUndo=previous;
  return true;
+}
+function undoNotebookChange(){
+ var previous=state.noteUndo;
+ if(!previous||!Array.isArray(previous.notes)||!Array.isArray(previous.archive))return false;
+ return commitNotebook(previous.notes,previous.archive,null);
 }
 function removeNotebookNote(reference){
  var removed=state.notes.filter(function(note){return note.ref===reference;});
@@ -2621,6 +2628,7 @@ function removeNotebookNote(reference){
 }
 function saveNotebookNote(reference,text){
  var previous=state.notes.filter(function(note){return note.ref===reference;});
+ if(previous.length===1&&previous[0].text===text)return true;
  var archive=previous.filter(function(note){return note.text!==text;}).map(function(note){
   return noteArchive(note,text?"Versão anterior":"Texto apagado");
  }).concat(state.noteArchive);
@@ -2655,7 +2663,7 @@ function renderNotebook(){
  var filtered=notes.filter(function(n){return (n.ref+" "+n.text).toLowerCase().includes(filter.toLowerCase());});
  MAIN.innerHTML='<div class="content">'+title("caderno")+'<p class="subtitle">Anotações e favoritos guardados no navegador, separados por referência bíblica. Use a busca para recuperar suas descobertas.</p>'+
  '<div class="grid-3" style="margin-bottom:20px"><div class="card card-pad"><div class="caps">ANOTAÇÕES</div><h2 class="page-title">'+notes.length+'</h2></div><div class="card card-pad"><div class="caps">FAVORITOS</div><h2 class="page-title">'+marks.length+'</h2></div><div class="card card-pad"><div class="caps">PASSAGEM ATUAL</div><h3>'+esc(ref())+'</h3><button class="btn slim" data-act="note">Anotar</button></div></div>'+
- '<div class="grid-2"><div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Minhas anotações</h2></div><input class="field" style="width:100%;margin-bottom:15px" id="note-filter" placeholder="Buscar nos estudos…" value="'+esc(filter)+'">'+(filtered.length?filtered.map(function(n){return '<div class="note-entry"><div class="panel-heading"><strong>'+esc(n.ref)+'</strong><button class="btn slim" data-note-delete="'+esc(n.ref)+'">Excluir</button></div><p>'+esc(n.text)+'</p><button class="btn slim" data-ref-open="'+esc(n.ref)+'">Abrir passagem</button></div>';}).join(""):'<div class="empty">Nenhuma anotação encontrada. Selecione um versículo e clique em Anotar.</div>')+'</div>'+
+ '<div class="grid-2"><div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Minhas anotações</h2><button type="button" class="btn slim" data-act="undo-notebook" title="Desfazer a última alteração nas anotações"'+(state.noteUndo?'':' disabled')+'>↶ Desfazer</button></div><input class="field" style="width:100%;margin-bottom:15px" id="note-filter" placeholder="Buscar nos estudos…" value="'+esc(filter)+'">'+(filtered.length?filtered.map(function(n,index){return '<div class="note-entry"><div class="panel-heading"><strong>'+esc(n.ref)+'</strong><button class="btn slim" data-note-delete="'+esc(n.ref)+'">Excluir</button></div><button type="button" class="quick-action" data-note-reader-index="'+index+'" aria-label="'+esc("Ler anotação de "+n.ref)+'"><span><small>'+esc(n.text.slice(0,160)+(n.text.length>160?"…":""))+'</small><strong>Ler anotação →</strong></span></button><div class="row" style="margin-top:8px"><button type="button" class="btn slim" data-note-edit="'+esc(n.ref)+'">Editar anotação</button><button class="btn slim" data-ref-open="'+esc(n.ref)+'">Abrir passagem</button></div></div>';}).join(""):'<div class="empty">Nenhuma anotação encontrada. Selecione um versículo e clique em Anotar.</div>')+'</div>'+
  '<div class="card card-pad"><h2 class="section-heading" style="margin-bottom:17px">Versículos favoritos</h2>'+(marks.length?marks.map(function(r){return '<div class="feature-item"><span class="feature-number">☆</span><div style="flex:1"><strong>'+esc(r)+'</strong><div class="row" style="margin-top:9px"><button class="btn slim" data-ref-open="'+esc(r)+'">Ler</button><button class="btn slim" data-unbookmark="'+esc(r)+'">Remover</button></div></div></div>';}).join(""):'<div class="empty">Seus versículos favoritos aparecem aqui.</div>')+'</div></div>'+notebookArchiveMarkup(filter)+'<div class="tip">Dados desta versão são armazenados apenas neste navegador. Eles ainda não são sincronizados com conta, não são enviados ao Supabase e podem desaparecer se você limpar os dados do site. Faça backup das anotações importantes.</div></div>';
 }
 var competitors=[
@@ -2731,20 +2739,23 @@ function pb2RenderSearchReader(reader){
  root.querySelector("#pb2-commentary-reader-scroll").scrollTop=0;
 }
 function pb2OpenSearchReader(trigger){
+ var notebook=trigger.hasAttribute("data-note-reader-index");
  var dictionary=trigger.hasAttribute("data-pb2-dictionary-index");
- var resultAttribute=dictionary?"data-pb2-dictionary-index":"data-pb2-commentary-index";
- var items=dictionary?pb2DictionaryResults:pb2CommentaryResults;
+ var resultAttribute=notebook?"data-note-reader-index":dictionary?"data-pb2-dictionary-index":"data-pb2-commentary-index";
+ var items=notebook?state.notes.filter(function(note){
+  return (note.ref+" "+note.text).toLowerCase().includes((state.noteFilter||"").toLowerCase());
+ }).map(function(note){return {module:"Minha anotação",reference:note.ref,text:note.text};}):dictionary?pb2DictionaryResults:pb2CommentaryResults;
  var index=Number(trigger.getAttribute(resultAttribute));
  if(!Number.isInteger(index)||index<0||index>=items.length)return;
  pb2CloseSearchReader();
  var root=document.createElement("div");
- var reader={root:root,items:items.slice(),index:index,openedIndex:index,trigger:trigger,resultAttribute:resultAttribute,label:dictionary?"Dicionário":"Comentário bíblico"};
+ var reader={root:root,items:items.slice(),index:index,openedIndex:index,trigger:trigger,resultAttribute:resultAttribute,label:notebook?"Anotação":dictionary?"Dicionário":"Comentário bíblico"};
  pb2SearchReader=reader;
  root.id="pb2-commentary-reader";
  root.className="modal-backdrop pb2-commentary-reader-backdrop";
  root.setAttribute("role","presentation");
  root.innerHTML='<section class="modal pb2-commentary-reader-dialog" role="dialog" aria-modal="true" aria-labelledby="pb2-commentary-reader-module">'+
-  '<header class="pb2-commentary-reader-header"><div class="pb2-commentary-reader-heading"><span class="eyebrow">'+(dictionary?"LEITURA DO VERBETE":"LEITURA DO COMENTÁRIO")+'</span><h2 id="pb2-commentary-reader-module"></h2><p id="pb2-commentary-reader-reference"></p></div><button type="button" class="btn slim" data-pb2-reader-action="close" aria-label="Fechar leitor">✕</button></header>'+
+  '<header class="pb2-commentary-reader-header"><div class="pb2-commentary-reader-heading"><span class="eyebrow">'+(notebook?"LEITURA DA ANOTAÇÃO":dictionary?"LEITURA DO VERBETE":"LEITURA DO COMENTÁRIO")+'</span><h2 id="pb2-commentary-reader-module"></h2><p id="pb2-commentary-reader-reference"></p></div><button type="button" class="btn slim" data-pb2-reader-action="close" aria-label="Fechar leitor">✕</button></header>'+
   '<div class="pb2-commentary-reader-scroll" id="pb2-commentary-reader-scroll" tabindex="0"><div class="pb2-commentary-reader-text" id="pb2-commentary-reader-text"></div></div>'+
   '<footer class="pb2-commentary-reader-footer"><span id="pb2-commentary-reader-position" aria-live="polite"></span><div class="pb2-commentary-reader-nav"><button type="button" class="btn" data-pb2-reader-action="previous">← Anterior</button><button type="button" class="btn primary" data-pb2-reader-action="next">Próximo →</button></div></footer>'+
  '</section>';
@@ -2767,7 +2778,7 @@ function pb2OpenSearchReader(trigger){
  root.querySelector('[data-pb2-reader-action="close"]').focus();
 }
 document.addEventListener("click",function(event){
- var result=event.target.closest?.("[data-pb2-commentary-index],[data-pb2-dictionary-index]");
+ var result=event.target.closest?.("[data-pb2-commentary-index],[data-pb2-dictionary-index],[data-note-reader-index]");
  if(!result)return;
  event.preventDefault();
  pb2OpenSearchReader(result);
@@ -3921,10 +3932,34 @@ function openBibleSearch(){
  }).catch(function(){});
 }
 
-function noteModal(){
- var n=currentNote();var modal=document.createElement("div");modal.className="modal-backdrop";modal.id="pb-modal";
- modal.innerHTML='<div class="modal"><div class="panel-heading"><h2 class="section-heading">Anotação · '+esc(ref())+'</h2><button class="btn slim" data-act="close-modal">Fechar ✕</button></div><p class="feature-note">Registre sua observação, interpretação ou dúvida.</p><textarea id="note-text" class="editor large" placeholder="Escreva sua anotação…">'+esc(n&&n.text||"")+'</textarea><div class="btn-row"><button class="btn" data-act="close-modal">Cancelar</button><button class="btn primary" data-act="save-note">Salvar anotação</button></div></div>';
- document.body.appendChild(modal);document.getElementById("note-text").focus();
+function noteModal(reference){
+ var noteReference=typeof reference==="string"?reference:ref();
+ var n=state.notes.find(function(note){return note.ref===noteReference;});var modal=document.createElement("div");modal.className="modal-backdrop";modal.id="pb-modal";modal.dataset.noteReference=noteReference;
+ modal.innerHTML='<div class="modal"><div class="panel-heading"><h2 class="section-heading">Anotação · '+esc(noteReference)+'</h2><button class="btn slim" data-act="close-modal">Fechar ✕</button></div><p class="feature-note">Registre sua observação, interpretação ou dúvida.</p><textarea id="note-text" class="editor large" placeholder="Escreva sua anotação…">'+esc(n&&n.text||"")+'</textarea><div class="btn-row"><button class="btn" data-act="close-modal">Cancelar</button><button type="button" class="btn" data-note-editor-undo disabled>↶ Desfazer edição</button><button class="btn primary" data-act="save-note">Salvar anotação</button></div></div>';
+ document.body.appendChild(modal);
+ var editor=document.getElementById("note-text"),undoButton=modal.querySelector("[data-note-editor-undo]");
+ var history=[],before=null,last={text:editor.value,start:0,end:0};
+ function snapshot(){return {text:editor.value,start:editor.selectionStart,end:editor.selectionEnd};}
+ editor.addEventListener("beforeinput",function(){before=snapshot();});
+ editor.addEventListener("input",function(){
+  var previous=before||last;
+  if(previous.text!==editor.value){history.push(previous);if(history.length>100)history.shift();}
+  last=snapshot();before=null;undoButton.disabled=!history.length;
+ });
+ function undoEdit(){
+  var previous=history.pop();
+  if(!previous)return;
+  editor.value=previous.text;
+  editor.focus();editor.setSelectionRange(previous.start,previous.end);
+  last=snapshot();before=null;undoButton.disabled=!history.length;
+ }
+ undoButton.addEventListener("click",undoEdit);
+ editor.addEventListener("keydown",function(event){
+  if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="z"&&!event.shiftKey){
+   event.preventDefault();undoEdit();
+  }
+ });
+ editor.focus();
 }
 function parseRef(r){var match=String(r).match(/^(.+?)\s+(\d+)(?::(\d+))?/);if(!match)return null;var name=match[1].trim().toLowerCase();var b=books.find(function(b){return b.name.toLowerCase()===name;})||booksFallback.find(function(b){return b.name.toLowerCase()===name;});if(!b)return null;return {book:b.slug,ch:+match[2],verse:match[3]?+match[3]:0};}
 function openRef(r){var p=parseRef(r);if(!p){notify("Referência não reconhecida");return;}state.book=p.book;state.chapter=p.ch;state.selectedVerse=p.verse;activeBook=books.find(function(b){return b.slug===p.book;})||booksFallback.find(function(b){return b.slug===p.book;})||activeBook;page("leitura");}
@@ -4020,6 +4055,8 @@ document.addEventListener("click",function(ev){
  var st=ev.target.closest("[data-step]");if(st){state.tutorStep=+st.dataset.step;persist();renderTutor();return;}
  var ans=ev.target.closest("[data-answer]");if(ans){var p=ans.dataset.answer.split(":");state.exerciseAnswers[+p[0]]=+p[1];persist();renderExercises();return;}
  var rw=ev.target.closest("[data-ref-open]");if(rw){openRef(rw.dataset.refOpen);return;}
+ var editNote=ev.target.closest("[data-note-edit]");
+ if(editNote){noteModal(editNote.dataset.noteEdit);return;}
  var restore=ev.target.closest("[data-note-restore]");
  if(restore){if(restoreNotebookNote(restore.dataset.noteRestore)){renderNotebook();notify("Anotação restaurada.");}return;}
  var dl=ev.target.closest("[data-note-delete]");
@@ -4143,9 +4180,13 @@ document.addEventListener("click",function(ev){
  if(a==="bookmark"){var r=ref();if(state.bookmarks.includes(r)){state.bookmarks=state.bookmarks.filter(function(x){return x!==r;});notify("Favorito removido");}else{state.bookmarks.push(r);notify("Salvo nos favoritos");}persist();renderReaderContent();return;}
  if(a==="note"){noteModal();return;}
  if(a==="close-modal"){document.getElementById("pb-modal")?.remove();return;}
+ if(a==="undo-notebook"){
+  if(undoNotebookChange()){renderNotebook();notify("Última alteração desfeita.");}
+  return;
+ }
  if(a==="save-note"){
   var text=document.getElementById("note-text").value.trim();
-  if(!saveNotebookNote(ref(),text))return;
+  if(!saveNotebookNote(document.getElementById("pb-modal")?.dataset.noteReference||ref(),text))return;
   TS.actions.clearSelection();
   document.getElementById("pb-modal")?.remove();
   if(state.page==="caderno")renderNotebook();
