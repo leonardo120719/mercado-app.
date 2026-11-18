@@ -637,6 +637,8 @@ async function cleanFailedCommentary(id){
  }catch(error){console.warn("Não foi possível limpar comentários parciais",error);}
 }
 async function streamCommentaryIterator(iterate,filename,info){
+ var existing=installedModule({type:"commentary",name:info.name||info.description||filename,language:info.language||"pt"},filename);
+ if(existing){var duplicate=Error("Módulo já instalado: "+existing.name);duplicate.code="MODULE_ALREADY_INSTALLED";duplicate.moduleName=existing.name;throw duplicate;}
  var meta=makeLargeModuleMeta(info,filename),batch=[],count=0,number=0;
  try{
   for await(var row of iterate){
@@ -796,18 +798,50 @@ async function saveModule(parsed,filename){
  tx.objectStore("modules").put(meta);
  await done;await loadCatalog();onUpdated();return meta;
 }
+function installedModule(parsed,filename){
+ var normalize=function(value){return String(value||"").normalize("NFKC").trim().toLocaleLowerCase("pt-BR");};
+ return modules.find(function(module){
+  if(parsed&&module.type!==parsed.type)return false;
+  return normalize(module.file)===normalize(filename)||parsed&&normalize(module.name)===normalize(parsed.name)&&normalize(module.language)===normalize(parsed.language);
+ });
+}
 async function importFiles(files){
  if(busy)return;
  var permission=document.getElementById("module-rights");
  if(!permission||!permission.checked){notify("Confirme que os arquivos foram obtidos legalmente.");return;}
- busy=true;var status=document.getElementById("module-status");
- lastStatus="Importando arquivo(s)…";if(status)status.textContent=lastStatus;
- var ok=[],problems=[];
- for(var file of files){try{if(window.PBDevBridge&&await window.PBDevBridge.isModule(file)){var devotional=await window.PBDevBridge.installFile(file);if(devotional)ok.push(devotional.title+" ("+devotional.entries.length+" devocionais)");continue;}var parsed=await parseFile(file);for(var item of parsed){var meta=await saveModule(item,file.name+(parsed.length>1?"-"+item.abbreviation:""));ok.push(meta.name+" ("+meta.count+" itens)");}}catch(e){problems.push(file.name+": "+(e.message||String(e)));}}
- busy=false;
- lastStatus=(ok.length?"Instalados: "+ok.join("; ")+". ":"")+(problems.length?"Não instalados: "+problems.join("; "):"");if(status)status.textContent=lastStatus;
- if(ok.length)notify(ok.length+" módulo(s) instalado(s).");if(problems.length)notify("Alguns módulos não puderam ser importados.");
- renderPage();
+ busy=true;
+ var ok=[],duplicates=[],problems=[];
+ try{
+  await loadCatalog();
+  importStatus("Verificando os arquivos…");
+  for(var file of files){
+   try{
+    var existing=installedModule(null,file.name);
+    if(existing){duplicates.push(existing.name);continue;}
+    if(window.PBDevBridge&&await window.PBDevBridge.isModule(file)){
+     var devotional=await window.PBDevBridge.installFile(file);
+     if(devotional)ok.push(devotional.title+" ("+devotional.entries.length+" devocionais)");
+     continue;
+    }
+    var parsed=await parseFile(file);
+    for(var item of parsed){
+     var filename=file.name+(parsed.length>1?"-"+item.abbreviation:"");
+     existing=!item.alreadySaved&&installedModule(item,filename);
+     if(existing){duplicates.push(existing.name);continue;}
+     var meta=await saveModule(item,filename);
+     ok.push(meta.name+" ("+meta.count+" itens)");
+    }
+   }catch(error){
+    if(error.code==="MODULE_ALREADY_INSTALLED")duplicates.push(error.moduleName);
+    else problems.push(file.name+": "+(error.message||String(error)));
+   }
+  }
+  lastStatus=(ok.length?"Instalados: "+ok.join("; ")+". ":"")+
+   (duplicates.length?"Já instalado(s): "+duplicates.join("; ")+". ":"")+
+   (problems.length?"Não instalados: "+problems.join("; "):"");
+  renderPage();
+  notify(duplicates.length?"Módulo já instalado: "+duplicates.join(", "):ok.length?ok.length+" módulo(s) instalado(s).":"Não foi possível importar os arquivos.");
+ }finally{busy=false;}
 }
 async function removeModule(id){
  var m=modules.find(function(m){return m.id===id;});if(!m)return;
@@ -826,7 +860,21 @@ async function protectStorage(){
   try{await navigator.storage.persist();}catch(e){console.warn("Armazenamento persistente indisponível",e);}
  }
 }
+var backupDownloadUrl=null;
+function nativeModuleFiles(){
+ var capacitor=window.Capacitor;
+ return capacitor&&capacitor.isNativePlatform&&capacitor.isNativePlatform()&&capacitor.isPluginAvailable("ModuleFiles")?capacitor.registerPlugin("ModuleFiles"):null;
+}
 async function backupModules(){
+ if(busy){notify("Aguarde a operação de módulos terminar.");return;}
+ busy=true;
+ var filename="pulpito-bible-backup-"+new Date().toISOString().slice(0,10)+".json";
+ var handle=null,native=nativeModuleFiles();
+ try{
+  if(!native&&window.showSaveFilePicker){
+   handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:"Backup do Púlpito Bible",accept:{"application/json":[".json"]}}]});
+  }
+
  var db=await dbOpen(),parts=['{"format":"pulpito-bible-modules-backup-v1","origin":'+JSON.stringify(location.origin)+',"createdAt":'+JSON.stringify(new Date().toISOString())+',"stores":{'];
  for(var i=0;i<PB_BACKUP_STORES.length;i++){
   var name=PB_BACKUP_STORES[i],first=true;
@@ -840,88 +888,84 @@ async function backupModules(){
   parts.push("]");
  }
  parts.push("}}");
- var blob=new Blob(parts,{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");
- link.href=url;link.download="pulpito-bible-backup-"+new Date().toISOString().slice(0,10)+".json";
- document.body.appendChild(link);link.click();link.remove();setTimeout(function(){URL.revokeObjectURL(url);},60000);
- notify("Cópia dos módulos preparada. Guarde o arquivo em Arquivos ou iCloud.");
+ var blob=new Blob(parts,{type:"application/json"});
+ if(native){
+  await native.beginBackup();
+  try{
+   for(var offset=0;offset<blob.size;offset+=196608){
+    var bytes=new Uint8Array(await blob.slice(offset,offset+196608).arrayBuffer()),binary="";
+    for(var byte of bytes)binary+=String.fromCharCode(byte);
+    await native.appendBackup({data:btoa(binary)});
+   }
+   await native.saveBackup({filename:filename});
+   notify("Backup salvo na pasta escolhida.");
+  }finally{await native.discardBackup().catch(function(){});}
+ }else if(handle){
+  var writable=await handle.createWritable();
+  try{await writable.write(blob);await writable.close();}
+  catch(error){await writable.abort().catch(function(){});throw error;}
+  notify("Backup salvo na pasta escolhida.");
+ }else{
+  if(backupDownloadUrl)URL.revokeObjectURL(backupDownloadUrl);
+  backupDownloadUrl=URL.createObjectURL(blob);
+  var status=document.getElementById("module-status");
+  if(status){
+   status.textContent="Backup pronto. Toque abaixo para salvar o arquivo no celular.";
+   var link=document.createElement("a");
+   link.href=backupDownloadUrl;link.download=filename;link.className="btn primary";link.textContent="Salvar backup no celular";
+   status.appendChild(document.createElement("br"));status.appendChild(link);
+  }
+  notify("Toque em Salvar backup no celular para baixar o arquivo.");
+ }
+ }catch(error){if(error.name!=="AbortError"&&error.code!=="CANCELLED")throw error;}
+ finally{busy=false;}
 }
 async function restoreModules(file){
  if(!file)return;
- var backup=JSON.parse(await file.text());
- if(backup.format!=="pulpito-bible-modules-backup-v1"||!backup.stores)throw Error("Este arquivo não é um backup de módulos do Púlpito Bible.");
- var db=await dbOpen(),total=0;
- for(var name of PB_BACKUP_STORES){
-  var entries=backup.stores[name]||[];
-  if(!Array.isArray(entries))throw Error("Estrutura de backup inválida: "+name);
-  for(var offset=0;offset<entries.length;offset+=100){
-   var batch=entries.slice(offset,offset+100),tx=db.transaction(name,"readwrite");
-   await new Promise(function(resolve,reject){
-    var store=tx.objectStore(name);
-    batch.forEach(function(item){store.put(item);});
-    tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error||Error("Erro na restauração"));};tx.onabort=function(){reject(tx.error||Error("Restauração interrompida"));};
-   });
-   total+=batch.length;
+ if(busy){notify("Aguarde a operação de módulos terminar.");return;}
+ busy=true;
+ try{
+  var backup=JSON.parse(await file.text());
+  if(backup.format!=="pulpito-bible-modules-backup-v1"||!backup.stores||typeof backup.stores!=="object")throw Error("Escolha o arquivo JSON de backup dos módulos do Púlpito Bible.");
+  var catalog=backup.stores.modules;
+  if(!Array.isArray(catalog))throw Error("Backup sem catálogo de módulos.");
+  var ids=new Set(catalog.map(function(module){return module&&module.id;}));
+  for(var name of PB_BACKUP_STORES){
+   var entries=backup.stores[name]||[];
+   if(!Array.isArray(entries))throw Error("Estrutura de backup inválida: "+name);
+   for(var item of entries){
+    var key=name==="modules"?item&&item.id:item&&item.key;
+    if(typeof key!=="string"||!key||name!=="modules"&&(typeof item.moduleId!=="string"||!key.startsWith(item.moduleId+"/")))throw Error("Registro inválido no backup: "+name);
+   }
   }
- }
- await loadCatalog();onUpdated();renderPage();
- notify("Backup restaurado sem excluir os módulos que já estavam instalados ("+total+" registros).");
+  var db=await dbOpen(),total=0;
+  await new Promise(function(resolve,reject){
+   var tx=db.transaction(PB_BACKUP_STORES,"readwrite");
+   tx.oncomplete=resolve;
+   tx.onabort=function(){reject(tx.error||Error("A restauração foi interrompida. Os dados anteriores foram preservados."));};
+   try{
+    for(var name of PB_BACKUP_STORES){
+     var store=tx.objectStore(name);
+     for(var item of backup.stores[name]||[]){if(name==="modules"||ids.has(item.moduleId)){store.put(item);total++;}}
+    }
+   }catch(error){tx.abort();}
+  });
+  await loadCatalog();onUpdated();renderPage();
+  lastStatus="Backup restaurado: "+catalog.length+" módulo(s), "+total+" registros.";
+  var status=document.getElementById("module-status");if(status)status.textContent=lastStatus;
+  notify(lastStatus);
+ }finally{busy=false;}
 }
 protectStorage();
 
-/* Púlpito Acervo: catálogo de módulos autorizados, com instalação offline via IndexedDB. */
-var pbAcervoItems=[];
-async function loadPbAcervo(){
- var target=document.getElementById("pb-acervo-list");
- if(!target)return;
- if(!navigator.onLine){target.textContent="Sem internet. Seus módulos instalados continuam disponíveis offline.";return;}
- target.textContent="Consultando catálogo...";
- try{
-  var response=await fetch("https://raw.githubusercontent.com/leonardo120719/mercado-app./pulpito-bible-pwa/pulpito-acervo.json",{cache:"no-store"});
-  if(!response.ok){response=await fetch("/pulpito-acervo.json",{cache:"no-store"});}
-  if(!response.ok)throw Error("Catálogo indisponível");
-  var data=await response.json();
-  pbAcervoItems=Array.isArray(data.modules)?data.modules.filter(function(m){return m&&m.name&&m.path&&m.bucket==="pulpito-modulos"&&!/^(?:NVI-TM|NAA-TM)$/i.test(m.name)&&!/\/\s*(?:NVI-TM|NAA-TM)\.zip$/i.test(m.path);}):[];
-  if(!pbAcervoItems.length){target.textContent="Nenhum módulo cadastrado. Use Instalar ZIP do dispositivo.";return;}
-  target.innerHTML=pbAcervoItems.map(function(m,i){
-   var ready=m.distributionAuthorized===true&&!!m.license&&!!m.signedUrl;
-   return '<article class="module-comment"><strong>'+clean(m.name)+'</strong><small>'+clean(m.type||"Módulo")+' • '+clean(m.sizeMB?m.sizeMB+" MB":"ZIP")+'</small><p>'+clean(ready?"Download autorizado por tempo limitado":"Arquivo identificado no Supabase. Aguardando autorização de distribuição e link temporário de acesso.")+'</p>'+ (ready?'<button type="button" class="btn" data-pb-acervo-download="'+i+'">↓ Baixar e instalar</button>':'<small>Disponível apenas para instalação manual até a autorização.</small>')+'</article>';
-  }).join("");
- }catch(err){target.textContent="Não foi possível consultar o catálogo. Você ainda pode instalar seus próprios arquivos ZIP.";}
-}
-async function installPbAcervo(index,button){
- var m=pbAcervoItems[index];if(!m||busy)return;
- var rights=document.getElementById("module-rights");
- if(!rights||!rights.checked){notify("Confirme a permissão de uso dos módulos antes de instalar.");return;}
- if(/^(?:NVI-TM|NAA-TM)$/i.test(m.name)||/\/(?:NVI-TM|NAA-TM)\.zip$/i.test(m.path)){notify("Esta tradução não está disponível para distribuição.");return;}
- if(m.distributionAuthorized!==true||!m.license||!m.signedUrl){notify("Download ainda não autorizado.");return;}
- var url;
- try{url=new URL(m.signedUrl);}catch(e){notify("Link temporário inválido.");return;}
- var expectedHost="wblpgmhxdjuztmlozwam.supabase.co";
- var expectedPath="/storage/v1/object/sign/pulpito-modulos/"+m.path.split("/").map(encodeURIComponent).join("/");
- if(url.protocol!=="https:"||url.hostname!==expectedHost||url.pathname!==expectedPath||!url.searchParams.has("token")){notify("Link de acesso não autorizado.");return;}
- if(![".zip",".sqlite3",".sqlite",".db",".bbm",".json"].some(function(ext){return m.path.toLowerCase().endsWith(ext);})){notify("Formato de módulo não suportado.");return;}
- button.disabled=true;button.textContent="Baixando...";
- try{
-  var response=await fetch(url.href,{cache:"no-store"});
-  if(!response.ok)throw Error("Download indisponível");
-  var length=Number(response.headers.get("content-length")||0);
-  if(length>70*1024*1024)throw Error("Arquivo excede 70 MB");
-  var blob=await response.blob();
-  if(blob.size>70*1024*1024)throw Error("Arquivo excede 70 MB");
-  var file=new File([blob],m.path.split("/").pop(),{type:blob.type});
-  await importFiles([file]);
- }catch(err){notify("Não foi possível instalar: "+err.message);}
- finally{button.disabled=false;button.textContent="↓ Baixar e instalar";}
-}
 function getUiMarkup(){
  return '<div class="content module-library">'+
  '<div class="eyebrow">PÚLPITO BIBLE / MÓDULOS EXTERNOS</div><h1 class="page-title">Biblioteca de módulos</h1><p class="subtitle">Instale Bíblias, comentários e dicionários Strong armazenados em ZIP ou SQLite3. Os arquivos ficam neste aparelho e os comentários acompanham a passagem escolhida.</p>'+
- '<section class="card card-pad" style="margin:12px 0"><div class="panel-heading"><h2 class="section-heading">✦ Púlpito Acervo — baixar módulos</h2><span class="chip greenish">Downloads autorizados</span></div><p class="feature-note">Catálogo próprio de Bíblias, comentários e dicionários com licença de distribuição. Os módulos baixados ficam neste aparelho e funcionam offline. Para arquivos pessoais, use a instalação ZIP abaixo.</p><div id="pb-acervo-list" aria-live="polite">Carregando catálogo...</div><button class="btn" type="button" id="pb-acervo-refresh">↻ Atualizar catálogo</button></section>'+
  '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
  '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher ZIP, SQLite3, BBM ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.bbm,.json"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
  '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
- '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,.zip,.sqlite3,.sqlite,.db,application/json" style="display:none"></label></div><p class="feature-note">Proteja seus módulos antes de trocar de endereço, navegador ou aparelho. A restauração acrescenta os registros sem apagar os existentes. No iPhone, salve o backup no app Arquivos ou iCloud Drive.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
+ '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,application/json,text/plain,application/octet-stream" style="position:absolute;width:1px;height:1px;opacity:0"></label></div><p class="feature-note">Salve o backup nos arquivos do celular. Para restaurar, toque em Restaurar backup e procure o arquivo JSON em Downloads, Arquivos ou outra pasta do aparelho.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
  (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
  '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Consultar dicionário Strong</h2><span class="chip greenish">Léxicos instalados</span></div><div class="search-bar"><input id="dictionary-query" class="field" placeholder="Ex.: H7563 ou G3306"><button id="dictionary-search" class="btn primary" type="button">Consultar</button></div><div id="dictionary-results" class="feature-note" role="status" aria-live="polite">Após instalar um léxico, consulte aqui ou toque no número Strong dentro da Bíblia.</div></section><section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Traduções desejadas</h2><span class="chip">Disponíveis via importação autorizada</span></div>'+
@@ -942,7 +986,7 @@ async function searchDictionaryUi(){
  }catch(err){box.textContent=err.message||"Erro na pesquisa";}
 }
 
-function renderPage(){var root=document.getElementById("app-main");if(root)root.innerHTML=getUiMarkup();loadPbAcervo();}
+function renderPage(){var root=document.getElementById("app-main");if(root)root.innerHTML=getUiMarkup();}
 async function downloadSample(){
  if(!window.JSZip){notify("Biblioteca ZIP indisponível");return;}
  var zip=new JSZip();
@@ -952,9 +996,8 @@ async function downloadSample(){
 }
 document.addEventListener("change",function(e){if(e.target&&e.target.id==="module-restore"){var f=e.target.files&&e.target.files[0];if(f)restoreModules(f).catch(function(err){notify("Não foi possível restaurar: "+err.message);});e.target.value="";return;}if(e.target&&e.target.id==="module-file"){var files=Array.from(e.target.files||[]);if(files.length)importFiles(files);}});
 document.addEventListener("click",function(e){
- var act=e.target&&e.target.closest&&e.target.closest("[data-pb-acervo-download],#pb-acervo-refresh,[data-module-remove],[data-module-activate],#module-sample,#module-backup,#dictionary-search");
+ var act=e.target&&e.target.closest&&e.target.closest("[data-module-remove],[data-module-activate],#module-sample,#module-backup,#dictionary-search");
  if(!act)return;
- if(act.id==="pb-acervo-refresh"){loadPbAcervo();return;}if(act.hasAttribute("data-pb-acervo-download")){installPbAcervo(Number(act.dataset.pbAcervoDownload),act);return;}
  if(act.id==="module-backup"){backupModules().catch(function(err){notify("Falha no backup: "+err.message);});return;}if(act.id==="module-sample"){downloadSample();return;}if(act.id==="dictionary-search"){searchDictionaryUi();return;}
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
@@ -4466,3 +4509,4 @@ function startBuildUpdateWatcher(){
 startBuildUpdateWatcher();
 
 })();
+
