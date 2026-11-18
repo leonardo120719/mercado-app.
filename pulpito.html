@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/svg+xml" sizes="192x192" href="/pulpito-icon-512.svg"><link rel="apple-touch-icon" href="/pulpito-icon-512.svg"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css?v=20261116-top-shortcuts"></head>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#123b48"><meta name="application-name" content="Púlpito Bible"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="Púlpito Bible"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="format-detection" content="telephone=no"><link rel="manifest" href="/pulpito-manifest.webmanifest"><link rel="icon" type="image/svg+xml" sizes="192x192" href="/pulpito-icon-512.svg"><link rel="apple-touch-icon" href="/pulpito-icon-512.svg"><meta name="description" content="Púlpito Bible — leitura bíblica, línguas originais, exegese orientada e preparação de sermões."><title>Púlpito Bible — Estude a Palavra em profundidade</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet"><link rel="stylesheet" href="./styles.css?v=20261118-fixed-touch"></head>
 <body><div class="app-shell pb-top-shell"><div class="workarea">
 <header class="topbar" id="topbar">
   <div class="topbar-main">
@@ -257,41 +257,19 @@
 })();
 </script>
 <script>
-/* Ajuste de leitura por gesto de dois dedos, separado da seleção de versículos. */
+/* Keep touch gestures from scaling the app shell. Font controls remain available. */
 (function(){
- var zones=[
-  {selector:"#chapter-body",name:"bible",content:".verse-list"},
-  {selector:"#pb-split-comments .pb-split-scroll",name:"commentary",content:".pb-split-entry-text"},
-  {selector:".pb-dictionary-scroll",name:"dictionary",content:".pb-dict-entry-title, .pb-dict-definition, .pb-dictionary-scroll p, .pb-dictionary-scroll li"}
- ];
- var sizes={};
- zones.forEach(function(z){var n=Number(localStorage.getItem("pb-text-zoom-"+z.name));sizes[z.name]=Number.isFinite(n)&&n>=0.75&&n<=1.8?n:1;});
- var style=document.createElement("style");style.id="pb-responsive-text-zoom";document.head.appendChild(style);
- function paint(){
-  style.textContent=zones.map(function(z){return z.content.split(",").map(function(sel){return sel.trim()+"{zoom:"+sizes[z.name].toFixed(3)+";}";}).join("\n");}).join("\n");
+ "use strict";
+ var touchDevice=window.matchMedia("(pointer:coarse)").matches;
+ if(!touchDevice)return;
+ function stopScale(event){
+  if(event.cancelable)event.preventDefault();
  }
- paint();
- var active=null;
- function zoneFor(el){if(!el||!el.closest)return null;return zones.find(function(z){return el.closest(z.selector);})||null;}
- function dist(a,b){return Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);}
- document.addEventListener("touchstart",function(e){
-  if(e.touches.length!==2){active=null;return;}
-  var z=zoneFor(e.target);
-  if(!z)return;
-  var d=dist(e.touches[0],e.touches[1]);
-  if(d<10)return;
-  active={name:z.name,start:d,base:sizes[z.name]};
- },{passive:true});
- document.addEventListener("touchmove",function(e){
-  if(!active||e.touches.length!==2)return;
-  var d=dist(e.touches[0],e.touches[1]);
-  sizes[active.name]=Math.max(.75,Math.min(1.8,Math.round(active.base*d/active.start*100)/100));
-  paint();
-  if(e.cancelable)e.preventDefault();
+ document.addEventListener("gesturestart",stopScale,{passive:false});
+ document.addEventListener("gesturechange",stopScale,{passive:false});
+ document.addEventListener("touchmove",function(event){
+  if(event.touches.length>1)stopScale(event);
  },{passive:false});
- function finish(){if(!active)return;try{localStorage.setItem("pb-text-zoom-"+active.name,String(sizes[active.name]));}catch(e){}active=null;}
- document.addEventListener("touchend",function(e){if(active&&e.touches.length<2)finish();},{passive:true});
- document.addEventListener("touchcancel",finish,{passive:true});
 })();
 </script>
 </body></html>
