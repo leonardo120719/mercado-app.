@@ -1173,7 +1173,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
         item("search","Pesquisar na Bíblia","🔍")+item("notes","Minhas notas","✎")+
         item("modules","Módulos","⇩")+item("dictionary-pane","Painel de dicionários","α")+
         item("bookmarks","Favoritos","☆")+item("sermon","Sermões","▤")+
-        item("tutor","Interpretar","✧")+item("split-study","Painel dividido","◫")+item("theme","Alternar tema","◐")+
+        item("explain-verse","Instrutor","✧")+item("split-study","Painel dividido","◫")+item("theme","Alternar tema","◐")+
       '</div><div class="mtb-menu-prefs">'+prefs.map(([key,label])=>'<label><input type="checkbox" data-toolbar-pref="'+key+'" '+(s[key]?'checked':'')+'> '+escapeHtml(label)+'</label>').join('')+'</div>'+
       '<div class="mtb-font-row"><span>Tamanho da leitura</span>'+item("font-down","Diminuir","A−","mtb-compact")+'<strong>'+s.fontSize+'px</strong>'+item("font-up","Aumentar","A+","mtb-compact")+'</div>'+
     '</section>';
@@ -1182,7 +1182,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     return '<div class="mtb-selection">'+
       '<span class="mtb-count">'+s.currentVerseSelection.length+' selecionado(s)</span>'+
       item("comments-verse","Comentários","▤")+item("note","Minha anotação","✎")+
-      item("explain-verse","Explicar","✧")+item("sermon-verse","Sermão","▤")+item("copy","Copiar","▣")+
+      item("explain-verse","Instrutor","✧")+item("sermon-verse","Sermão","▤")+item("copy","Copiar","▣")+
       item("highlight","Marcar","▨")+
       item("compare","Comparar traduções","⇄")+
       item("clear","Limpar seleção","×")+
@@ -1793,7 +1793,7 @@ global.PBVerseComments={init:init,decorate:decorate,invalidate:invalidate,select
 "use strict";
 var API="https://api.midvash.com/v1";
 var MAIN=document.getElementById("app-main");
-var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Sermões",historico:"Diário de Estudo Histórico",pesquisa:"Pesquisa inteligente",mapa:"Mapa inteligente da Bíblia",voz:"Assistente bíblico por voz",instrutor:"Instrutor profissional de sermões",planos:"Planos de leitura",devocional:"Leitor de devocionais",paineis:"Janelas sincronizadas",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
+var TITLES={leitura:"Leitura bíblica",original:"Texto original & Strong",tutor:"Assistente de interpretação",exercicios:"Exercícios de exegese",sermao:"Sermões",historico:"Diário de Estudo Histórico",pesquisa:"Pesquisa inteligente",mapa:"Mapa inteligente da Bíblia",voz:"Assistente bíblico por voz",instrutor:"Instrutor bíblico e de sermões",planos:"Planos de leitura",devocional:"Leitor de devocionais",paineis:"Janelas sincronizadas",caderno:"Meu caderno",modulos:"Módulos e traduções",mercado:"Análise das Bíblias",projeto:"Recursos e evolução"};
 var STORE_KEY="pulpito-bible-v1";
 var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;Números|numbers|36;Deuteronômio|deuteronomy|34;Josué|joshua|24;Juízes|judges|21;Rute|ruth|4;1 Samuel|1-samuel|31;2 Samuel|2-samuel|24;1 Reis|1-kings|22;2 Reis|2-kings|25;1 Crônicas|1-chronicles|29;2 Crônicas|2-chronicles|36;Esdras|ezra|10;Neemias|nehemiah|13;Ester|esther|10;Jó|job|42;Salmos|psalms|150;Provérbios|proverbs|31;Eclesiastes|ecclesiastes|12;Cânticos|song-of-solomon|8;Isaías|isaiah|66;Jeremias|jeremiah|52;Lamentações|lamentations|5;Ezequiel|ezekiel|48;Daniel|daniel|12;Oseias|hosea|14;Joel|joel|3;Amós|amos|9;Obadias|obadiah|1;Jonas|jonah|4;Miqueias|micah|7;Naum|nahum|3;Habacuque|habakkuk|3;Sofonias|zephaniah|3;Ageu|haggai|2;Zacarias|zechariah|14;Malaquias|malachi|4;Mateus|matthew|28;Marcos|mark|16;Lucas|luke|24;João|john|21;Atos|acts|28;Romanos|romans|16;1 Coríntios|1-corinthians|16;2 Coríntios|2-corinthians|13;Gálatas|galatians|6;Efésios|ephesians|6;Filipenses|philippians|4;Colossenses|colossians|4;1 Tessalonicenses|1-thessalonians|5;2 Tessalonicenses|2-thessalonians|3;1 Timóteo|1-timothy|6;2 Timóteo|2-timothy|4;Tito|titus|3;Filemom|philemon|1;Hebreus|hebrews|13;Tiago|james|5;1 Pedro|1-peter|5;2 Pedro|2-peter|3;1 João|1-john|5;2 João|2-john|1;3 João|3-john|1;Judas|jude|1;Apocalipse|revelation|22".split(";").map(function(s,i){var p=s.split("|");return {name:p[0],slug:p[1],chapters:+p[2],testament:i<39?"old":"new"};});
 var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:56,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"",reference:"",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},historicalDiary:{},history:[],parallelVersion:"bpm"};
@@ -1888,7 +1888,7 @@ function renderStudyActivity(){
  return '<section class="card card-pad" style="margin-top:16px"><h2 class="section-heading">Meu histórico automático de estudos</h2><p class="subtitle">Últimos 7 dias: '+weekly.length+' acessos registrados. Pesquise acima para localizar leituras e pesquisas anteriores.</p>'+
  (rows.length?rows.slice(0,120).map(function(r,i){var d=new Date(r.at),book=books.find(function(b){return b.slug===r.book;})||booksFallback.find(function(b){return b.slug===r.book;});return '<button type="button" class="btn" style="display:block;width:100%;text-align:left;margin:8px 0;white-space:normal" data-study-activity="'+i+'"><strong>'+esc(r.label)+'</strong><small style="display:block">'+esc(d.toLocaleString("pt-BR"))+' · '+esc(r.type)+' · '+esc((book&&book.name||r.book)+" "+r.chapter+(r.verse?":"+r.verse:""))+'</small></button>';}).join(""):'<p class="subtitle">O histórico começa a ser registrado a partir desta versão.</p>')+'</section>';
 }
-function page(s){if(state.page!==s&&pb2SearchReader)pb2CloseSearchReader();clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="leitura")window.PBVerseComments.invalidate();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
+function page(s){if(s!=="instrutor")pbInstructorSelection=null;if(state.page!==s&&pb2SearchReader)pb2CloseSearchReader();clearTimeout(translationTapTimer);translationLastTap=0;if(s!=="leitura")window.PBVerseComments.invalidate();if(s!=="leitura"){TS.actions.clearSelection();TS.unmount();}state.page=s;persist();closeTopMenu();render();window.scrollTo({top:0,behavior:"instant"});}
 function cacheKey(){return state.version+"/"+state.book+"/"+state.chapter;}
 function currentNote(){return (state.notes||[]).find(function(n){return n.ref===ref();});}
 function currentMarked(){return (state.bookmarks||[]).includes(ref());}
@@ -2233,7 +2233,7 @@ function toolbarAction(action){
   if(n){showCommentaryPanel(n);window.PBSplitStudy.menu(true);}
   return;
  }
- case "explain-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;persist();}page("tutor");return;}
+ case "explain-verse":pbOpenInstructorSelection();return;
  case "sermon-verse":{var n=selectionNumbers()[0];if(n){state.selectedVerse=n;state.sermon.context+=(state.sermon.context?"\\n\\n":"")+activeBook.name+" "+state.chapter+":"+n;persist();notify("Versículo adicionado ao sermão");}return;}
  case "copy":shareOrCopy(false);return;
  case "compare":state.showParallel=!state.showParallel;persist();renderReader();notify(state.showParallel?"Comparação de traduções ativada.":"Comparação de traduções fechada.");return;
@@ -2431,7 +2431,7 @@ function renderReader(){
  (previous?'<div class="pb-reference-history"><button type="button" class="pb-reference-back" data-act="reference-back">← Voltar para '+esc(previous.label)+'</button></div>':"")+
  '<div class="reader-commandbar">'+
  '<div class="reader-top-controls"><div class="reader-brand"><span class="brand-small">✦</span><strong>Púlpito Bible</strong><span class="reader-tagline">Leitor avançado</span></div><div class="reader-passage-control"><select class="reader-select book-control" id="book-select" aria-label="Selecionar livro">'+readerOptions()+'</select><select class="reader-select chapter-control" id="chapter-select" aria-label="Selecionar capítulo">'+chapterOptions()+'</select><select class="reader-select version-control" id="version-select" aria-label="Selecionar tradução"><option value="alm1911"'+(state.version==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(state.version==="bpm"?" selected":"")+'>BPM</option><option value="onbv"'+(state.version==="onbv"?" selected":"")+'>ONBV</option><option value="nva"'+(state.version==="nva"?" selected":"")+'>NVA</option>'+window.PBModules.bibleOptions(state.version)+'</select></div><div class="reader-arrows"><button class="reader-icon" data-act="prev-chapter" aria-label="Capítulo anterior">‹</button><button class="reader-icon" data-act="next-chapter" aria-label="Próximo capítulo">›</button></div></div>'+
- '<div class="reader-quicktools"><button class="reader-tool'+(state.showStrong?" on":"")+'" data-act="toggle-strong">H/G <strong>Strong</strong><span class="mini-switch"></span></button><button class="reader-tool'+(state.splitStudy&&!state.dictionaryOpen?" on":"")+'" data-act="toggle-comments">▤ Comentários</button><button class="reader-tool'+(state.showCrossRefs?" on":"")+'" data-act="toggle-crossrefs">⇄ Referências</button><button class="reader-tool'+(state.showParallel?" on":"")+'" data-act="toggle-parallel">◫ Duas Bíblias</button><button class="reader-tool" data-act="open-dictionary">α Dicionário</button><button class="reader-tool" data-page="tutor">✧ Interpretar</button><button class="reader-tool" data-page="modulos">⇩ Instalar módulos</button></div>'+
+ '<div class="reader-quicktools"><button class="reader-tool'+(state.showStrong?" on":"")+'" data-act="toggle-strong">H/G <strong>Strong</strong><span class="mini-switch"></span></button><button class="reader-tool'+(state.splitStudy&&!state.dictionaryOpen?" on":"")+'" data-act="toggle-comments">▤ Comentários</button><button class="reader-tool'+(state.showCrossRefs?" on":"")+'" data-act="toggle-crossrefs">⇄ Referências</button><button class="reader-tool'+(state.showParallel?" on":"")+'" data-act="toggle-parallel">◫ Duas Bíblias</button><button class="reader-tool" data-act="open-dictionary">α Dicionário</button><button class="reader-tool" data-act="pb-instructor-selection">✧ Instrutor</button><button class="reader-tool" data-page="modulos">⇩ Instalar módulos</button></div>'+
  '<div class="reader-appearance"><label>Texto <select id="reader-mode" aria-label="Formato dos versículos"><option value="continuous"'+(state.readerMode==="continuous"?" selected":"")+'>Contínuo</option><option value="verses"'+(state.readerMode==="verses"?" selected":"")+'>Por versículo</option></select></label><label>Fundo <select id="reader-paper" aria-label="Estilo do leitor"><option value="sepia"'+(state.readerTheme==="sepia"?" selected":"")+'>Sépia</option><option value="white"'+(state.readerTheme==="white"?" selected":"")+'>Branco</option><option value="night"'+(state.readerTheme==="night"?" selected":"")+'>Noturno</option></select></label><button class="reader-icon" data-act="reader-font-down" aria-label="Diminuir fonte">A−</button><span class="reader-size">'+state.fontSize+'px</span><button class="reader-icon" data-act="reader-font-up" aria-label="Aumentar fonte">A+</button><button class="reader-tool" data-act="focus-mode">'+(state.focusMode?"◧ Mostrar menus":"⛶ Tela de leitura")+'</button></div></div>'+
  '<div class="reader-searchline"><input class="field" id="reference-search" placeholder="Ir para referência — João 15:4" aria-label="Ir para referência"><button class="btn slim" data-act="search-ref">Ir</button><span class="reader-hint">Toque em uma palavra para consultar os dicionários.</span></div>'+
  '<div id="pb-reader-window-picker" class="card card-pad" style="display:none;margin:10px 0"><strong>Adicionar janela à Bíblia</strong><div class="btn-row"><button class="btn slim" data-act="pb-reader-add" data-win-type="commentary">+ Comentário</button><button class="btn slim" data-act="pb-reader-add" data-win-type="bible">+ Outra tradução</button><button class="btn slim" data-act="pb-reader-add" data-win-type="dictionary">+ Dicionário / Strong</button><button class="btn slim" data-act="pb-reader-add" data-win-type="devotional">+ Devocional</button></div></div>'+ 
@@ -2439,7 +2439,7 @@ function renderReader(){
  (state.showParallel?'<article class="reader-paper second '+esc(state.readerTheme)+'"><div class="reader-paper-head"><select id="parallel-version-select" class="reader-select"><option value="alm1911"'+(other==="alm1911"?" selected":"")+'>Almeida 1911</option><option value="bpm"'+(other==="bpm"?" selected":"")+'>BPM</option><option value="onbv"'+(other==="onbv"?" selected":"")+'>ONBV</option><option value="nva"'+(other==="nva"?" selected":"")+'>NVA</option>'+window.PBModules.bibleOptions(other)+'</select><h2>Tradução paralela</h2></div><div id="parallel-body" class="reader-scripture"><div class="loader">Carregando versão paralela…</div></div></article>':"")+'</div>'+
  (state.showCrossRefs?'<section class="card card-pad reader-extras"><div class="caps">REFERÊNCIAS CRUZADAS</div><h2 class="section-heading">Passagens relacionadas</h2><p class="feature-note">Sugestões temáticas iniciais, não geradas automaticamente por um comentário externo.</p><div class="row">'+(state.book==="john"&&state.chapter===15?'<button class="btn slim" data-ref-open="João 6:56">João 6:56</button><button class="btn slim" data-ref-open="Gálatas 5:22">Gálatas 5:22</button>':'<button class="btn slim" data-ref-open="João 1:1">João 1:1</button>')+'</div></section></div>':"")+
   
- '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-page="tutor">✧ Interpretar</button></div></div></section>';
+ '<div class="reader-actiondock"><div class="reader-reference"><span>SELECIONADO</span><strong id="selected-reference">'+esc(ref())+'</strong></div><div class="row"><button class="btn slim" data-act="bookmark">☆ Marcar</button><button class="btn slim" data-act="note">✎ Anotar</button><button class="btn slim" data-page="sermao">▤ Sermão</button><button class="btn primary slim" data-act="pb-instructor-selection">✧ Instrutor</button></div></div></section>';
  if(state.splitStudy)attachSplitStudy();
  if(state.dictionaryOpen)attachDictionaryStudy();
  mountAppToolbar();
@@ -2514,10 +2514,10 @@ function getStudy(){return state.studies[studyKey()]||{answers:{},checks:{}};}
 function renderTutor(){
  var st=getStudy(),step=steps[state.tutorStep]||steps[0],ans=st.answers||{},checks=st.checks||{},done=Object.keys(ans).filter(function(k){return (ans[k]||"").trim().length>=15;}).length;
  MAIN.innerHTML='<div class="content">'+title("tutor")+'<p class="subtitle">Um professor de exegese guiando suas próprias descobertas. Não apresenta uma resposta pronta como se fosse infalível: ensina a investigar, formular hipóteses e conferir evidências.</p>'+
- '<div class="card card-pad" style="margin-bottom:18px"><div class="panel-heading"><div><div class="caps">SEU ESTUDO ATUAL</div><h2 class="section-heading" style="margin-top:8px">'+esc(activeBook.name)+' '+state.chapter+'</h2></div><span class="chip greenish">'+done+' de 6 etapas respondidas</span></div><div class="progress"><div class="progress-fill" style="width:'+(done/6*100)+'%"></div></div><button class="btn slim" data-page="leitura">← Voltar ao texto bíblico</button></div>'+
+ '<div class="card card-pad" style="margin-bottom:18px"><div class="panel-heading"><div><div class="caps">SEU ESTUDO ATUAL</div><h2 class="section-heading" style="margin-top:8px">'+esc(activeBook.name)+' '+state.chapter+'</h2></div><span class="chip greenish">'+done+' de 6 etapas respondidas</span></div><div class="progress"><div class="progress-fill" style="width:'+(done/6*100)+'%"></div></div><button class="btn slim" data-page="leitura">← Voltar ao texto bíblico</button><button class="btn primary" data-act="pb-instructor-selection">Consultar Instrutor IA</button></div>'+
  '<div class="step-tabs">'+steps.map(function(s,i){return '<button class="step-tab'+(i===state.tutorStep?" active":"")+(ans[i]&&ans[i].trim().length>=15?" done":"")+'" data-step="'+i+'">'+(i+1)+'. '+esc(s.name)+'</button>';}).join("")+'</div>'+
  '<div class="grid-2"><div class="card card-pad"><div class="eyebrow">ETAPA '+(state.tutorStep+1)+' DE 6</div><h2 class="page-title" style="font-size:24px">'+esc(step.q)+'</h2><div class="learning-block lesson-text">'+esc(step.hint)+'</div><div class="rule"></div><label class="label" for="tutor-answer">'+esc(step.prompt)+'</label><textarea class="editor" id="tutor-answer" placeholder="Escreva suas descobertas…">'+esc(ans[state.tutorStep]||"")+'</textarea><div class="small-stat" style="margin-top:10px">↻ Suas respostas são salvas neste navegador</div><div class="btn-row"><button class="btn" data-act="step-prev"'+(state.tutorStep===0?" disabled":"")+'>← Anterior</button><button class="btn primary" data-act="step-next">'+(state.tutorStep===5?"Concluir estudo":"Próxima etapa →")+'</button></div></div>'+
- '<div class="aside-stack"><div class="card card-pad"><div class="caps">PROFESSOR DE INTERPRETAÇÃO</div><h3 class="prompt">'+esc(step.check)+'</h3><div class="tip">Dica de método: a boa interpretação apresenta <strong>evidências textuais</strong>, considera o <strong>contexto</strong> e reconhece as próprias limitações.</div><p class="feature-note">Após escrever, use a pergunta de revisão para avaliar sua resposta. Este modo oferece orientação pedagógica estruturada; análise livre por IA ainda depende de um serviço de IA configurado.</p><button class="btn" data-act="tutor-guidance">Ver orientação desta etapa</button><div id="tutor-guidance"></div></div><div class="card card-pad"><div class="caps">ESTRUTURA DO SEU MÉTODO</div><div class="aside-stack" style="margin-top:15px">'+steps.map(function(s,i){return '<div class="small-stat">'+(ans[i]&&ans[i].trim().length>=15?"✓":"○")+' <strong style="font-size:12px">'+esc(s.name)+'</strong></div>';}).join("")+'</div></div></div></div></div>';
+ '<div class="aside-stack"><div class="card card-pad"><div class="caps">PROFESSOR DE INTERPRETAÇÃO</div><h3 class="prompt">'+esc(step.check)+'</h3><div class="tip">Dica de método: a boa interpretação apresenta <strong>evidências textuais</strong>, considera o <strong>contexto</strong> e reconhece as próprias limitações.</div><p class="feature-note">Após escrever, use a pergunta de revisão para avaliar sua resposta. Use o Instrutor IA para discutir a interpretação, comparar hipóteses e pesquisar fontes sem perder suas próprias respostas.</p><button class="btn" data-act="tutor-guidance">Ver orientação desta etapa</button><div id="tutor-guidance"></div></div><div class="card card-pad"><div class="caps">ESTRUTURA DO SEU MÉTODO</div><div class="aside-stack" style="margin-top:15px">'+steps.map(function(s,i){return '<div class="small-stat">'+(ans[i]&&ans[i].trim().length>=15?"✓":"○")+' <strong style="font-size:12px">'+esc(s.name)+'</strong></div>';}).join("")+'</div></div></div></div></div>';
 }
 var questions=[
  {q:"Em João 15:4, a forma grega μείνατε é classificada como:",opts:["Presente do indicativo, 1ª pessoa","Aoristo imperativo ativo, 2ª pessoa do plural","Futuro passivo, 3ª pessoa","Substantivo feminino"],correct:1,why:"μείνατε (G3306) é aoristo imperativo ativo, segunda pessoa do plural. O aspecto aorístico, por si, não estabelece duração pontual."},
@@ -2531,18 +2531,128 @@ function renderExercises(){
  MAIN.innerHTML='<div class="content">'+title("exercicios")+'<p class="subtitle">Aprenda praticando: gramática, métodos de observação, Strong, contexto e aplicação. Cada resposta recebe uma explicação.</p><div class="card card-pad" style="margin-bottom:18px"><div class="panel-heading"><h2 class="section-heading">Seu progresso</h2><span class="chip goldish">'+count+'/'+questions.length+' respondidas · '+correct+' acertos</span></div><div class="progress"><div class="progress-fill" style="width:'+(count/questions.length*100)+'%"></div></div><button class="btn slim" data-act="reset-exercises">Refazer exercícios</button></div>'+
  questions.map(function(q,i){var a=ans[i];return '<div class="card question-card"><span class="eyebrow">QUESTÃO '+(i+1)+' / '+questions.length+'</span><h3 style="font-size:15px;line-height:1.6">'+esc(q.q)+'</h3>'+q.opts.map(function(o,j){return '<button class="option'+(a===j?" selected":"")+(a!==undefined&&j===q.correct?" correct":"")+(a===j&&a!==q.correct?" incorrect":"")+'" data-answer="'+i+":"+j+'">'+String.fromCharCode(65+j)+'. '+esc(o)+'</button>';}).join("")+(a!==undefined?'<div class="feedback"><strong>'+(a===q.correct?"✓ Resposta correta.":"Veja a explicação:")+'</strong> '+esc(q.why)+'</div>':"")+'</div>';}).join("")+'</div>';
 }
+
+var pbSermonChat={open:false,turns:[],selection:null,pending:false,error:""};
+var pbSermonChatFields={context:"Contexto",introduction:"Introdução",point1:"Tópico 1",point2:"Tópico 2",application:"Aplicação",conclusion:"Conclusão"};
+function pbSermonChatMarkup(){
+ return '<aside id="pb-sermon-chat" class="card card-pad pb-sermon-chat" aria-labelledby="pb-sermon-chat-title"'+(pbSermonChat.open?"":" hidden")+'>'+
+  '<div class="panel-heading"><h2 id="pb-sermon-chat-title" class="section-heading">Instrutor IA</h2><button type="button" class="btn slim" data-act="pb-sermon-chat-close">Recolher</button></div>'+
+  '<p class="feature-note">Passagem: '+esc(String(state.sermon.reference||'').trim()||ref())+'</p>'+
+  '<div id="pb-sermon-chat-messages" class="pb-sermon-chat-messages" role="log" aria-label="Conversa com o Instrutor" tabindex="0"></div>'+
+  '<form id="pb-sermon-chat-form"><button type="button" class="btn slim" data-instructor-connect>Conectar IA</button>'+pbInstructorPromptMarkup()+
+  '<p id="pb-sermon-chat-selection" class="feature-note"></p>'+
+  '<label>Pergunte sobre o sermão<textarea class="editor" name="question" maxlength="1800" required placeholder="Esta aplicação tem base na passagem?"></textarea></label>'+
+  '<button type="submit" class="btn primary"'+(pbSermonChat.pending?" disabled":"")+'>Enviar pergunta</button>'+
+  '<p id="pb-sermon-chat-status" role="status"></p></form></aside>';
+}
+function pbSermonChatPaint(scroll){
+ var chat=pbSermonChat,log=document.getElementById("pb-sermon-chat-messages");
+ var form=document.getElementById("pb-sermon-chat-form");
+ if(!log||!form)return;
+ log.innerHTML=chat.turns.map(function(turn,index){
+  if(turn.role==="user")return '<article><strong>Você</strong><p>'+esc(turn.text)+'</p></article>';
+  return '<article><strong>Instrutor · '+esc(turn.reference)+'</strong>'+pbInstructorAnswer(turn.parts,turn.sources,turn.searchSuggestions)+
+   '<label>Inserir em <select class="field" data-chat-target="'+index+'">'+Object.entries(pbSermonChatFields).map(function(entry){
+    return '<option value="'+entry[0]+'"'+(entry[0]===turn.field?" selected":"")+'>'+entry[1]+'</option>';
+   }).join("")+'</select></label><div class="row"><button class="btn slim" type="button" data-act="pb-sermon-chat-insert" data-turn="'+index+'">Inserir no sermão</button>'+
+   '<button class="btn slim" type="button" data-act="pb-sermon-chat-note" data-turn="'+index+'">Salvar no caderno</button></div></article>';
+ }).join("");
+ document.getElementById("pb-sermon-chat-selection").textContent=chat.selection?
+  "Trecho selecionado: "+chat.selection.text:"A pergunta acompanha a passagem do sermão. Se quiser incluir um trecho, selecione o texto no editor.";
+ document.getElementById("pb-sermon-chat-status").textContent=chat.pending?"Consultando o Instrutor…":chat.error;
+ form.querySelector('button[type="submit"]').disabled=chat.pending;
+ if(scroll)log.scrollTop=log.scrollHeight;
+}
+function pbSermonChatAction(action,button){
+ var chat=pbSermonChat,panel=document.getElementById("pb-sermon-chat");
+ if(!panel)return;
+ if(action==="pb-sermon-chat-open"||action==="pb-sermon-chat-close"){
+  chat.open=action==="pb-sermon-chat-open";
+  panel.hidden=!chat.open;
+  var workspace=panel.closest(".pb-sermon-editor-layout");
+  workspace.classList.toggle("has-chat",chat.open);
+  var trigger=document.querySelector('[data-act="pb-sermon-chat-open"]');
+  trigger.setAttribute("aria-expanded",String(chat.open));
+  if(chat.open){pbSermonChatPaint(true);panel.querySelector('[name="question"]').focus();}
+  else trigger.focus();
+  return;
+ }
+ var index=Number(button.dataset.turn),turn=chat.turns[index];
+ if(!turn||turn.role!=="assistant")return;
+ if(action==="pb-sermon-chat-note"){
+  pbInstructorSaveNote(turn.reference,pbInstructorSavedText(turn));
+  return;
+ }
+ var field=panel.querySelector('[data-chat-target="'+index+'"]')?.value;
+ if(!Object.prototype.hasOwnProperty.call(pbSermonChatFields,field))return;
+ var editor=MAIN.querySelector('[data-sermon="'+field+'"]');
+ if(!editor)return;
+ var previous=editor.value;
+ editor.value=previous+(previous.trim()?"\n\n":"")+pbInstructorSavedText(turn);
+ state.sermon[field]=editor.value;
+ persist();
+ notify("Resposta inserida em "+pbSermonChatFields[field]+".");
+}
+function pbSermonCaptureSelection(field){
+ if(state.page!=="sermao"||!field?.matches?.("[data-sermon]"))return;
+ var selected=field.value.slice(field.selectionStart,field.selectionEnd).trim();
+ pbSermonChat.selection=selected?{field:field.dataset.sermon,text:selected.slice(0,4000)}:null;
+ var label=document.getElementById("pb-sermon-chat-selection");
+ if(label)label.textContent=selected?"Trecho selecionado: "+pbSermonChat.selection.text:"Selecione um trecho no editor para incluí-lo na pergunta.";
+}
+document.addEventListener("select",function(event){pbSermonCaptureSelection(event.target);});
+document.addEventListener("focusout",function(event){pbSermonCaptureSelection(event.target);});
+document.addEventListener("submit",async function(event){
+ var form=event.target;
+ if(form.id!=="pb-sermon-chat-form")return;
+ event.preventDefault();
+ var chat=pbSermonChat,question=form.elements.question.value.trim();
+ if(chat.pending||!question)return;
+ if(!noteReviewConnection().accessCode){noteReviewSettings();return;}
+ var reference=(String(state.sermon.reference||'').trim()||ref()).slice(0,100);
+ var selection=chat.selection,theme=String(state.sermon.title||'').slice(0,200);
+ var history=chat.turns.slice(-6).map(function(turn){return {role:turn.role,text:turn.text.slice(0,1800)};});
+ var turn={role:"user",text:question};
+ chat.pending=true;
+ chat.error="";
+ chat.turns.push(turn);
+ form.elements.question.value="";
+ pbSermonChatPaint(true);
+ try{
+  chat.controller=new AbortController();
+  var timer=setTimeout(function(){chat.controller.abort();},130000);
+  var result=await pbInstructorSend({reference:reference,question:question,sermon:{theme:theme,excerpt:selection?.text||"",field:pbSermonChatFields[selection?.field]||""},history:history},chat.controller.signal);
+  if(chat.controller.signal.aborted)return;
+  chat.turns.push({role:"assistant",reference:reference,field:selection?.field,parts:result.passages,text:result.passages.map(function(part){return part.text;}).join("\n\n"),sources:result.sources||[],searchSuggestions:result.searchSuggestions||""});
+  if(chat.turns.length>20)chat.turns.splice(0,chat.turns.length-20);
+  if(result.incomplete)chat.error="A resposta foi interrompida antes de terminar.";
+ }catch(error){
+  chat.turns.pop();
+  chat.error=error.name==="TimeoutError"?"O Instrutor demorou a responder. Tente novamente.":error.message;
+  var liveForm=document.getElementById("pb-sermon-chat-form");
+  if(chat===pbSermonChat&&liveForm&&!liveForm.elements.question.value)liveForm.elements.question.value=question;
+ }finally{
+  clearTimeout(timer);chat.pending=false;
+  if(chat===pbSermonChat)pbSermonChatPaint(true);
+ }
+});
+function pbSermonChatReset(){
+ pbSermonChat.controller?.abort();
+ pbSermonChat={open:false,turns:[],selection:null,pending:false,error:""};
+}
+
 function renderSermon(){
  var s=state.sermon,list=pb2Read().sermons||[];
  var editing=list.some(function(item){return item.id===s.id;});
  trackStudyActivity("Sermão",s.title||activeBook.name+" "+state.chapter,"Criador de sermões");
  MAIN.innerHTML='<div class="content sermon-workspace">'+title("sermao")+
- '<div class="row"><button class="btn" data-act="sermon-new">Novo sermão</button><button class="btn" data-act="sermon-library">Sermões salvos ('+list.length+')</button></div>'+
- '<section class="card card-pad" aria-labelledby="sermon-editor"><div class="panel-heading"><h2 class="section-heading" id="sermon-editor" tabindex="-1">'+(editing?"Editar sermão":"Criar sermão")+'</h2><span class="chip greenish">Rascunho local</span></div><div class="sermon-grid">'+
+ '<div class="row"><button class="btn" data-act="sermon-new">Novo sermão</button><button class="btn" data-act="sermon-library">Sermões salvos ('+list.length+')</button><button type="button" class="btn primary" data-act="pb-sermon-chat-open" aria-controls="pb-sermon-chat" aria-expanded="'+pbSermonChat.open+'">Perguntar ao Instrutor</button></div>'+
+ '<div class="pb-sermon-editor-layout'+(pbSermonChat.open?" has-chat":"")+'"><section class="card card-pad" aria-labelledby="sermon-editor"><div class="panel-heading"><h2 class="section-heading" id="sermon-editor" tabindex="-1">'+(editing?"Editar sermão":"Criar sermão")+'</h2><span class="chip greenish">Rascunho local</span></div><div class="sermon-grid">'+
  [["title","Tema"],["reference","Texto bíblico"],["context","Contexto histórico e literário"],["introduction","Introdução"],["point1","Tópico 1 · Exposição"],["point2","Tópico 2 · Exposição"],["application","Aplicação"],["conclusion","Conclusão"]].map(function(a,i){return '<label class="'+(i>=2?"full":"")+'">'+esc(a[1])+(i>=2?'<textarea class="editor" data-sermon="'+a[0]+'" placeholder="Escreva aqui…">'+esc(s[a[0]]||"")+'</textarea>':'<input class="field" data-sermon="'+a[0]+'" value="'+esc(s[a[0]]||"")+'">')+'</label>';}).join("")+'</div><div class="row">'+
  '<button class="btn primary" data-act="sermon-save">'+(editing?"Salvar alterações":"Salvar sermão")+'</button>'+
  '<button class="btn" data-act="sermon-from-ref">Usar passagem atual</button>'+
  '<button class="btn" data-act="sermon-copy">Copiar esboço</button>'+
- '<button class="btn" data-act="sermon-export">Exportar .txt</button></div></section>'+
+ '<button class="btn" data-act="sermon-export">Exportar .txt</button></div></section>'+pbSermonChatMarkup()+'</div>'+
  '<section class="card card-pad" aria-labelledby="sermon-library"><div class="panel-heading"><h2 class="section-heading" id="sermon-library" tabindex="-1">Sermões salvos</h2><button class="btn slim" data-act="pb2-backup">Exportar backup</button></div>'+
  (list.length?list.map(function(item){
   var name=item.title||"Sem título", id=esc(item.id);
@@ -2553,6 +2663,7 @@ function renderSermon(){
    '<div class="row"><button class="btn slim" data-act="sermon-edit" data-sermon-id="'+id+'" aria-label="'+esc("Editar "+name)+'">Editar</button>'+
    '<button class="btn slim" data-act="sermon-delete" data-sermon-id="'+id+'" aria-label="'+esc("Excluir "+name)+'">Excluir</button></div></article>';
  }).join(""):'<p>Nenhum sermão salvo.</p>')+'</section></div>';
+ pbSermonChatPaint(pbSermonChat.open);
 }
 function confirmSermonSwitch(list){
  var saved=list.find(function(item){return item.id===state.sermon.id;})||defaults.sermon;
@@ -2568,6 +2679,7 @@ function handleSermonAction(action,id){
  switch(action){
  case "sermon-new":
   if(!confirmSermonSwitch(list))return false;
+  pbSermonChatReset();
   state.sermon=Object.assign({},defaults.sermon);
   break;
  case "sermon-edit":
@@ -2576,6 +2688,7 @@ function handleSermonAction(action,id){
    return;
   }
   if(!confirmSermonSwitch(list))return;
+  pbSermonChatReset();
   state.sermon=Object.assign({},defaults.sermon,item);
   break;
  case "sermon-save":
@@ -2601,7 +2714,7 @@ function handleSermonAction(action,id){
   if(!item||!window.confirm('Excluir o sermão "'+(item.title||"Sem título")+'"?'))return;
   db.sermons=list.filter(function(saved){return saved.id!==id;});
   if(!pb2Write(db))return;
-  if(state.sermon.id===id)state.sermon=Object.assign({},defaults.sermon);
+  if(state.sermon.id===id){pbSermonChatReset();state.sermon=Object.assign({},defaults.sermon);}
   heading="sermon-library";
   notify("Sermão excluído.");
   break;
@@ -3738,6 +3851,138 @@ function pbCoachTiming(minutes){
  var exposition=minutes-introduction-application-conclusion,first=Math.ceil(exposition/2);
  return [["Introdução",introduction],["Primeiro tópico",first],["Segundo tópico",exposition-first],["Aplicação",application],["Conclusão",conclusion]];
 }
+
+var pbInstructorSelection=null;
+var pbInstructorChat={key:"",turns:[],pending:false,error:"",controller:null};
+var pbInstructorPrompts=[
+ ["Análise completa","Faça uma análise completa desta passagem, explicando a ideia central, contexto, palavras e verbos relevantes, ligações bíblicas, interpretação, Pais da Igreja verificáveis e aplicação."],
+ ["Palavras e verbos","Confira as palavras-chave e os verbos desta passagem no original. Explique forma, significado no contexto e efeito na interpretação. Distinga o que foi verificado do que não foi possível conferir."],
+ ["Contexto cultural","Explique o contexto histórico, cultural e literário que realmente ajuda a interpretar esta passagem. Mostre as evidências e as incertezas."],
+ ["Versículos ligados","Quais passagens ajudam a entender este texto? Confira as referências e explique a relação: citação, alusão, contexto próximo, contraste ou paralelo temático."],
+ ["Pais da Igreja","Existe comentário verificável de algum Pai da Igreja sobre esta passagem? Procure a fonte primária, com autor, obra e seção. Diferencie comentário direto de paralelo temático; se não encontrar, diga isso."],
+ ["Aplicação e sermão","Como expor e aplicar fielmente esta passagem? Sugira uma ideia central, estrutura de sermão e aplicações, distinguindo o sentido original das sugestões pastorais."]
+];
+function pbInstructorPromptMarkup(){
+ return '<div class="pb-instructor-prompts">'+pbInstructorPrompts.map(function(p,i){return '<button type="button" class="btn slim" data-instructor-prompt="'+i+'">'+esc(p[0])+'</button>';}).join("")+'</div>';
+}
+async function pbInstructorSend(payload,signal){
+ var connection=noteReviewConnection();
+ if(!connection.accessCode){noteReviewSettings();throw Error("Conecte a IA com seu código de acesso e tente novamente.");}
+ var endpoint=new URL("/api/instrutor",connection.endpoint);
+ if(endpoint.protocol!=="https:")throw Error("A conexão do Instrutor requer HTTPS.");
+ var response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+connection.accessCode},body:JSON.stringify(payload),signal:signal});
+ var result=await response.json();
+ if(!response.ok)throw Error(result.error||"Não foi possível consultar o Instrutor.");
+ if(!Array.isArray(result.passages)||!result.passages.length||result.passages.some(function(p){return typeof p.text!=="string";}))throw Error("O Instrutor não retornou uma resposta válida.");
+ return result;
+}
+function pbInstructorSourceUrl(value){
+ try{var url=new URL(value);return url.protocol==="https:"&&!url.username&&!url.password?url.href:null;}catch(error){return null;}
+}
+function pbInstructorAnswer(parts,sources,suggestions){
+ var html=parts.map(function(p){return '<div class="pb-instructor-text">'+esc(p.text||"").replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/^#{1,4} (.+)$/gm,"<strong>$1</strong>")+'</div>';}).join("");
+ var links=(sources||[]).filter(function(s){return pbInstructorSourceUrl(s.url);});
+ if(links.length)html+='<div class="pb-instructor-sources"><strong>Fontes da pesquisa</strong><ul>'+links.map(function(s){return '<li><a target="_blank" rel="noopener noreferrer" href="'+esc(pbInstructorSourceUrl(s.url))+'">'+esc(s.title||s.url)+'</a></li>';}).join("")+'</ul></div>';
+ else html+='<p class="feature-note">A consulta não retornou fontes de pesquisa. Confira as afirmações antes de usá-las.</p>';
+ if(typeof suggestions==="string"&&suggestions){
+  var doc='<!doctype html><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; img-src https: data:; font-src https:; base-uri \'none\'"><base target="_blank">'+suggestions;
+  html+='<iframe class="pb-instructor-search" title="Sugestões de pesquisa do Google" sandbox="allow-popups allow-popups-to-escape-sandbox" srcdoc="'+esc(doc)+'"></iframe>';
+ }
+ return html;
+}
+function pbInstructorSavedText(turn){
+ var text="Instrutor · "+turn.reference+"\n\n"+turn.text;
+ var sources=(turn.sources||[]).filter(function(s){return pbInstructorSourceUrl(s.url);});
+ if(sources.length)text+="\n\nFontes:\n"+sources.map(function(s){return (s.title||s.url)+" — "+s.url;}).join("\n");
+ return text;
+}
+function pbInstructorSaveNote(reference,text){
+ var parsed=parseRef(reference);
+ var book=parsed&&(books.find(function(b){return b.slug===parsed.book;})||booksFallback.find(function(b){return b.slug===parsed.book;}));
+ var anchor=book?book.name+" "+parsed.ch+(parsed.verse?":"+parsed.verse:""):reference;
+ var note=state.notes.find(function(n){return n.ref===anchor;});
+ if(saveNotebookNote(anchor,(note?.text?note.text+"\n\n":"")+text)){refreshNoteMarkers();notify("Análise acrescentada à anotação. Você pode desfazer no caderno.");}
+}
+function pbInstructorReference(bookName,chapter,numbers){
+ var ranges=[];
+ for(var number of numbers){var last=ranges[ranges.length-1];if(last&&number===last[1]+1)last[1]=number;else ranges.push([number,number]);}
+ return bookName+" "+chapter+":"+ranges.map(function(r){return r[0]===r[1]?String(r[0]):r[0]+"–"+r[1];}).join(", ");
+}
+function pbOpenInstructorSelection(){
+ var numbers=selectionNumbers();if(!numbers.length)numbers=[state.selectedVerse||1];
+ pbInstructorSelection={book:state.book,chapter:state.chapter,numbers:numbers,version:state.version,reference:pbInstructorReference(activeBook.name,state.chapter,numbers),text:selectedVerseText()};
+ state.selectedVerse=numbers[0];page("instrutor");
+ var form=document.getElementById("pb-instructor-ai");
+ if(form){form.elements.question.value=pbInstructorPrompts[0][1];if(noteReviewConnection().accessCode)form.requestSubmit();else noteReviewSettings();}
+}
+function pbInstructorContext(){
+ return pbInstructorSelection||{book:state.book,chapter:state.chapter,numbers:[state.selectedVerse||1],version:state.version,reference:activeBook.name+" "+state.chapter+":"+(state.selectedVerse||1),text:""};
+}
+function pbInstructorMarkup(){
+ var selection=pbInstructorContext(),key=[selection.version,selection.book,selection.chapter,selection.numbers.join(",")].join("|");
+ if(pbInstructorChat.key!==key){pbInstructorChat.controller?.abort();pbInstructorChat={key:key,turns:[],pending:false,error:"",controller:null};}
+ return '<section class="card card-pad pb-instructor-study"><div class="panel-heading"><h2>Instrutor bíblico IA</h2><button class="btn slim" data-page="leitura">Voltar à Bíblia</button><button type="button" class="btn slim" data-instructor-connect>Conectar IA</button></div><p>Passagem em estudo: <strong>'+esc(selection.reference)+'</strong></p><p class="feature-note">Pergunte, confira as fontes e continue a conversa. O texto é enviado ao Gemini quando você solicita uma análise.</p>'+
+  (selection.text?'<details><summary>Texto selecionado</summary><p class="pb-instructor-text">'+esc(selection.text.slice(0,6000))+'</p>'+(selection.text.length>6000?'<p class="feature-note">Esta consulta usa os primeiros 6.000 caracteres. Divida a seleção para analisar o restante com precisão.</p>':'')+'</details>':"")+
+  '<div id="pb-instructor-answer" class="pb-instructor-conversation" role="log" aria-label="Conversa de estudo"></div>'+
+  '<form id="pb-instructor-ai">'+pbInstructorPromptMarkup()+'<label for="pb-instructor-question">Sua pergunta<textarea id="pb-instructor-question" name="question" class="editor" maxlength="1800" placeholder="Ex.: Por que esta palavra muda a interpretação?"></textarea></label><div class="row"><button class="btn primary" type="submit">Analisar passagem</button><button class="btn" type="button" data-instructor-reset>Nova conversa</button></div><p id="pb-instructor-status" role="status"></p></form></section>';
+}
+function pbInstructorPaint(){
+ var log=document.getElementById("pb-instructor-answer"),form=document.getElementById("pb-instructor-ai");if(!log||!form)return;
+ log.innerHTML=pbInstructorChat.turns.map(function(t,i){
+  if(t.role==="user")return '<article class="pb-instructor-user"><strong>Você</strong><p class="pb-instructor-text">'+esc(t.text)+'</p></article>';
+  return '<article><strong>Instrutor · '+esc(t.reference)+'</strong>'+pbInstructorAnswer(t.parts,t.sources,t.searchSuggestions)+'<div class="row"><button type="button" class="btn slim" data-instructor-save="'+i+'">Salvar na anotação</button><button type="button" class="btn slim" data-instructor-sermon="'+i+'">Acrescentar ao sermão</button><button type="button" class="btn slim" data-instructor-copy="'+i+'">Copiar análise</button></div></article>';
+ }).join("");
+ form.querySelector('[type="submit"]').disabled=pbInstructorChat.pending;
+ document.getElementById("pb-instructor-status").textContent=pbInstructorChat.pending?"Analisando a passagem e pesquisando fontes…":pbInstructorChat.error;
+}
+document.addEventListener("click",function(event){
+ var button=event.target.closest?.("[data-instructor-prompt],[data-instructor-connect],[data-instructor-reset],[data-instructor-save],[data-instructor-sermon],[data-instructor-copy]");if(!button)return;
+ if(button.hasAttribute("data-instructor-connect")){noteReviewSettings();return;}
+ if(button.hasAttribute("data-instructor-reset")){pbInstructorChat.controller?.abort();pbInstructorChat={key:pbInstructorChat.key,turns:[],pending:false,error:"",controller:null};pbInstructorPaint();return;}
+ if(button.hasAttribute("data-instructor-prompt")){
+  var form=button.closest("form"),prompt=pbInstructorPrompts[Number(button.dataset.instructorPrompt)];
+  if(form&&prompt){form.elements.question.value=prompt[1];form.requestSubmit();}return;
+ }
+ var index=Number(button.dataset.instructorSave??button.dataset.instructorSermon??button.dataset.instructorCopy),turn=pbInstructorChat.turns[index];if(!turn||turn.role!=="assistant")return;
+ var text=pbInstructorSavedText(turn);
+ if(button.hasAttribute("data-instructor-save")){pbInstructorSaveNote(turn.reference,text);return;}
+ if(button.hasAttribute("data-instructor-sermon")){state.sermon.context=(state.sermon.context?state.sermon.context+"\n\n":"")+text;persist();notify("Análise acrescentada ao contexto do sermão.");return;}
+ if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(function(){notify("Análise copiada.");},function(){notify("Não foi possível copiar. Selecione o texto manualmente.");});
+});
+async function pbInstructorRelated(book,chapter,numbers){
+ try{
+  var data=pbGraphCache;if(!data){var response=await fetch("./pulpito-crossrefs.json",{signal:AbortSignal.timeout(6000)});if(!response.ok)return [];data=await response.json();}
+  var index=pbGraphBuildIndex(data);pbGraphCache=data;
+  var bookNumber=booksFallback.findIndex(function(b){return b.slug===book;})+1;
+  var matches=numbers.slice(0,20).flatMap(function(n){return (index.adj.get(pbGraphId([bookNumber,chapter,n]))||[]).slice(0,6);});
+  return Array.from(new Set(matches.map(function(m){return pbGraphReference(pbGraphNode(m.to))+" — "+m.description+" (Midvash)";}))).slice(0,10);
+ }catch(error){return [];}
+}
+document.addEventListener("submit",async function(event){
+ var form=event.target;if(form.id!=="pb-instructor-ai")return;event.preventDefault();
+ var chat=pbInstructorChat;if(chat.pending)return;
+ var question=form.elements.question.value.trim()||pbInstructorPrompts[0][1];
+ if(!noteReviewConnection().accessCode){noteReviewSettings();return;}
+ var selection=Object.assign({},pbInstructorContext());
+ var history=chat.turns.slice(-6).map(function(t){return {role:t.role,text:t.text.slice(0,1800)};});
+ chat.pending=true;chat.error="";chat.controller=new AbortController();
+ var timer=setTimeout(function(){chat.controller.abort();},130000);
+ chat.turns.push({role:"user",text:question});form.elements.question.value="";pbInstructorPaint();
+ try{
+  var chapterTask=selection.text?Promise.resolve(null):selection.version.startsWith("local:")?PBModules.getChapter(selection.version,selection.book,selection.chapter):loadOnlineBibleChapter(selection.version,selection.book,selection.chapter);
+  var loaded=await Promise.all([chapterTask.catch(function(){return null;}),pbInstructorRelated(selection.book,selection.chapter,selection.numbers)]);
+  if(chat.controller.signal.aborted)return;
+  var studyText=selection.text||(loaded[0]?.verses||[]).map(function(v,i){var n=typeof v==="string"?i+1:Number(v.number||v.verse)||i+1;return selection.numbers.includes(n)?n+" — "+String(typeof v==="string"?v:v.text||v.content||"").replace(/<[^>]*>/g,""):"";}).filter(Boolean).join("\n");
+  var result=await pbInstructorSend({reference:selection.reference,text:studyText.slice(0,6000),question:question,related:loaded[1],history:history},chat.controller.signal);
+  if(chat.controller.signal.aborted)return;
+  chat.turns.push({role:"assistant",reference:selection.reference,parts:result.passages,text:result.passages.map(function(p){return p.text;}).join("\n\n"),sources:result.sources||[],searchSuggestions:result.searchSuggestions||""});
+  if(chat.turns.length>20)chat.turns.splice(0,chat.turns.length-20);
+ }catch(error){
+  chat.turns.pop();chat.error=error.name==="AbortError"?"Consulta cancelada ou tempo excedido.":error.message;
+  var liveForm=document.getElementById("pb-instructor-ai");if(chat===pbInstructorChat&&liveForm&&!liveForm.elements.question.value)liveForm.elements.question.value=question;
+ }finally{clearTimeout(timer);chat.pending=false;if(chat===pbInstructorChat)pbInstructorPaint();}
+});
+
 function pbRenderCoach(){
  var db=pb2Read(),sermon=state.sermon||{},settings=pbCoachSettings(db.coachSettings);
  var complete=function(key){return String(sermon[key]||"").trim().length>0;};
@@ -3756,7 +4001,7 @@ function pbRenderCoach(){
   return '<li><div class="row"><strong>'+esc(step[1])+'</strong> · '+(complete(step[0])?"Preenchido":"A preparar")+
    '<button class="btn slim" data-act="pb-coach-sermon" data-coach-field="'+step[0]+'" aria-label="'+esc("Editar "+step[1])+'">Editar</button></div><p>'+esc(step[2])+'</p></li>';
  }).join("");
- MAIN.innerHTML='<div class="content">'+title("instrutor")+
+ MAIN.innerHTML='<div class="content">'+title("instrutor")+pbInstructorMarkup()+
   '<section class="card card-pad"><h2>'+esc(sermon.title||"Sermão sem título")+'</h2>'+
   '<p>'+esc(sermon.reference||"Passagem ainda não escolhida")+' · '+count+' de '+pbCoachSteps.length+' campos preenchidos</p>'+
   '<div class="row"><label>Tipo de sermão <select class="field" id="pb-coach-format">'+options(Object.entries(pbCoachFormats).map(function(e){return [e[0],e[1].label];}),settings.format)+'</select></label>'+
@@ -3769,6 +4014,7 @@ function pbRenderCoach(){
   pbCoachTiming(settings.minutes).map(function(item){return '<li>'+esc(item[0])+' · '+item[1]+' min</li>';}).join("")+
   '</ul><label>Observações do ensaio<textarea id="pb-coach-notes" class="editor" style="width:100%;min-height:150px">'+esc(db.coach||"")+'</textarea></label>'+
   '<div class="row"><button class="btn primary" data-act="pb-coach-save">Salvar plano e observações</button></div></section></div>';
+ pbInstructorPaint();
 }
 
 function render(){
@@ -3997,7 +4243,7 @@ function noteReviewConnection(){
 }
 function noteReviewSettings(){
  var box=document.createElement("div");box.className="modal-backdrop";box.style.zIndex="99999";box.setAttribute("role","dialog");box.setAttribute("aria-modal","true");box.setAttribute("aria-label","Conectar IA");
- box.innerHTML='<div class="modal"><div class="panel-heading"><h2>Conectar IA</h2><button type="button" class="btn slim" data-ai-close>Fechar ✕</button></div><p>A revisão usa o Gemini. Cole o código de acesso da sua IA para conectar este dispositivo.</p><label for="note-ai-access">Código de acesso</label><input id="note-ai-access" class="field" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Cole o código de acesso"><p class="feature-note">A chave do Gemini fica protegida no servidor. As anotações são enviadas somente ao tocar em Revisar português.</p><div data-ai-status role="status" aria-live="polite"></div><div class="btn-row"><button type="button" class="btn primary" data-ai-connect>Conectar</button><button type="button" class="btn" data-ai-disconnect>Desconectar</button></div></div>';
+ box.innerHTML='<div class="modal"><div class="panel-heading"><h2>Conectar IA</h2><button type="button" class="btn slim" data-ai-close>Fechar ✕</button></div><p>O Instrutor e a revisão usam o Gemini. Cole o código de acesso da sua IA para conectar este dispositivo.</p><label for="note-ai-access">Código de acesso</label><input id="note-ai-access" class="field" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Cole o código de acesso"><p class="feature-note">A chave do Gemini fica protegida no servidor. O texto é enviado somente quando você solicita uma revisão ou consulta ao Instrutor.</p><div data-ai-status role="status" aria-live="polite"></div><div class="btn-row"><button type="button" class="btn primary" data-ai-connect>Conectar</button><button type="button" class="btn" data-ai-disconnect>Desconectar</button></div></div>';
  document.body.appendChild(box);
  var input=box.querySelector("input"),status=box.querySelector("[data-ai-status]"),button=box.querySelector("[data-ai-connect]");
  var controller=null;
@@ -4019,7 +4265,7 @@ function noteReviewSettings(){
    if(!response.ok||data.connected!==true)throw Error(data.error||"Não foi possível conectar a IA.");
    if(!box.isConnected||current.signal.aborted)return;
    localStorage.setItem("pb-note-review-access",code);input.value="";
-   status.textContent="IA conectada. Feche esta janela e toque em Revisar português.";
+   status.textContent="IA conectada. Feche esta janela para usar o Instrutor ou revisar suas anotações.";
   }catch(error){if(box.isConnected&&controller===current)status.textContent=error.name==="AbortError"?"Conexão cancelada ou tempo excedido.":error.message;}
   finally{clearTimeout(timer);if(controller===current)button.disabled=false;}
  };
@@ -4219,6 +4465,8 @@ document.addEventListener("click",function(ev){
  if(a==="pb-graph-path"){var from=document.getElementById("pb-graph-from").value,to=document.getElementById("pb-graph-to").value;var parse=function(v){var p=parseRef(v);if(!p)return null;return pbGraphId([books.findIndex(function(b){return b.slug===p.book;})+1,p.ch,p.verse||1]);};var x=parse(from),y=parse(to);var path=x&&y&&pbGraphPath(x,y);var out=document.getElementById("pb-graph-results");if(out){var box=document.createElement("div");box.className="card card-pad";box.textContent=path?"Caminho documentado: "+path.map(function(id){return pbGraphReference(pbGraphNode(id));}).join(" → "):"Nenhum caminho encontrado na base local entre essas passagens.";out.prepend(box);}return;}
  if(a==="pb-voice-start"){pbVoiceStart();return;}
  if(a==="pb-voice-text"){pbVoiceCommand(document.getElementById("pb-voice-text").value);return;}
+ if(a==="pb-instructor-selection"){pbOpenInstructorSelection();return;}
+ if(a.startsWith("pb-sermon-chat-")){pbSermonChatAction(a,el);return;}
  if(a==="pb-coach-save"){
   var duration=document.getElementById("pb-coach-minutes");
   if(!duration.value||!duration.checkValidity()){duration.focus();notify("Informe uma duração inteira entre 10 e 90 minutos.");return;}
@@ -4759,5 +5007,6 @@ function startBuildUpdateWatcher(){
 startBuildUpdateWatcher();
 
 })();
+
 
 

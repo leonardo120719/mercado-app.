@@ -2568,6 +2568,29 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
  .pb-top-shell { --pb-brand-row-size: 48px; }
 }
 
+/* Sermon editor and its optional instructor conversation. */
+.pb-sermon-editor-layout { margin-block: 16px; }
+.pb-sermon-chat[hidden] { display: none; }
+.pb-sermon-chat { min-width: 0; overflow: auto; overscroll-behavior: contain; }
+.pb-sermon-chat .panel-heading { flex-direction: row; align-items: center; }
+.pb-sermon-chat-messages { max-height: 42dvh; overflow: auto; overscroll-behavior: contain; }
+.pb-sermon-chat-messages article { border-bottom: 1px solid var(--border); padding: 12px 0; }
+.pb-sermon-chat #pb-sermon-chat-form label { display: block; margin-block: 8px; }
+.pb-sermon-chat #pb-sermon-chat-form input, .pb-sermon-chat #pb-sermon-chat-form textarea { width: 100%; }
+.pb-sermon-chat #pb-sermon-chat-form textarea { min-height: 76px; }
+.pb-sermon-chat #pb-sermon-chat-selection { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
+@media (min-width: 900px) {
+ .pb-sermon-editor-layout.has-chat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 39%); gap: 16px; align-items: start; }
+ .pb-sermon-chat { position: sticky; top: var(--pb-header-size, 100px); max-height: calc(100dvh - var(--pb-header-size, 100px) - 12px); }
+}
+@media (min-width: 1100px) {
+ .pb-sermon-chat { top: 12px; max-height: calc(100dvh - 24px); }
+}
+@media (max-width: 899px) {
+ .pb-sermon-chat { position: fixed; inset: auto 0 0; z-index: 90; max-height: 82dvh; padding-bottom: max(16px, env(safe-area-inset-bottom)); border-radius: 16px 16px 0 0; }
+ .pb-sermon-chat-messages { max-height: 35dvh; }
+}
+
 /* Contain the page while the reader handles text pinch gestures. */
 @media (pointer: coarse) {
  html { width:100%; overflow-x:hidden; overscroll-behavior-x:none; -webkit-text-size-adjust:100%; }
@@ -2593,3 +2616,18 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
  cursor:pointer; touch-action:manipulation;
 }
 .pb-note-marker:focus-visible { outline:2px solid var(--gold,#b78842); outline-offset:2px; }
+
+
+/* Contextual Bible instruction, shared by study and sermon conversations. */
+.pb-instructor-prompts{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0}
+.pb-instructor-study label{display:block;margin:12px 0}
+.pb-instructor-study textarea{width:100%;min-height:100px}
+.pb-instructor-text{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+.pb-instructor-conversation{max-height:65dvh;overflow:auto;overscroll-behavior:contain}
+.pb-instructor-conversation article{padding:16px 0;border-bottom:1px solid var(--border)}
+.pb-instructor-user{opacity:.85}
+.pb-instructor-sources{padding:10px 0;overflow-wrap:anywhere}
+.pb-instructor-sources li{margin:6px 0}
+.pb-instructor-search{width:100%;height:160px;border:0;margin-top:8px;background:transparent}
+.pb-sermon-chat{overflow-x:hidden}
+.pb-sermon-chat .pb-instructor-prompts .btn{white-space:normal}
