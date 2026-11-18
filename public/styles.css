@@ -2567,3 +2567,19 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
 @media (max-width: 720px) and (orientation: landscape) {
  .pb-top-shell { --pb-brand-row-size: 48px; }
 }
+
+/* Stable mobile app viewport with scrolling inside its reading areas. */
+@media (pointer: coarse) {
+ html { width:100%; overflow-x:hidden; overscroll-behavior-x:none; -webkit-text-size-adjust:100%; }
+ body { width:100%; min-width:0; overflow-x:hidden; overscroll-behavior-x:none; }
+ .pb-top-shell { width:100%; max-width:100%; overflow-x:clip; touch-action:manipulation; }
+ .pb-top-shell .workarea, #app-main, .reader-screen, .reader-paper, .pb-mw-pane-body {
+  min-width:0; max-width:100%;
+ }
+ #chapter-body, .pb-split-scroll, .pb-dictionary-scroll, .pb-mw-pane-body {
+  touch-action:pan-y; overscroll-behavior-x:none; overflow-wrap:anywhere;
+ }
+ .pb-top-shell input, .pb-top-shell textarea, .pb-top-shell select {
+  font-size:max(16px,1em);
+ }
+}
