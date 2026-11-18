@@ -1,6 +1,7 @@
 import {createServer} from 'node:http';
 import {timingSafeEqual} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
+import {analyzeWithGemini} from './instructor.mjs';
 
 const instructions = [
   'Revise a anotação em português brasileiro. Retorne apenas a anotação revisada em texto simples.',
@@ -37,7 +38,7 @@ export async function reviseWithGemini(text, {apiKey, model, fetcher = fetch}) {
   return corrected;
 }
 
-export function createReviewServer({apiKey = process.env.GEMINI_API_KEY, model = process.env.GEMINI_MODEL || 'gemini-3.5-flash', accessCode = process.env.NOTE_REVIEW_ACCESS_CODE, fetcher = fetch} = {}) {
+export function createReviewServer({apiKey = process.env.GEMINI_API_KEY, model = process.env.GEMINI_MODEL || 'gemini-3.5-flash', accessCode = process.env.NOTE_REVIEW_ACCESS_CODE, instructorModel = process.env.INSTRUCTOR_MODEL || process.env.GEMINI_MODEL || 'gemini-flash-latest', fetcher = fetch} = {}) {
   let active = 0;
   let recent = [];
   const configured = Boolean(apiKey && accessCode && accessCode.length >= 20);
@@ -54,9 +55,9 @@ export function createReviewServer({apiKey = process.env.GEMINI_API_KEY, model =
       response.writeHead(status, {'Content-Type': 'application/json; charset=utf-8'});
       response.end(JSON.stringify(data));
     };
-    if (request.url === '/health' && request.method === 'GET') return reply(200, {ok: true, configured, provider: 'gemini'});
+    if (request.url === '/health' && request.method === 'GET') return reply(200, {ok: true, configured, provider: 'gemini', instructor: true});
     if (origin && !origins.has(origin)) return reply(403, {error: 'Origem não autorizada.'});
-    if (request.url !== '/api/revisar-nota') return reply(404, {error: 'Rota indisponível.'});
+    if (!['/api/revisar-nota', '/api/instrutor'].includes(request.url)) return reply(404, {error: 'Rota indisponível.'});
     if (request.method === 'OPTIONS') {response.writeHead(204); return response.end();}
     if (request.method !== 'POST') return reply(405, {error: 'Método inválido.'});
     if (!configured) return reply(503, {error: 'Falta cadastrar GEMINI_API_KEY e o código de acesso no Render.'});
@@ -72,12 +73,13 @@ export function createReviewServer({apiKey = process.env.GEMINI_API_KEY, model =
       let size = 0;
       for await (const chunk of request) {
         size += chunk.length;
-        if (size > 30000) return reply(413, {error: 'Texto muito longo.'});
+        if (size > (request.url === '/api/instrutor' ? 60000 : 30000)) return reply(413, {error: 'Texto muito longo.'});
         chunks.push(chunk);
       }
       let payload;
       try {payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));} catch {return reply(400, {error: 'Dados inválidos.'});}
       if (payload?.check === true) return reply(200, {connected: true, provider: 'gemini'});
+      if (request.url === '/api/instrutor') return reply(200, await analyzeWithGemini(payload, {apiKey, model: instructorModel, fetcher}));
       if (!payload || typeof payload.text !== 'string' || !payload.text.trim() || payload.text.length > 6000) return reply(400, {error: 'Envie uma anotação com até 6.000 caracteres.'});
       const text = await reviseWithGemini(payload.text, {apiKey, model, fetcher});
       return reply(200, {text});
@@ -91,4 +93,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const server = createReviewServer();
   server.listen(Number(process.env.PORT) || 8080, '0.0.0.0');
   process.on('SIGTERM', () => server.close());
+  if (process.env.INSTRUCTOR_SELF_TEST === '1') {
+    analyzeWithGemini({reference: 'João 3:16', question: 'Explique em até 100 palavras a ideia central no contexto de João 3:14–18. Pesquise uma fonte bíblica para conferir.'}, {apiKey: process.env.GEMINI_API_KEY, model: process.env.INSTRUCTOR_MODEL || process.env.GEMINI_MODEL || 'gemini-flash-latest'})
+      .then(result => console.log('INSTRUCTOR_SELF_TEST', JSON.stringify({ok: true, grounded: result.grounded, sources: result.sources.length})))
+      .catch(error => console.error('INSTRUCTOR_SELF_TEST', JSON.stringify({ok: false, error: error.message})));
+  }
 }
+
