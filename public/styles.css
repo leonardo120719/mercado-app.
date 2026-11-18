@@ -2583,3 +2583,13 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
   font-size:max(16px,1em);
  }
 }
+
+/* Personal note indicator beside the verse number. */
+.pb-note-marker {
+ display:inline-flex; align-items:center; justify-content:center; vertical-align:super;
+ width:28px; min-height:28px; margin:0 5px 0 2px; padding:2px;
+ border:1px solid currentColor; border-radius:6px; background:transparent;
+ color:var(--brand,#164954); font:700 18px/1 "DM Sans",sans-serif;
+ cursor:pointer; touch-action:manipulation;
+}
+.pb-note-marker:focus-visible { outline:2px solid var(--gold,#b78842); outline-offset:2px; }

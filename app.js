@@ -1705,7 +1705,7 @@ function chooseForVerse(verse,moduleId,anchor){
 function stopPress(){if(holdTimer){clearTimeout(holdTimer);holdTimer=null;}press=null;}
 function onPointerDown(e){
  var marker=indicatorElement(e.target),verse=verseElement(e.target);
- if(marker||!verse||e.button!==0||e.pointerType==="touch"){stopPress();return;}
+ if(e.target.closest?.("[data-bible-note]")||marker||!verse||e.button!==0||e.pointerType==="touch"){stopPress();return;}
  stopPress();
  press={verse:Number(verse.dataset.verse),node:verse,x:e.clientX,y:e.clientY,pointerId:e.pointerId};
  holdTimer=setTimeout(function(){
@@ -1724,7 +1724,7 @@ function onPointerMove(e){
 function onPointerEnd(e){if(press&&e.pointerId===press.pointerId)stopPress();}
 function onContextMenu(e){
  var verse=verseElement(e.target);
- if(!verse||indicatorElement(e.target)||e.target.closest("input[data-pb-verse-check]"))return;
+ if(!verse||indicatorElement(e.target)||e.target.closest("[data-bible-note],input[data-pb-verse-check]"))return;
  e.preventDefault();
  if(Date.now()-(window.__pbLongPressAt||0)<1200)return;
  stopPress();holdHandledUntil=Date.now()+900;
@@ -1745,7 +1745,7 @@ function onClick(e){
  }
  /* Clique no texto sempre bloqueado; seleção adicional somente pelas caixas. */
  var tappedVerse=verseElement(e.target);
- if(tappedVerse&&!e.target.closest(".pb-linked-word, .strong-word, [data-strong]")){e.preventDefault();e.stopImmediatePropagation();return;}
+ if(tappedVerse&&!e.target.closest(".pb-linked-word, .strong-word, [data-strong], [data-bible-note]")){e.preventDefault();e.stopImmediatePropagation();return;}
 }
 function onDoubleClick(e){
  var badge=indicatorElement(e.target);
@@ -1990,7 +1990,62 @@ document.addEventListener("click",function(e){
 document.addEventListener("change",function(e){
  if(e.target&&e.target.matches&&e.target.matches("input[data-pb-verse-check]"))e.stopImmediatePropagation();
 },true);
+
+function refreshNoteMarkers(){
+ var notesByReference=new Map(state.notes.filter(function(note){return note.text&&note.text.trim();}).map(function(note){return [note.ref,note];}));
+ document.querySelectorAll("#chapter-body .verse-line[data-verse]").forEach(function(line){
+  var reference=activeBook.name+" "+state.chapter+":"+line.dataset.verse;
+  var marker=line.querySelector("[data-bible-note]");
+  if(!notesByReference.has(reference)){if(marker)marker.remove();return;}
+  if(!marker){
+   marker=document.createElement("button");marker.type="button";marker.className="pb-note-marker";
+   marker.textContent="✎";
+   var number=line.querySelector(".verse-num");
+   if(number)number.insertAdjacentElement("afterend",marker);else line.prepend(marker);
+  }
+  marker.dataset.bibleNote=reference;
+  marker.setAttribute("aria-label","Abrir anotação de "+reference+" com dois toques");
+  marker.title="Anotação · dois toques para abrir";
+ });
+ var heading=document.querySelector(".reader-paper-head");
+ if(heading){
+  var chapterReference=activeBook.name+" "+state.chapter;
+  var chapterMarker=heading.querySelector("[data-bible-note]");
+  if(!notesByReference.has(chapterReference)){if(chapterMarker)chapterMarker.remove();}
+  else if(!chapterMarker){
+   chapterMarker=document.createElement("button");chapterMarker.type="button";chapterMarker.className="pb-note-marker";
+   chapterMarker.dataset.bibleNote=chapterReference;chapterMarker.textContent="✎";
+   chapterMarker.title="Anotação do capítulo · dois toques para abrir";
+   chapterMarker.setAttribute("aria-label","Abrir anotação de "+chapterReference+" com dois toques");
+   heading.appendChild(chapterMarker);
+  }else chapterMarker.dataset.bibleNote=chapterReference;
+ }
+}
+var pbNoteMarkerTap=null,pbNoteMarkerOpened=null;
+function openNoteMarker(marker){
+ var reference=marker.dataset.bibleNote,now=Date.now();
+ if(pbNoteMarkerOpened&&pbNoteMarkerOpened.reference===reference&&now-pbNoteMarkerOpened.at<700)return;
+ pbNoteMarkerOpened={reference:reference,at:now};
+ pb2OpenSearchReader(marker);
+}
+document.addEventListener("click",function(event){
+ var marker=event.target.closest?.("[data-bible-note]");
+ if(!marker)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ var now=Date.now(),reference=marker.dataset.bibleNote;
+ if(event.detail===0||(pbNoteMarkerTap&&pbNoteMarkerTap.reference===reference&&now-pbNoteMarkerTap.at<500)){
+  pbNoteMarkerTap=null;openNoteMarker(marker);
+ }else pbNoteMarkerTap={reference:reference,at:now};
+},true);
+document.addEventListener("dblclick",function(event){
+ var marker=event.target.closest?.("[data-bible-note]");
+ if(!marker)return;
+ event.preventDefault();event.stopImmediatePropagation();
+ pbNoteMarkerTap=null;openNoteMarker(marker);
+},true);
+
 function refreshVerseDecorations(){
+ refreshNoteMarkers();
  var ts=TS.getState();
  if(!ts.currentVerseSelection.length&&!window.__pbCheckboxMode)window.__pbMultiSelectMode=false;
  var holder=document.getElementById("chapter-body");
@@ -2739,23 +2794,24 @@ function pb2RenderSearchReader(reader){
  root.querySelector("#pb2-commentary-reader-scroll").scrollTop=0;
 }
 function pb2OpenSearchReader(trigger){
- var notebook=trigger.hasAttribute("data-note-reader-index");
+ var bibleNote=trigger.hasAttribute("data-bible-note");
+ var notebook=bibleNote||trigger.hasAttribute("data-note-reader-index");
  var dictionary=trigger.hasAttribute("data-pb2-dictionary-index");
- var resultAttribute=notebook?"data-note-reader-index":dictionary?"data-pb2-dictionary-index":"data-pb2-commentary-index";
+ var resultAttribute=bibleNote?"data-bible-note":notebook?"data-note-reader-index":dictionary?"data-pb2-dictionary-index":"data-pb2-commentary-index";
  var items=notebook?state.notes.filter(function(note){
-  return (note.ref+" "+note.text).toLowerCase().includes((state.noteFilter||"").toLowerCase());
+  return bibleNote?note.ref===trigger.dataset.bibleNote:(note.ref+" "+note.text).toLowerCase().includes((state.noteFilter||"").toLowerCase());
  }).map(function(note){return {module:"Minha anotação",reference:note.ref,text:note.text};}):dictionary?pb2DictionaryResults:pb2CommentaryResults;
- var index=Number(trigger.getAttribute(resultAttribute));
+ var index=bibleNote?0:Number(trigger.getAttribute(resultAttribute));
  if(!Number.isInteger(index)||index<0||index>=items.length)return;
  pb2CloseSearchReader();
  var root=document.createElement("div");
- var reader={root:root,items:items.slice(),index:index,openedIndex:index,trigger:trigger,resultAttribute:resultAttribute,label:notebook?"Anotação":dictionary?"Dicionário":"Comentário bíblico"};
+ var reader={root:root,items:items.slice(),index:index,openedIndex:bibleNote?trigger.dataset.bibleNote:index,trigger:trigger,resultAttribute:resultAttribute,label:notebook?"Anotação":dictionary?"Dicionário":"Comentário bíblico"};
  pb2SearchReader=reader;
  root.id="pb2-commentary-reader";
  root.className="modal-backdrop pb2-commentary-reader-backdrop";
  root.setAttribute("role","presentation");
  root.innerHTML='<section class="modal pb2-commentary-reader-dialog" role="dialog" aria-modal="true" aria-labelledby="pb2-commentary-reader-module">'+
-  '<header class="pb2-commentary-reader-header"><div class="pb2-commentary-reader-heading"><span class="eyebrow">'+(notebook?"LEITURA DA ANOTAÇÃO":dictionary?"LEITURA DO VERBETE":"LEITURA DO COMENTÁRIO")+'</span><h2 id="pb2-commentary-reader-module"></h2><p id="pb2-commentary-reader-reference"></p></div><button type="button" class="btn slim" data-pb2-reader-action="close" aria-label="Fechar leitor">✕</button></header>'+
+  '<header class="pb2-commentary-reader-header"><div class="pb2-commentary-reader-heading"><span class="eyebrow">'+(notebook?"LEITURA DA ANOTAÇÃO":dictionary?"LEITURA DO VERBETE":"LEITURA DO COMENTÁRIO")+'</span><h2 id="pb2-commentary-reader-module"></h2><p id="pb2-commentary-reader-reference"></p></div>'+(notebook?'<button type="button" class="btn primary slim" data-pb2-reader-action="edit-note">Editar anotação</button>':'')+'<button type="button" class="btn slim" data-pb2-reader-action="close" aria-label="Fechar leitor">✕</button></header>'+
   '<div class="pb2-commentary-reader-scroll" id="pb2-commentary-reader-scroll" tabindex="0"><div class="pb2-commentary-reader-text" id="pb2-commentary-reader-text"></div></div>'+
   '<footer class="pb2-commentary-reader-footer"><span id="pb2-commentary-reader-position" aria-live="polite"></span><div class="pb2-commentary-reader-nav"><button type="button" class="btn" data-pb2-reader-action="previous">← Anterior</button><button type="button" class="btn primary" data-pb2-reader-action="next">Próximo →</button></div></footer>'+
  '</section>';
@@ -2763,6 +2819,7 @@ function pb2OpenSearchReader(trigger){
   if(event.target===root){pb2CloseSearchReader();return;}
   var action=event.target.closest("[data-pb2-reader-action]")?.dataset.pb2ReaderAction;
   if(action==="close"){pb2CloseSearchReader();return;}
+  if(action==="edit-note"&&notebook){var reference=reader.items[reader.index].reference;pb2CloseSearchReader();noteModal(reference);return;}
   if(action!=="previous"&&action!=="next")return;
   var next=reader.index+(action==="previous"?-1:1);
   if(next<0||next>=reader.items.length)return;
@@ -4188,6 +4245,7 @@ document.addEventListener("click",function(ev){
   var text=document.getElementById("note-text").value.trim();
   if(!saveNotebookNote(document.getElementById("pb-modal")?.dataset.noteReference||ref(),text))return;
   TS.actions.clearSelection();
+  refreshNoteMarkers();
   document.getElementById("pb-modal")?.remove();
   if(state.page==="caderno")renderNotebook();
   notify(text?"Anotação salva.":"Texto guardado na lixeira do Caderno.");
