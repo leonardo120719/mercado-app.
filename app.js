@@ -3992,7 +3992,7 @@ function openBibleSearch(){
 function noteModal(reference){
  var noteReference=typeof reference==="string"?reference:ref();
  var n=state.notes.find(function(note){return note.ref===noteReference;});var modal=document.createElement("div");modal.className="modal-backdrop";modal.id="pb-modal";modal.dataset.noteReference=noteReference;
- modal.innerHTML='<div class="modal"><div class="panel-heading"><h2 class="section-heading">Anotação · '+esc(noteReference)+'</h2><button class="btn slim" data-act="close-modal">Fechar ✕</button></div><p class="feature-note">Registre sua observação, interpretação ou dúvida.</p><textarea id="note-text" class="editor large" placeholder="Escreva sua anotação…">'+esc(n&&n.text||"")+'</textarea><div class="btn-row"><button class="btn" data-act="close-modal">Cancelar</button><button type="button" class="btn" data-note-editor-undo disabled>↶ Desfazer edição</button><button class="btn primary" data-act="save-note">Salvar anotação</button></div></div>';
+ modal.innerHTML='<div class="modal"><div class="panel-heading"><h2 class="section-heading">Anotação · '+esc(noteReference)+'</h2><button class="btn slim" data-act="close-modal">Fechar ✕</button></div><p class="feature-note">Registre sua observação, interpretação ou dúvida.</p><textarea id="note-text" class="editor large" lang="pt-BR" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Escreva sua anotação…">'+esc(n&&n.text||"")+'</textarea><div class="row" style="margin-top:10px"><button type="button" class="btn" data-note-review>Revisar português</button><span class="feature-note">Ortografia, pontuação e palavras ausentes</span></div><div data-note-review-result aria-live="polite"></div><div class="btn-row"><button class="btn" data-act="close-modal">Cancelar</button><button type="button" class="btn" data-note-editor-undo disabled>↶ Desfazer edição</button><button class="btn primary" data-act="save-note">Salvar anotação</button></div></div>';
  document.body.appendChild(modal);
  var editor=document.getElementById("note-text"),undoButton=modal.querySelector("[data-note-editor-undo]");
  var history=[],before=null,last={text:editor.value,start:0,end:0};
@@ -4011,6 +4011,55 @@ function noteModal(reference){
   last=snapshot();before=null;undoButton.disabled=!history.length;
  }
  undoButton.addEventListener("click",undoEdit);
+ var reviewButton=modal.querySelector("[data-note-review]"),reviewResult=modal.querySelector("[data-note-review-result]");
+ var reviewController=null,reviewVersion=0;
+ editor.addEventListener("input",function(){
+  reviewVersion++;reviewController?.abort();reviewResult.replaceChildren();reviewButton.disabled=false;
+ });
+ reviewButton.addEventListener("click",async function(){
+  var original=editor.value;
+  if(!original.trim()){notify("Escreva uma anotação antes de revisar.");return;}
+  if(original.length>6000){notify("Revise até 6.000 caracteres de cada vez.");return;}
+  var version=++reviewVersion;
+  reviewController?.abort();reviewController=new AbortController();
+  var connection=window.PBNoteReviewConnection||{};
+  var endpoint;
+  try{endpoint=new URL(connection.endpoint||"/api/revisar-nota",location.origin);}
+  catch(error){reviewResult.textContent="A conexão da revisão inteligente ainda precisa ser configurada.";return;}
+  if(endpoint.protocol!=="https:"){reviewResult.textContent="A revisão requer uma conexão HTTPS.";return;}
+  reviewButton.disabled=true;reviewResult.textContent="Revisando o português…";
+  var timer=setTimeout(function(){reviewController.abort();},90000);
+  try{
+   var headers={"Content-Type":"application/json"};
+   if(connection.accessCode)headers.Authorization="Bearer "+connection.accessCode;
+   var response=await fetch(endpoint,{method:"POST",headers:headers,body:JSON.stringify({text:original}),signal:reviewController.signal});
+   if(response.status===404||response.status===405)throw Error("A revisão inteligente ainda não está ativada neste aplicativo.");
+   if(!response.ok)throw Error("Não foi possível revisar agora. Tente novamente.");
+   var result=await response.json();
+   if(typeof result.text!=="string"||!result.text.trim()||result.text.length>20000)throw Error("A revisão não retornou um texto válido.");
+   if(!modal.isConnected||version!==reviewVersion||editor.value!==original)return;
+   reviewResult.replaceChildren();
+   var heading=document.createElement("h3");heading.textContent="Sugestão de revisão";
+   var preview=document.createElement("p");preview.style.whiteSpace="pre-wrap";preview.textContent=result.text;
+   var guidance=document.createElement("p");guidance.className="feature-note";guidance.textContent="Confira se as palavras sugeridas mantêm o que você quis dizer.";
+   var apply=document.createElement("button");apply.type="button";apply.className="btn primary";apply.textContent="Aplicar correção";
+   apply.addEventListener("click",function(){
+    if(editor.value!==original){reviewResult.textContent="O texto mudou. Faça uma nova revisão.";return;}
+    editor.dispatchEvent(new Event("beforeinput",{bubbles:true}));
+    editor.value=result.text;
+    editor.dispatchEvent(new Event("input",{bubbles:true}));
+    editor.focus();notify("Correção aplicada. Use Desfazer edição para voltar ao original.");
+   });
+   var discard=document.createElement("button");discard.type="button";discard.className="btn";discard.textContent="Manter original";
+   discard.addEventListener("click",function(){reviewResult.replaceChildren();});
+   reviewResult.append(heading,preview,guidance,apply,discard);
+  }catch(error){
+   if(modal.isConnected&&version===reviewVersion)reviewResult.textContent=error.name==="AbortError"?"Revisão cancelada ou tempo excedido.":error.message;
+  }finally{
+   clearTimeout(timer);if(version===reviewVersion)reviewButton.disabled=false;
+  }
+ });
+
  editor.addEventListener("keydown",function(event){
   if((event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==="z"&&!event.shiftKey){
    event.preventDefault();undoEdit();
