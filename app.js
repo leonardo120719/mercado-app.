@@ -1799,6 +1799,10 @@ var booksFallback="Gênesis|genesis|50;Êxodo|exodus|40;Levítico|leviticus|27;N
 var defaults={dictionaryOpen:false,dictionaryModuleId:"",dictionaryTerm:"",splitStudy:true,splitPct:56,commentModuleId:"",page:"leitura",book:"john",chapter:15,version:"alm1911",selectedVerse:4,theme:"light",fontSize:18,showStrong:true,showComments:false,showCrossRefs:false,showParallel:false,readerMode:"continuous",readerTheme:"sepia",focusMode:false,bookmarks:[],notes:[],studies:{},tutorStep:0,sermon:{title:"",reference:"",introduction:"",context:"",point1:"",point2:"",application:"",conclusion:""},exerciseAnswers:{},historicalDiary:{},history:[],parallelVersion:"bpm"};
 var saved={};try{saved=JSON.parse(localStorage.getItem(STORE_KEY)||"{}");}catch(e){}
 var state=Object.assign({},defaults,saved);
+state.notes=Array.isArray(state.notes)?state.notes:[];
+state.noteArchive=Array.isArray(state.noteArchive)?state.noteArchive.filter(function(entry){
+ return entry&&typeof entry.id==="string"&&entry.note&&typeof entry.note.ref==="string"&&typeof entry.note.text==="string";
+}):[];
 state.sermon=Object.assign({},defaults.sermon,state.sermon||{});
 if(state.page==="biblioteca-sermoes")state.page="sermao";
 var TS=window.PBToolbar, toolbarState=TS.getState();
@@ -2597,13 +2601,62 @@ function renderHistoricalDiary(){
  '<div class="btn-row" style="margin:12px 0"><button class="btn primary" data-act="historico-search">Pesquisar</button><button class="btn" data-act="historico-clear">Limpar filtros</button></div>'+
  '<h3>Resultados ('+rows.length+')</h3><div id="historical-results" style="max-height:340px;overflow:auto">'+(rows.length?rows.map(function(r){return '<button type="button" class="btn" style="display:block;width:100%;text-align:left;margin:6px 0;white-space:normal" data-historical-open="'+esc(r.key)+'"><strong>'+esc(r.book.name+" "+r.chapter)+'</strong><small style="display:block">'+esc(r.data.tema||r.data.periodo||"Estudo salvo")+'</small></button>';}).join(""):'<p class="subtitle">Nenhum estudo encontrado. Preencha os campos para criar seu primeiro registro.</p>')+'</div></aside></div></div>';
 }
+
+function noteArchive(note,reason){
+ return {id:crypto.randomUUID(),note:Object.assign({},note),reason:reason,archivedAt:Date.now()};
+}
+function commitNotebook(notes,archive){
+ var next=Object.assign({},state,{notes:notes,noteArchive:archive});
+ try{localStorage.setItem(STORE_KEY,JSON.stringify(next));}
+ catch(error){notify("Não foi possível salvar a alteração. Confira o espaço disponível no aparelho.");return false;}
+ state.notes=notes;
+ state.noteArchive=archive;
+ return true;
+}
+function removeNotebookNote(reference){
+ var removed=state.notes.filter(function(note){return note.ref===reference;});
+ if(!removed.length)return false;
+ var archive=removed.map(function(note){return noteArchive(note,"Excluída");}).concat(state.noteArchive);
+ return commitNotebook(state.notes.filter(function(note){return note.ref!==reference;}),archive);
+}
+function saveNotebookNote(reference,text){
+ var previous=state.notes.filter(function(note){return note.ref===reference;});
+ var archive=previous.filter(function(note){return note.text!==text;}).map(function(note){
+  return noteArchive(note,text?"Versão anterior":"Texto apagado");
+ }).concat(state.noteArchive);
+ var notes=state.notes.filter(function(note){return note.ref!==reference;});
+ if(text)notes.unshift({ref:reference,text:text,when:Date.now()});
+ return commitNotebook(notes,archive);
+}
+function restoreNotebookNote(id){
+ var entry=state.noteArchive.find(function(item){return item.id===id;});
+ if(!entry)return false;
+ var current=state.notes.filter(function(note){return note.ref===entry.note.ref;});
+ var archive=current.map(function(note){return noteArchive(note,"Antes da restauração");})
+  .concat(state.noteArchive.filter(function(item){return item.id!==id;}));
+ return commitNotebook([Object.assign({},entry.note)].concat(state.notes.filter(function(note){
+  return note.ref!==entry.note.ref;
+ })),archive);
+}
+function notebookArchiveMarkup(filter){
+ var entries=state.noteArchive.filter(function(entry){
+  return (entry.note.ref+" "+entry.note.text).toLocaleLowerCase("pt-BR").includes(filter.toLocaleLowerCase("pt-BR"));
+ });
+ return '<section class="card card-pad" style="margin-top:18px"><h2 class="section-heading">Lixeira e versões anteriores ('+state.noteArchive.length+')</h2>'+
+  '<p class="feature-note">Restaure anotações excluídas ou versões salvas antes de uma alteração. Ao restaurar uma versão, a anotação atual também fica guardada aqui.</p>'+
+  (entries.length?entries.map(function(entry){
+   return '<details class="note-entry"><summary>'+esc(entry.note.ref)+' · '+esc(entry.reason)+' · '+esc(new Date(entry.archivedAt).toLocaleString("pt-BR"))+'</summary>'+
+    '<p>'+esc(entry.note.text)+'</p><button type="button" class="btn primary slim" data-note-restore="'+esc(entry.id)+'">Restaurar anotação</button></details>';
+  }).join(""):'<p>Nenhuma anotação excluída ou versão anterior encontrada.</p>')+'</section>';
+}
+
 function renderNotebook(){
  var notes=state.notes||[],marks=state.bookmarks||[],filter=state.noteFilter||"";
  var filtered=notes.filter(function(n){return (n.ref+" "+n.text).toLowerCase().includes(filter.toLowerCase());});
  MAIN.innerHTML='<div class="content">'+title("caderno")+'<p class="subtitle">Anotações e favoritos guardados no navegador, separados por referência bíblica. Use a busca para recuperar suas descobertas.</p>'+
  '<div class="grid-3" style="margin-bottom:20px"><div class="card card-pad"><div class="caps">ANOTAÇÕES</div><h2 class="page-title">'+notes.length+'</h2></div><div class="card card-pad"><div class="caps">FAVORITOS</div><h2 class="page-title">'+marks.length+'</h2></div><div class="card card-pad"><div class="caps">PASSAGEM ATUAL</div><h3>'+esc(ref())+'</h3><button class="btn slim" data-act="note">Anotar</button></div></div>'+
  '<div class="grid-2"><div class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Minhas anotações</h2></div><input class="field" style="width:100%;margin-bottom:15px" id="note-filter" placeholder="Buscar nos estudos…" value="'+esc(filter)+'">'+(filtered.length?filtered.map(function(n){return '<div class="note-entry"><div class="panel-heading"><strong>'+esc(n.ref)+'</strong><button class="btn slim" data-note-delete="'+esc(n.ref)+'">Excluir</button></div><p>'+esc(n.text)+'</p><button class="btn slim" data-ref-open="'+esc(n.ref)+'">Abrir passagem</button></div>';}).join(""):'<div class="empty">Nenhuma anotação encontrada. Selecione um versículo e clique em Anotar.</div>')+'</div>'+
- '<div class="card card-pad"><h2 class="section-heading" style="margin-bottom:17px">Versículos favoritos</h2>'+(marks.length?marks.map(function(r){return '<div class="feature-item"><span class="feature-number">☆</span><div style="flex:1"><strong>'+esc(r)+'</strong><div class="row" style="margin-top:9px"><button class="btn slim" data-ref-open="'+esc(r)+'">Ler</button><button class="btn slim" data-unbookmark="'+esc(r)+'">Remover</button></div></div></div>';}).join(""):'<div class="empty">Seus versículos favoritos aparecem aqui.</div>')+'</div></div><div class="tip">Dados desta versão são armazenados apenas neste navegador. Eles ainda não são sincronizados com conta, não são enviados ao Supabase e podem desaparecer se você limpar os dados do site. Faça backup das anotações importantes.</div></div>';
+ '<div class="card card-pad"><h2 class="section-heading" style="margin-bottom:17px">Versículos favoritos</h2>'+(marks.length?marks.map(function(r){return '<div class="feature-item"><span class="feature-number">☆</span><div style="flex:1"><strong>'+esc(r)+'</strong><div class="row" style="margin-top:9px"><button class="btn slim" data-ref-open="'+esc(r)+'">Ler</button><button class="btn slim" data-unbookmark="'+esc(r)+'">Remover</button></div></div></div>';}).join(""):'<div class="empty">Seus versículos favoritos aparecem aqui.</div>')+'</div></div>'+notebookArchiveMarkup(filter)+'<div class="tip">Dados desta versão são armazenados apenas neste navegador. Eles ainda não são sincronizados com conta, não são enviados ao Supabase e podem desaparecer se você limpar os dados do site. Faça backup das anotações importantes.</div></div>';
 }
 var competitors=[
  ["YouVersion","Leitura, áudio, planos, notas, compartilhamento, comunidade e sincronização.","Estudo acadêmico aprofundado em um fluxo único com morfologia e escrita expositiva.","https://www.bible.com/"],
@@ -3967,7 +4020,10 @@ document.addEventListener("click",function(ev){
  var st=ev.target.closest("[data-step]");if(st){state.tutorStep=+st.dataset.step;persist();renderTutor();return;}
  var ans=ev.target.closest("[data-answer]");if(ans){var p=ans.dataset.answer.split(":");state.exerciseAnswers[+p[0]]=+p[1];persist();renderExercises();return;}
  var rw=ev.target.closest("[data-ref-open]");if(rw){openRef(rw.dataset.refOpen);return;}
- var dl=ev.target.closest("[data-note-delete]");if(dl){state.notes=state.notes.filter(function(n){return n.ref!==dl.dataset.noteDelete;});persist();renderNotebook();notify("Anotação excluída");return;}
+ var restore=ev.target.closest("[data-note-restore]");
+ if(restore){if(restoreNotebookNote(restore.dataset.noteRestore)){renderNotebook();notify("Anotação restaurada.");}return;}
+ var dl=ev.target.closest("[data-note-delete]");
+ if(dl){if(removeNotebookNote(dl.dataset.noteDelete)){renderNotebook();notify("Anotação guardada na lixeira. Você pode restaurá-la no Caderno.");}return;}
  var ub=ev.target.closest("[data-unbookmark]");if(ub){state.bookmarks=state.bookmarks.filter(function(r){return r!==ub.dataset.unbookmark;});persist();renderNotebook();return;}
  var el=ev.target.closest("[data-act]");if(!el)return;
  var a=el.dataset.act;
@@ -4087,7 +4143,15 @@ document.addEventListener("click",function(ev){
  if(a==="bookmark"){var r=ref();if(state.bookmarks.includes(r)){state.bookmarks=state.bookmarks.filter(function(x){return x!==r;});notify("Favorito removido");}else{state.bookmarks.push(r);notify("Salvo nos favoritos");}persist();renderReaderContent();return;}
  if(a==="note"){noteModal();return;}
  if(a==="close-modal"){document.getElementById("pb-modal")?.remove();return;}
- if(a==="save-note"){var text=document.getElementById("note-text").value.trim();TS.actions.clearSelection();state.notes=state.notes.filter(function(n){return n.ref!==ref();});if(text)state.notes.unshift({ref:ref(),text:text,when:Date.now()});persist();document.getElementById("pb-modal")?.remove();if(state.page==="caderno")renderNotebook();notify("Anotação salva");return;}
+ if(a==="save-note"){
+  var text=document.getElementById("note-text").value.trim();
+  if(!saveNotebookNote(ref(),text))return;
+  TS.actions.clearSelection();
+  document.getElementById("pb-modal")?.remove();
+  if(state.page==="caderno")renderNotebook();
+  notify(text?"Anotação salva.":"Texto guardado na lixeira do Caderno.");
+  return;
+ }
  if(a==="word-search"){wordFilter=document.getElementById("word-search").value.trim();var found=words.find(function(w){return [w.label,w.code,w.reading,w.book].join(" ").toLowerCase().includes(wordFilter.toLowerCase());});if(found)currentWord=found;renderOriginal();return;}
  if(a==="tutor-guidance"){var f=document.getElementById("tutor-guidance");f.innerHTML='<div class="feedback"><strong>Critério de revisão:</strong> '+esc(steps[state.tutorStep].check)+'<p class="tiny" style="margin-bottom:0">Releia sua anotação, destaque evidências, confira a passagem e reescreva se necessário.</p></div>';return;}
  if(a==="step-prev"){state.tutorStep=Math.max(0,state.tutorStep-1);persist();renderTutor();return;}
