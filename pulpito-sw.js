@@ -1,13 +1,13 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v71-note-review";
+const CACHE_NAME = "pulpito-bible-shell-v72-render-gemini";
 const APP_SHELL = [
   "/",
   "/pulpito.html",
   "/styles.css?v=20261118-note-markers",
   "/window-ui.js?v=20261115-responsive-navigation",
   "/split-study.js?v=20261113-paineis-profissionais",
-  "/app.js?v=20261118-note-review",
+  "/app.js?v=20261118-render-gemini",
   "/pulpito-manifest.webmanifest"
 ];
 const CDN_HOSTS = new Set([
@@ -95,4 +95,5 @@ self.addEventListener("fetch", event => {
     }
   })());
 });
+
 
