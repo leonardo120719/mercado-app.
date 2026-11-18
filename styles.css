@@ -2568,7 +2568,7 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
  .pb-top-shell { --pb-brand-row-size: 48px; }
 }
 
-/* Stable mobile app viewport with scrolling inside its reading areas. */
+/* Contain the page while the reader handles text pinch gestures. */
 @media (pointer: coarse) {
  html { width:100%; overflow-x:hidden; overscroll-behavior-x:none; -webkit-text-size-adjust:100%; }
  body { width:100%; min-width:0; overflow-x:hidden; overscroll-behavior-x:none; }
