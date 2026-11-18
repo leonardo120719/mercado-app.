@@ -2539,7 +2539,7 @@ function pbSermonChatMarkup(){
   '<div class="panel-heading"><h2 id="pb-sermon-chat-title" class="section-heading">Instrutor IA</h2><button type="button" class="btn slim" data-act="pb-sermon-chat-close">Recolher</button></div>'+
   '<p class="feature-note">Passagem: '+esc(String(state.sermon.reference||'').trim()||ref())+'</p>'+
   '<div id="pb-sermon-chat-messages" class="pb-sermon-chat-messages" role="log" aria-label="Conversa com o Instrutor" tabindex="0"></div>'+
-  '<form id="pb-sermon-chat-form"><button type="button" class="btn slim" data-instructor-connect>Conectar IA</button>'+pbInstructorPromptMarkup()+
+  '<form id="pb-sermon-chat-form"><button type="button" class="btn slim" data-instructor-connect>Escolher IA</button><span class="feature-note" data-ai-provider-label>'+(noteReviewConnection().provider==="openai"?"OpenAI (ChatGPT)":"Google Gemini")+'</span>'+pbInstructorPromptMarkup()+
   '<p id="pb-sermon-chat-selection" class="feature-note"></p>'+
   '<label>Pergunte sobre o sermão<textarea class="editor" name="question" maxlength="1800" required placeholder="Esta aplicação tem base na passagem?"></textarea></label>'+
   '<button type="submit" class="btn primary"'+(pbSermonChat.pending?" disabled":"")+'>Enviar pergunta</button>'+
@@ -2551,7 +2551,7 @@ function pbSermonChatPaint(scroll){
  if(!log||!form)return;
  log.innerHTML=chat.turns.map(function(turn,index){
   if(turn.role==="user")return '<article><strong>Você</strong><p>'+esc(turn.text)+'</p></article>';
-  return '<article><strong>Instrutor · '+esc(turn.reference)+'</strong>'+pbInstructorAnswer(turn.parts,turn.sources,turn.searchSuggestions)+
+  return '<article><strong>Instrutor · '+esc(turn.reference)+(turn.provider?' · '+(turn.provider==='openai'?'OpenAI':'Gemini'):'')+'</strong>'+pbInstructorAnswer(turn.parts,turn.sources,turn.searchSuggestions)+
    '<label>Inserir em <select class="field" data-chat-target="'+index+'">'+Object.entries(pbSermonChatFields).map(function(entry){
     return '<option value="'+entry[0]+'"'+(entry[0]===turn.field?" selected":"")+'>'+entry[1]+'</option>';
    }).join("")+'</select></label><div class="row"><button class="btn slim" type="button" data-act="pb-sermon-chat-insert" data-turn="'+index+'">Inserir no sermão</button>'+
@@ -2623,7 +2623,7 @@ document.addEventListener("submit",async function(event){
   var timer=setTimeout(function(){chat.controller.abort();},130000);
   var result=await pbInstructorSend({reference:reference,question:question,sermon:{theme:theme,excerpt:selection?.text||"",field:pbSermonChatFields[selection?.field]||""},history:history},chat.controller.signal);
   if(chat.controller.signal.aborted)return;
-  chat.turns.push({role:"assistant",reference:reference,field:selection?.field,parts:result.passages,text:result.passages.map(function(part){return part.text;}).join("\n\n"),sources:result.sources||[],searchSuggestions:result.searchSuggestions||""});
+  chat.turns.push({role:"assistant",reference:reference,field:selection?.field,parts:result.passages,text:result.passages.map(function(part){return part.text;}).join("\n\n"),sources:result.sources||[],searchSuggestions:result.searchSuggestions||"",provider:result.provider});
   if(chat.turns.length>20)chat.turns.splice(0,chat.turns.length-20);
   if(result.incomplete)chat.error="A resposta foi interrompida antes de terminar.";
  }catch(error){
@@ -3870,7 +3870,7 @@ async function pbInstructorSend(payload,signal){
  if(!connection.accessCode){noteReviewSettings();throw Error("Conecte a IA com seu código de acesso e tente novamente.");}
  var endpoint=new URL("/api/instrutor",connection.endpoint);
  if(endpoint.protocol!=="https:")throw Error("A conexão do Instrutor requer HTTPS.");
- var response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+connection.accessCode},body:JSON.stringify(payload),signal:signal});
+ var response=await fetch(endpoint,{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+connection.accessCode},body:JSON.stringify(Object.assign({},payload,{provider:connection.provider||"gemini"})),signal:signal});
  var result=await response.json();
  if(!response.ok)throw Error(result.error||"Não foi possível consultar o Instrutor.");
  if(!Array.isArray(result.passages)||!result.passages.length||result.passages.some(function(p){return typeof p.text!=="string";}))throw Error("O Instrutor não retornou uma resposta válida.");
@@ -3880,7 +3880,21 @@ function pbInstructorSourceUrl(value){
  try{var url=new URL(value);return url.protocol==="https:"&&!url.username&&!url.password?url.href:null;}catch(error){return null;}
 }
 function pbInstructorAnswer(parts,sources,suggestions){
- var html=parts.map(function(p){return '<div class="pb-instructor-text">'+esc(p.text||"").replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/^#{1,4} (.+)$/gm,"<strong>$1</strong>")+'</div>';}).join("");
+ var format=function(text){return esc(text).replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>").replace(/^#{1,4} (.+)$/gm,"<strong>$1</strong>");};
+ var html=parts.map(function(p){
+  var glyphs=String(p.text||""),position=0,body="",number=0;
+  var citations=(p.annotations||[]).filter(function(a){return a.type==="url_citation"&&pbInstructorSourceUrl(a.url)&&Number.isInteger(a.start_index)&&Number.isInteger(a.end_index)&&a.start_index>=0&&a.end_index>a.start_index&&a.end_index<=glyphs.length;}).sort(function(a,b){return a.start_index-b.start_index;});
+  citations.forEach(function(a){
+   if(a.start_index<position)return;
+   body+=format(glyphs.slice(position,a.start_index));
+   var cited=glyphs.slice(a.start_index,a.end_index);
+   if(!/^cite.*$/u.test(cited))body+=format(cited);
+   body+=' <a class="pb-instructor-citation" target="_blank" rel="noopener noreferrer" title="'+esc(a.title||"Fonte")+'" href="'+esc(pbInstructorSourceUrl(a.url))+'">['+(++number)+']</a>';
+   position=a.end_index;
+  });
+  body+=format(glyphs.slice(position));
+  return '<div class="pb-instructor-text">'+body+'</div>';
+ }).join("");
  var links=(sources||[]).filter(function(s){return pbInstructorSourceUrl(s.url);});
  if(links.length)html+='<div class="pb-instructor-sources"><strong>Fontes da pesquisa</strong><ul>'+links.map(function(s){return '<li><a target="_blank" rel="noopener noreferrer" href="'+esc(pbInstructorSourceUrl(s.url))+'">'+esc(s.title||s.url)+'</a></li>';}).join("")+'</ul></div>';
  else html+='<p class="feature-note">A consulta não retornou fontes de pesquisa. Confira as afirmações antes de usá-las.</p>';
@@ -3891,7 +3905,7 @@ function pbInstructorAnswer(parts,sources,suggestions){
  return html;
 }
 function pbInstructorSavedText(turn){
- var text="Instrutor · "+turn.reference+"\n\n"+turn.text;
+ var text="Instrutor · "+turn.reference+(turn.provider?" · "+(turn.provider==="openai"?"OpenAI":"Gemini"):"")+"\n\n"+turn.text;
  var sources=(turn.sources||[]).filter(function(s){return pbInstructorSourceUrl(s.url);});
  if(sources.length)text+="\n\nFontes:\n"+sources.map(function(s){return (s.title||s.url)+" — "+s.url;}).join("\n");
  return text;
@@ -3921,7 +3935,7 @@ function pbInstructorContext(){
 function pbInstructorMarkup(){
  var selection=pbInstructorContext(),key=[selection.version,selection.book,selection.chapter,selection.numbers.join(",")].join("|");
  if(pbInstructorChat.key!==key){pbInstructorChat.controller?.abort();pbInstructorChat={key:key,turns:[],pending:false,error:"",controller:null};}
- return '<section class="card card-pad pb-instructor-study"><div class="panel-heading"><h2>Instrutor bíblico IA</h2><button class="btn slim" data-page="leitura">Voltar à Bíblia</button><button type="button" class="btn slim" data-instructor-connect>Conectar IA</button></div><p>Passagem em estudo: <strong>'+esc(selection.reference)+'</strong></p><p class="feature-note">Pergunte, confira as fontes e continue a conversa. O texto é enviado ao Gemini quando você solicita uma análise.</p>'+
+ return '<section class="card card-pad pb-instructor-study"><div class="panel-heading"><h2>Instrutor bíblico IA</h2><button class="btn slim" data-page="leitura">Voltar à Bíblia</button><button type="button" class="btn slim" data-instructor-connect>Escolher IA</button><span class="feature-note" data-ai-provider-label>'+(noteReviewConnection().provider==="openai"?"OpenAI (ChatGPT)":"Google Gemini")+'</span></div><p>Passagem em estudo: <strong>'+esc(selection.reference)+'</strong></p><p class="feature-note">Pergunte, confira as fontes e continue a conversa. O texto é enviado ao Gemini quando você solicita uma análise.</p>'+
   (selection.text?'<details><summary>Texto selecionado</summary><p class="pb-instructor-text">'+esc(selection.text.slice(0,6000))+'</p>'+(selection.text.length>6000?'<p class="feature-note">Esta consulta usa os primeiros 6.000 caracteres. Divida a seleção para analisar o restante com precisão.</p>':'')+'</details>':"")+
   '<div id="pb-instructor-answer" class="pb-instructor-conversation" role="log" aria-label="Conversa de estudo"></div>'+
   '<form id="pb-instructor-ai">'+pbInstructorPromptMarkup()+'<label for="pb-instructor-question">Sua pergunta<textarea id="pb-instructor-question" name="question" class="editor" maxlength="1800" placeholder="Ex.: Por que esta palavra muda a interpretação?"></textarea></label><div class="row"><button class="btn primary" type="submit">Analisar passagem</button><button class="btn" type="button" data-instructor-reset>Nova conversa</button></div><p id="pb-instructor-status" role="status"></p></form></section>';
@@ -3930,7 +3944,7 @@ function pbInstructorPaint(){
  var log=document.getElementById("pb-instructor-answer"),form=document.getElementById("pb-instructor-ai");if(!log||!form)return;
  log.innerHTML=pbInstructorChat.turns.map(function(t,i){
   if(t.role==="user")return '<article class="pb-instructor-user"><strong>Você</strong><p class="pb-instructor-text">'+esc(t.text)+'</p></article>';
-  return '<article><strong>Instrutor · '+esc(t.reference)+'</strong>'+pbInstructorAnswer(t.parts,t.sources,t.searchSuggestions)+'<div class="row"><button type="button" class="btn slim" data-instructor-save="'+i+'">Salvar na anotação</button><button type="button" class="btn slim" data-instructor-sermon="'+i+'">Acrescentar ao sermão</button><button type="button" class="btn slim" data-instructor-copy="'+i+'">Copiar análise</button></div></article>';
+  return '<article><strong>Instrutor · '+esc(t.reference)+(t.provider?' · '+(t.provider==='openai'?'OpenAI':'Gemini'):'')+'</strong>'+pbInstructorAnswer(t.parts,t.sources,t.searchSuggestions)+'<div class="row"><button type="button" class="btn slim" data-instructor-save="'+i+'">Salvar na anotação</button><button type="button" class="btn slim" data-instructor-sermon="'+i+'">Acrescentar ao sermão</button><button type="button" class="btn slim" data-instructor-copy="'+i+'">Copiar análise</button></div></article>';
  }).join("");
  form.querySelector('[type="submit"]').disabled=pbInstructorChat.pending;
  document.getElementById("pb-instructor-status").textContent=pbInstructorChat.pending?"Analisando a passagem e pesquisando fontes…":pbInstructorChat.error;
@@ -3975,7 +3989,7 @@ document.addEventListener("submit",async function(event){
   var studyText=selection.text||(loaded[0]?.verses||[]).map(function(v,i){var n=typeof v==="string"?i+1:Number(v.number||v.verse)||i+1;return selection.numbers.includes(n)?n+" — "+String(typeof v==="string"?v:v.text||v.content||"").replace(/<[^>]*>/g,""):"";}).filter(Boolean).join("\n");
   var result=await pbInstructorSend({reference:selection.reference,text:studyText.slice(0,6000),question:question,related:loaded[1],history:history},chat.controller.signal);
   if(chat.controller.signal.aborted)return;
-  chat.turns.push({role:"assistant",reference:selection.reference,parts:result.passages,text:result.passages.map(function(p){return p.text;}).join("\n\n"),sources:result.sources||[],searchSuggestions:result.searchSuggestions||""});
+  chat.turns.push({role:"assistant",reference:selection.reference,parts:result.passages,text:result.passages.map(function(p){return p.text;}).join("\n\n"),sources:result.sources||[],searchSuggestions:result.searchSuggestions||"",provider:result.provider});
   if(chat.turns.length>20)chat.turns.splice(0,chat.turns.length-20);
  }catch(error){
   chat.turns.pop();chat.error=error.name==="AbortError"?"Consulta cancelada ou tempo excedido.":error.message;
@@ -4236,16 +4250,17 @@ function openBibleSearch(){
 }
 
 function noteReviewConnection(){
- if(window.PBNoteReviewConnection)return window.PBNoteReviewConnection;
- var accessCode="";
- try{accessCode=localStorage.getItem("pb-note-review-access")||"";}catch(error){}
- return {endpoint:"https://pulpito-gemini.onrender.com/api/revisar-nota",accessCode:accessCode};
+ if(window.PBNoteReviewConnection)return Object.assign({provider:"gemini"},window.PBNoteReviewConnection);
+ var accessCode="",provider="gemini";
+ try{accessCode=localStorage.getItem("pb-note-review-access")||"";if(localStorage.getItem("pb-ai-provider")==="openai")provider="openai";}catch(error){}
+ return {endpoint:"https://pulpito-gemini.onrender.com/api/revisar-nota",accessCode:accessCode,provider:provider};
 }
 function noteReviewSettings(){
  var box=document.createElement("div");box.className="modal-backdrop";box.style.zIndex="99999";box.setAttribute("role","dialog");box.setAttribute("aria-modal","true");box.setAttribute("aria-label","Conectar IA");
- box.innerHTML='<div class="modal"><div class="panel-heading"><h2>Conectar IA</h2><button type="button" class="btn slim" data-ai-close>Fechar ✕</button></div><p>O Instrutor e a revisão usam o Gemini. Cole o código de acesso da sua IA para conectar este dispositivo.</p><label for="note-ai-access">Código de acesso</label><input id="note-ai-access" class="field" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Cole o código de acesso"><p class="feature-note">A chave do Gemini fica protegida no servidor. O texto é enviado somente quando você solicita uma revisão ou consulta ao Instrutor.</p><div data-ai-status role="status" aria-live="polite"></div><div class="btn-row"><button type="button" class="btn primary" data-ai-connect>Conectar</button><button type="button" class="btn" data-ai-disconnect>Desconectar</button></div></div>';
+ box.innerHTML='<div class="modal"><div class="panel-heading"><h2>Conectar IA</h2><button type="button" class="btn slim" data-ai-close>Fechar ✕</button></div><p>Escolha a IA para o Instrutor e a revisão das anotações. Use o mesmo código de acesso ao trocar de serviço.</p><label for="note-ai-provider">Inteligência artificial</label><select id="note-ai-provider" class="field"><option value="gemini">Google Gemini</option><option value="openai">OpenAI (ChatGPT)</option></select><p class="feature-note">Cada serviço usa a cota da conta cadastrada.</p><label for="note-ai-access">Código de acesso</label><input id="note-ai-access" class="field" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Cole o código ou mantenha o código já salvo"><p class="feature-note">As chaves das IAs ficam protegidas no servidor. O texto é enviado somente quando você solicita uma revisão ou consulta ao Instrutor.</p><div data-ai-status role="status" aria-live="polite"></div><div class="btn-row"><button type="button" class="btn primary" data-ai-connect>Conectar</button><button type="button" class="btn" data-ai-disconnect>Desconectar</button></div></div>';
  document.body.appendChild(box);
  var input=box.querySelector("input"),status=box.querySelector("[data-ai-status]"),button=box.querySelector("[data-ai-connect]");
+ var providerField=box.querySelector("#note-ai-provider");providerField.value=noteReviewConnection().provider;
  var controller=null;
  box.querySelector("[data-ai-close]").onclick=function(){controller?.abort();box.remove();};
  box.querySelector("[data-ai-disconnect]").onclick=function(){
@@ -4253,18 +4268,20 @@ function noteReviewSettings(){
   try{localStorage.removeItem("pb-note-review-access");input.value="";status.textContent="IA desconectada deste dispositivo.";}catch(error){status.textContent="Não foi possível alterar a conexão neste dispositivo.";}
  };
  button.onclick=async function(){
-  var code=input.value.trim();
+  var code=input.value.trim()||noteReviewConnection().accessCode;
+  var provider=providerField.value;
   if(code.length<20){status.textContent="Cole o código de acesso completo.";return;}
   controller?.abort();controller=new AbortController();
   var current=controller;
   button.disabled=true;status.textContent="Verificando a conexão…";
   var timer=setTimeout(function(){current.abort();},90000);
   try{
-   var response=await fetch("https://pulpito-gemini.onrender.com/api/revisar-nota",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+code},body:JSON.stringify({check:true}),signal:current.signal});
+   var response=await fetch("https://pulpito-gemini.onrender.com/api/revisar-nota",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+code},body:JSON.stringify({check:true,provider:provider}),signal:current.signal});
    var data=await response.json();
    if(!response.ok||data.connected!==true)throw Error(data.error||"Não foi possível conectar a IA.");
    if(!box.isConnected||current.signal.aborted)return;
-   localStorage.setItem("pb-note-review-access",code);input.value="";
+   localStorage.setItem("pb-note-review-access",code);localStorage.setItem("pb-ai-provider",provider);input.value="";
+   document.querySelectorAll("[data-ai-provider-label]").forEach(function(label){label.textContent=provider==="openai"?"OpenAI (ChatGPT)":"Google Gemini";});
    status.textContent="IA conectada. Feche esta janela para usar o Instrutor ou revisar suas anotações.";
   }catch(error){if(box.isConnected&&controller===current)status.textContent=error.name==="AbortError"?"Conexão cancelada ou tempo excedido.":error.message;}
   finally{clearTimeout(timer);if(controller===current)button.disabled=false;}
@@ -4316,7 +4333,7 @@ function noteModal(reference){
   try{
    var headers={"Content-Type":"application/json"};
    if(connection.accessCode)headers.Authorization="Bearer "+connection.accessCode;
-   var response=await fetch(endpoint,{method:"POST",headers:headers,body:JSON.stringify({text:original}),signal:reviewController.signal});
+   var response=await fetch(endpoint,{method:"POST",headers:headers,body:JSON.stringify({text:original,provider:connection.provider||"gemini"}),signal:reviewController.signal});
    if(response.status===404||response.status===405)throw Error("A revisão inteligente ainda não está ativada neste aplicativo.");
    var result=await response.json();
    if(!response.ok)throw Error(result.error||"Não foi possível revisar agora. Tente novamente.");

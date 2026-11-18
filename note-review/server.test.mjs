@@ -18,7 +18,7 @@ async function fixture(t, extra = {}) {
 }
 test('health stays available before key setup; reviewing fails closed', async t => {
   const {base, post} = await fixture(t, {apiKey: undefined});
-  assert.deepEqual(await (await fetch(base + '/health')).json(), {ok: true, configured: false, provider: 'gemini', instructor: true});
+  assert.deepEqual(await (await fetch(base + '/health')).json(), {ok: true, configured: false, provider: 'none', instructor: true, providers: {gemini: false, openai: false}});
   assert.equal((await post({text: 'deus e bom'})).status, 503);
 });
 test('authenticated CORS request revises without returning key or thought', async t => {

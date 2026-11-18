@@ -2,6 +2,7 @@ import {createServer} from 'node:http';
 import {timingSafeEqual} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {analyzeWithGemini} from './instructor.mjs';
+import {analyzeWithOpenAI, reviseWithOpenAI} from './openai.mjs';
 
 const instructions = [
   'Revise a anotação em português brasileiro. Retorne apenas a anotação revisada em texto simples.',
@@ -38,10 +39,12 @@ export async function reviseWithGemini(text, {apiKey, model, fetcher = fetch}) {
   return corrected;
 }
 
-export function createReviewServer({apiKey = process.env.GEMINI_API_KEY, model = process.env.GEMINI_MODEL || 'gemini-3.5-flash', accessCode = process.env.NOTE_REVIEW_ACCESS_CODE, instructorModel = process.env.INSTRUCTOR_MODEL || process.env.GEMINI_MODEL || 'gemini-flash-latest', fetcher = fetch} = {}) {
+export function createReviewServer({openaiApiKey = process.env.OPENAI_API_KEY, openaiModel = process.env.OPENAI_MODEL || 'gpt-6.2-astra', openaiReviewModel = process.env.OPENAI_REVIEW_MODEL || process.env.OPENAI_MODEL || 'gpt-6.2-astra', apiKey = process.env.GEMINI_API_KEY, model = process.env.GEMINI_MODEL || 'gemini-3.5-flash', accessCode = process.env.NOTE_REVIEW_ACCESS_CODE, instructorModel = process.env.INSTRUCTOR_MODEL || process.env.GEMINI_MODEL || 'gemini-flash-latest', fetcher = fetch} = {}) {
   let active = 0;
   let recent = [];
-  const configured = Boolean(apiKey && accessCode && accessCode.length >= 20);
+  const codeConfigured = Boolean(accessCode && accessCode.length >= 20);
+  const providers = {gemini: Boolean(apiKey && codeConfigured), openai: Boolean(openaiApiKey && codeConfigured)};
+  const configured = providers.gemini || providers.openai;
   return createServer(async (request, response) => {
     response.setHeader('Cache-Control', 'no-store');
     const origin = request.headers.origin;
@@ -55,12 +58,12 @@ export function createReviewServer({apiKey = process.env.GEMINI_API_KEY, model =
       response.writeHead(status, {'Content-Type': 'application/json; charset=utf-8'});
       response.end(JSON.stringify(data));
     };
-    if (request.url === '/health' && request.method === 'GET') return reply(200, {ok: true, configured, provider: 'gemini', instructor: true});
+    if (request.url === '/health' && request.method === 'GET') return reply(200, {ok: true, configured, provider: apiKey ? 'gemini' : openaiApiKey ? 'openai' : 'none', instructor: true, providers});
     if (origin && !origins.has(origin)) return reply(403, {error: 'Origem não autorizada.'});
     if (!['/api/revisar-nota', '/api/instrutor'].includes(request.url)) return reply(404, {error: 'Rota indisponível.'});
     if (request.method === 'OPTIONS') {response.writeHead(204); return response.end();}
     if (request.method !== 'POST') return reply(405, {error: 'Método inválido.'});
-    if (!configured) return reply(503, {error: 'Falta cadastrar GEMINI_API_KEY e o código de acesso no Render.'});
+    if (!codeConfigured) return reply(503, {error: 'Falta configurar NOTE_REVIEW_ACCESS_CODE no Render.'});
     const provided = Buffer.from(request.headers.authorization || '');
     const expected = Buffer.from('Bearer ' + accessCode);
     if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) return reply(401, {error: 'Código de acesso inválido. Abra Conectar IA para atualizar.'});
@@ -78,13 +81,19 @@ export function createReviewServer({apiKey = process.env.GEMINI_API_KEY, model =
       }
       let payload;
       try {payload = JSON.parse(Buffer.concat(chunks).toString('utf8'));} catch {return reply(400, {error: 'Dados inválidos.'});}
-      if (payload?.check === true) return reply(200, {connected: true, provider: 'gemini'});
-      if (request.url === '/api/instrutor') return reply(200, await analyzeWithGemini(payload, {apiKey, model: instructorModel, fetcher}));
+      const provider = payload?.provider ?? 'gemini';
+      if (!['gemini','openai'].includes(provider)) return reply(400, {error: 'Selecione Gemini ou OpenAI.'});
+      if (!providers[provider]) return reply(503, {error: 'Falta cadastrar ' + (provider === 'openai' ? 'OPENAI_API_KEY' : 'GEMINI_API_KEY') + ' no Render.'});
+      if (payload?.check === true) return reply(200, {connected: true, provider});
+      if (request.url === '/api/instrutor') {
+        const result = provider === 'openai' ? await analyzeWithOpenAI(payload, {apiKey: openaiApiKey, model: openaiModel, fetcher}) : await analyzeWithGemini(payload, {apiKey, model: instructorModel, fetcher});
+        return reply(200, {...result, provider});
+      }
       if (!payload || typeof payload.text !== 'string' || !payload.text.trim() || payload.text.length > 6000) return reply(400, {error: 'Envie uma anotação com até 6.000 caracteres.'});
-      const text = await reviseWithGemini(payload.text, {apiKey, model, fetcher});
+      const text = provider === 'openai' ? await reviseWithOpenAI(payload.text, instructions, {apiKey: openaiApiKey, model: openaiReviewModel, fetcher}) : await reviseWithGemini(payload.text, {apiKey, model, fetcher});
       return reply(200, {text});
     } catch (error) {
-      return reply(error.status || 502, {error: error.name === 'TimeoutError' ? 'O Gemini demorou para responder. Tente novamente.' : error.message || 'Não foi possível concluir a revisão.'});
+      return reply(error.status || 502, {error: error.name === 'TimeoutError' ? 'O serviço de IA demorou para responder. Tente novamente.' : error.message || 'Não foi possível concluir a revisão.'});
     } finally {active--;}
   });
 }
