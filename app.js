@@ -3989,10 +3989,46 @@ function openBibleSearch(){
  }).catch(function(){});
 }
 
+function noteReviewConnection(){
+ if(window.PBNoteReviewConnection)return window.PBNoteReviewConnection;
+ var accessCode="";
+ try{accessCode=localStorage.getItem("pb-note-review-access")||"";}catch(error){}
+ return {endpoint:"https://pulpito-gemini.onrender.com/api/revisar-nota",accessCode:accessCode};
+}
+function noteReviewSettings(){
+ var box=document.createElement("div");box.className="modal-backdrop";box.style.zIndex="99999";box.setAttribute("role","dialog");box.setAttribute("aria-modal","true");box.setAttribute("aria-label","Conectar IA");
+ box.innerHTML='<div class="modal"><div class="panel-heading"><h2>Conectar IA</h2><button type="button" class="btn slim" data-ai-close>Fechar ✕</button></div><p>A revisão usa o Gemini. Cole o código de acesso da sua IA para conectar este dispositivo.</p><label for="note-ai-access">Código de acesso</label><input id="note-ai-access" class="field" type="password" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="Cole o código de acesso"><p class="feature-note">A chave do Gemini fica protegida no servidor. As anotações são enviadas somente ao tocar em Revisar português.</p><div data-ai-status role="status" aria-live="polite"></div><div class="btn-row"><button type="button" class="btn primary" data-ai-connect>Conectar</button><button type="button" class="btn" data-ai-disconnect>Desconectar</button></div></div>';
+ document.body.appendChild(box);
+ var input=box.querySelector("input"),status=box.querySelector("[data-ai-status]"),button=box.querySelector("[data-ai-connect]");
+ var controller=null;
+ box.querySelector("[data-ai-close]").onclick=function(){controller?.abort();box.remove();};
+ box.querySelector("[data-ai-disconnect]").onclick=function(){
+  controller?.abort();controller=null;button.disabled=false;
+  try{localStorage.removeItem("pb-note-review-access");input.value="";status.textContent="IA desconectada deste dispositivo.";}catch(error){status.textContent="Não foi possível alterar a conexão neste dispositivo.";}
+ };
+ button.onclick=async function(){
+  var code=input.value.trim();
+  if(code.length<20){status.textContent="Cole o código de acesso completo.";return;}
+  controller?.abort();controller=new AbortController();
+  var current=controller;
+  button.disabled=true;status.textContent="Verificando a conexão…";
+  var timer=setTimeout(function(){current.abort();},90000);
+  try{
+   var response=await fetch("https://pulpito-gemini.onrender.com/api/revisar-nota",{method:"POST",headers:{"Content-Type":"application/json",Authorization:"Bearer "+code},body:JSON.stringify({check:true}),signal:current.signal});
+   var data=await response.json();
+   if(!response.ok||data.connected!==true)throw Error(data.error||"Não foi possível conectar a IA.");
+   if(!box.isConnected||current.signal.aborted)return;
+   localStorage.setItem("pb-note-review-access",code);input.value="";
+   status.textContent="IA conectada. Feche esta janela e toque em Revisar português.";
+  }catch(error){if(box.isConnected&&controller===current)status.textContent=error.name==="AbortError"?"Conexão cancelada ou tempo excedido.":error.message;}
+  finally{clearTimeout(timer);if(controller===current)button.disabled=false;}
+ };
+ input.focus();
+}
 function noteModal(reference){
  var noteReference=typeof reference==="string"?reference:ref();
  var n=state.notes.find(function(note){return note.ref===noteReference;});var modal=document.createElement("div");modal.className="modal-backdrop";modal.id="pb-modal";modal.dataset.noteReference=noteReference;
- modal.innerHTML='<div class="modal"><div class="panel-heading"><h2 class="section-heading">Anotação · '+esc(noteReference)+'</h2><button class="btn slim" data-act="close-modal">Fechar ✕</button></div><p class="feature-note">Registre sua observação, interpretação ou dúvida.</p><textarea id="note-text" class="editor large" lang="pt-BR" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Escreva sua anotação…">'+esc(n&&n.text||"")+'</textarea><div class="row" style="margin-top:10px"><button type="button" class="btn" data-note-review>Revisar português</button><span class="feature-note">Ortografia, pontuação e palavras ausentes</span></div><div data-note-review-result aria-live="polite"></div><div class="btn-row"><button class="btn" data-act="close-modal">Cancelar</button><button type="button" class="btn" data-note-editor-undo disabled>↶ Desfazer edição</button><button class="btn primary" data-act="save-note">Salvar anotação</button></div></div>';
+ modal.innerHTML='<div class="modal"><div class="panel-heading"><h2 class="section-heading">Anotação · '+esc(noteReference)+'</h2><button class="btn slim" data-act="close-modal">Fechar ✕</button></div><p class="feature-note">Registre sua observação, interpretação ou dúvida.</p><textarea id="note-text" class="editor large" lang="pt-BR" spellcheck="true" autocorrect="on" autocapitalize="sentences" placeholder="Escreva sua anotação…">'+esc(n&&n.text||"")+'</textarea><div class="row" style="margin-top:10px"><button type="button" class="btn" data-note-review>Revisar português</button><button type="button" class="btn" data-note-ai-settings>Conectar IA</button><span class="feature-note">Ortografia, pontuação e palavras ausentes</span></div><div data-note-review-result aria-live="polite"></div><div class="btn-row"><button class="btn" data-act="close-modal">Cancelar</button><button type="button" class="btn" data-note-editor-undo disabled>↶ Desfazer edição</button><button class="btn primary" data-act="save-note">Salvar anotação</button></div></div>';
  document.body.appendChild(modal);
  var editor=document.getElementById("note-text"),undoButton=modal.querySelector("[data-note-editor-undo]");
  var history=[],before=null,last={text:editor.value,start:0,end:0};
@@ -4013,16 +4049,18 @@ function noteModal(reference){
  undoButton.addEventListener("click",undoEdit);
  var reviewButton=modal.querySelector("[data-note-review]"),reviewResult=modal.querySelector("[data-note-review-result]");
  var reviewController=null,reviewVersion=0;
+ modal.querySelector("[data-note-ai-settings]").addEventListener("click",noteReviewSettings);
  editor.addEventListener("input",function(){
   reviewVersion++;reviewController?.abort();reviewResult.replaceChildren();reviewButton.disabled=false;
  });
  reviewButton.addEventListener("click",async function(){
   var original=editor.value;
+  var connection=noteReviewConnection();
+  if(!connection.accessCode){noteReviewSettings();return;}
   if(!original.trim()){notify("Escreva uma anotação antes de revisar.");return;}
   if(original.length>6000){notify("Revise até 6.000 caracteres de cada vez.");return;}
   var version=++reviewVersion;
   reviewController?.abort();reviewController=new AbortController();
-  var connection=window.PBNoteReviewConnection||{};
   var endpoint;
   try{endpoint=new URL(connection.endpoint||"/api/revisar-nota",location.origin);}
   catch(error){reviewResult.textContent="A conexão da revisão inteligente ainda precisa ser configurada.";return;}
@@ -4034,8 +4072,8 @@ function noteModal(reference){
    if(connection.accessCode)headers.Authorization="Bearer "+connection.accessCode;
    var response=await fetch(endpoint,{method:"POST",headers:headers,body:JSON.stringify({text:original}),signal:reviewController.signal});
    if(response.status===404||response.status===405)throw Error("A revisão inteligente ainda não está ativada neste aplicativo.");
-   if(!response.ok)throw Error("Não foi possível revisar agora. Tente novamente.");
    var result=await response.json();
+   if(!response.ok)throw Error(result.error||"Não foi possível revisar agora. Tente novamente.");
    if(typeof result.text!=="string"||!result.text.trim()||result.text.length>20000)throw Error("A revisão não retornou um texto válido.");
    if(!modal.isConnected||version!==reviewVersion||editor.value!==original)return;
    reviewResult.replaceChildren();
@@ -4721,4 +4759,5 @@ function startBuildUpdateWatcher(){
 startBuildUpdateWatcher();
 
 })();
+
 
