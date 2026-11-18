@@ -1,13 +1,13 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v73-instructor-gemini";
+const CACHE_NAME = "pulpito-bible-shell-v74-openai-integration";
 const APP_SHELL = [
   "/",
   "/pulpito.html",
-  "/styles.css?v=20261118-instructor-gemini",
+  "/styles.css?v=20261118-openai-integration",
   "/window-ui.js?v=20261115-responsive-navigation",
   "/split-study.js?v=20261113-paineis-profissionais",
-  "/app.js?v=20261118-instructor-gemini",
+  "/app.js?v=20261118-openai-integration",
   "/pulpito-manifest.webmanifest"
 ];
 const CDN_HOSTS = new Set([
