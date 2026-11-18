@@ -8,6 +8,7 @@ on:
     branches: [pulpito-bible-pwa]
     paths:
       - 'app.js'
+      - 'native/ModuleFilesPlugin.java'
       - 'window-ui.js'
       - 'split-study.js'
       - 'styles.css'
@@ -224,6 +225,7 @@ jobs:
             }
           }
           JAVA
+          cp native/ModuleFilesPlugin.java android/app/src/main/java/com/pulpitobible/app/ModuleFilesPlugin.java
           cat > android/app/src/main/java/com/pulpitobible/app/MainActivity.java <<'JAVA'
           package com.pulpitobible.app;
           
@@ -234,6 +236,7 @@ jobs:
             @Override
             public void onCreate(Bundle savedInstanceState) {
               registerPlugin(ApkUpdaterPlugin.class);
+              registerPlugin(ModuleFilesPlugin.class);
               super.onCreate(savedInstanceState);
             }
           }
@@ -425,3 +428,4 @@ jobs:
       RENDER_DEPLOY_HOOK: ${{ secrets.PULPITO_RENDER_DEPLOY_HOOK }}
 
 # Release publication includes the signed APK and SHA-256 updater manifest.
+
