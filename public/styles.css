@@ -2633,3 +2633,13 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
 .pb-sermon-chat .pb-instructor-prompts .btn{white-space:normal}
 
 .pb-instructor-citation{font-weight:700;text-decoration:underline;margin-inline:2px}
+
+
+.pb-morph-results{max-height:65dvh;overflow:auto;overscroll-behavior:contain}
+.pb-morph-segment{border-top:1px solid var(--border);padding-block:12px;margin-top:12px}
+#pb-morph-root input[type=file]{display:block;max-width:100%;margin-top:8px}
+#pb-morph-root .word-layout>*{min-width:0;overflow-wrap:anywhere}
+#pb-morph-root .original-hero{overflow-wrap:anywhere}
+.pb-tutor-ai{margin-top:18px}
+.pb-tutor-ai textarea{width:100%;min-height:90px}
+.pb-tutor-ai article{padding-block:12px;border-bottom:1px solid var(--border)}
