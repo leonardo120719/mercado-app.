@@ -8,6 +8,8 @@ export const instructorInstructions = [
  'Explique como um dado cultural realmente afeta esta passagem; não invente costumes ilustrativos. Se a referência não for reconhecível, peça uma referência bíblica válida. Não apresente reconstruções históricas discutidas como fatos certos.',
  'Para referências cruzadas, forneça livro, capítulo e versículo e explique se a relação é contexto próximo, citação, alusão, contraste ou paralelo temático. As referências sugeridas pelo aplicativo não são provas automáticas. Confira antes de usar e não substitua o sentido de um autor pelo de outro.',
  'Só atribua frase a um Pai da Igreja se localizar a fonte primária, com autor, obra e seção. Identifique tradução ou paráfrase, e comentário direto ou paralelo temático. Se não localizar, diga que não encontrou fonte verificável; nunca invente frase, obra, seção, citação ou link.',
+ 'Quando houver dados de tutor, avalie a resposta do aluno especificamente na etapa e no critério informados. Destaque observações bem fundamentadas, suposições que precisam de evidência, duas perguntas para aprofundar e um próximo passo. Considere as respostas anteriores sem tratar a opinião do aluno como fato. Não substitua automaticamente a resposta do aluno por uma redação pronta. A avaliação é orientação pedagógica, não uma certificação infalível.',
+ 'Os dados morfológicos de um corpus, quando fornecidos, registram ocorrências e códigos. Distinga-os de uma análise de construção sintática ou de aspecto inferida do contexto. Nunca apresente uma função de sujeito, objeto ou dependência sintática como se estivesse anotada na base quando ela não está.',
  'Ao orientar sermões, preserve a voz do autor, identifique saltos de interpretação e aplicações sem base, proponha estrutura expositiva e redação opcional. Nunca altere o texto do sermão por conta própria. Não trate uma sugestão pastoral como mandamento do texto.',
  'Faça citações curtas e dê crédito. Use títulos simples e parágrafos curtos. Não produza HTML. Os links de fontes devem vir da pesquisa, nunca ser inventados. Se a pesquisa não trouxer evidência suficiente, reconheça isso claramente.'
 ].join(' ');
@@ -17,9 +19,11 @@ export function normalizeStudy(input) {
  if (!input || typeof input.reference !== 'string' || !input.reference.trim() || input.reference.length > 1000) throw invalid('Informe uma passagem bíblica válida.');
  const clip = (value, size) => typeof value === 'string' ? value.slice(0, size) : '';
  const sermon = input.sermon && typeof input.sermon === 'object' ? input.sermon : {};
+ const tutor = input.tutor && typeof input.tutor === 'object' ? input.tutor : {};
  return {
   reference: input.reference.trim(), text: clip(input.text, 6000), question: clip(input.question, 1800) || 'Faça uma análise completa desta passagem.',
   sermon: {theme: clip(sermon.theme, 200), excerpt: clip(sermon.excerpt, 4000), field: clip(sermon.field, 80)},
+  tutor: {stage: clip(tutor.stage,80), criterion: clip(tutor.criterion,500), answer: clip(tutor.answer,4000), scope: clip(tutor.scope,20), answers: Array.isArray(tutor.answers) ? tutor.answers.slice(0,6).filter(a=>a && typeof a.text === 'string').map(a=>({stage:clip(a.stage,80),text:clip(a.text,1000)})) : []},
   history: Array.isArray(input.history) ? input.history.slice(-6).filter(t => t && ['user','assistant'].includes(t.role) && typeof t.text === 'string').map(t => ({role: t.role, text: t.text.slice(0, 1800)})) : [],
   related: Array.isArray(input.related) ? input.related.filter(x => typeof x === 'string').slice(0, 10).map(x => x.slice(0, 240)) : []
  };
@@ -58,3 +62,4 @@ export async function analyzeWithGemini(input, {apiKey, model = 'gemini-flash-la
   incomplete: false
  };
 }
+

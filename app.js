@@ -2491,6 +2491,17 @@ var words=[
 words.push({id:"H7563",label:"רְשָׁעִים",reading:"reshá'im",lemma:"רָשָׁע",code:"H7563",book:"Salmos 73:3",type:"Adjetivo usado como substantivo",tense:"Não se aplica",voice:"Não se aplica",mood:"Não se aplica",person:"Masculino plural",meaning:"Ímpios; pessoas perversas",note:"Na observação do salmista, רְשָׁעִים designa os ímpios cuja aparente prosperidade o perturba. O sentido do salmo exige acompanhar a mudança de perspectiva no santuário, em Salmos 73:17.",source:"https://biblehub.com/text/psalms/73-3.htm"});
 var currentWord=words[0],wordFilter="";
 function renderOriginal(){
+ if(!window.PBMorph){renderOriginalLegacy();return;}
+ return window.PBMorph.render({main:MAIN,books:booksFallback,escape:esc,parseReference:parseRef,isActive:function(){return state.page==="original";},context:{book:state.book,chapter:state.chapter,verse:state.selectedVerse||1,reference:activeBook.name+" "+state.chapter+":"+(state.selectedVerse||1)},interpret:function(entry,components,reference){
+  var parsed=entry.ref.split("."),book=booksFallback[window.PBMorph.books.indexOf(parsed[0])];if(!book)return;
+  state.book=book.slug;state.chapter=Number(parsed[1]);state.selectedVerse=Number(parsed[2]);activeBook=book;
+  var pack=window.PBMorph.packs.find(function(p){return p.id===entry.pack;}),source=pack?window.PBMorph.sourceURL(pack,false):"Arquivo local importado; procedência a conferir";
+  var text="Ocorrência: "+entry.row[0]+"\nForma: "+entry.row[1]+"\nLema(s): "+entry.row[5]+"\nStrong: "+entry.row[3]+"\nMorfologia bruta: "+entry.row[4]+"\n"+components.map(function(c){return c.code+": "+(c.description||"sem descrição no mapa");}).join("\n")+"\nFonte: "+source;
+  pbInstructorSelection={book:book.slug,chapter:state.chapter,numbers:[state.selectedVerse],version:state.version,reference:reference,text:text};page("instrutor");
+  var form=document.getElementById("pb-instructor-ai");if(form){form.elements.question.value="Analise a construção sintática desta ocorrência dentro da frase e da passagem. Os dados fornecidos são anotações do corpus, não uma tradução do versículo. Confira o texto completo. Distinga a morfologia registrada das hipóteses sobre função sintática e aspecto. Não deduza uma forma verbal apenas do Strong.";if(noteReviewConnection().accessCode)form.requestSubmit();else noteReviewSettings();}
+ }});
+}
+function renderOriginalLegacy(){
  if(currentWord)trackStudyActivity("Palavra original",currentWord.label||currentWord.lemma||currentWord.code,[currentWord.reading,currentWord.meaning,currentWord.code].join(" "));
  var results=words.filter(function(w){return !wordFilter||[w.label,w.reading,w.lemma,w.code,w.book,w.meaning].join(" ").toLowerCase().includes(wordFilter.toLowerCase());});
  MAIN.innerHTML='<div class="content">'+title("original")+'<p class="subtitle">Investigue a forma original, o número Strong, a função gramatical e o sentido no contexto. Abaixo há análises verificadas como demonstração — a importação integral da base morfológica ainda será uma expansão.</p>'+
@@ -2509,16 +2520,67 @@ var steps=[
  {name:"Conferir",q:"Como verificar minha leitura?",hint:"Confira referências relacionadas, comentários de linhas teológicas diferentes e o argumento completo. Registre questões em aberto e interpretações alternativas com honestidade.",prompt:"Quais textos ou fontes confirmam, complementam ou desafiam sua interpretação?",check:"Evitei fazer um texto remoto anular o sentido do contexto local?"},
  {name:"Aplicar",q:"Como aplicar com fidelidade?",hint:"Distinga o que o texto significava no contexto original do que ele implica para hoje. Prefira aplicações coerentes com sua mensagem principal.",prompt:"Que aplicação responsável decorre do texto e como explicá-la?",check:"Minha aplicação surge do significado do texto, e não o substitui?"}
 ];
-function studyKey(){return state.book+"/"+state.chapter;}
-function getStudy(){return state.studies[studyKey()]||{answers:{},checks:{}};}
+function studyKey(){return state.book+"/"+state.chapter+(state.tutorScope==="verse"?":"+(state.selectedVerse||1):"");}
+function getStudy(){var study=state.studies[studyKey()]||{};return Object.assign({},study,{answers:study.answers||{},checks:study.checks||{}});}
+var pbTutorSessions=new Map();
+function pbTutorReference(){return activeBook.name+" "+state.chapter+(state.tutorScope==="verse"?":"+(state.selectedVerse||1):"");}
+function pbTutorSessionKey(){return studyKey()+"|"+state.tutorStep;}
+function pbTutorSession(){var key=pbTutorSessionKey();if(!pbTutorSessions.has(key))pbTutorSessions.set(key,{turns:[],pending:false,error:""});return pbTutorSessions.get(key);}
+function pbTutorAIMarkup(){
+ return '<section class="card card-pad pb-tutor-ai"><div class="panel-heading"><h2 class="section-heading">Avaliação conversacional</h2><button type="button" class="btn slim" data-instructor-connect>Escolher IA</button></div><p class="feature-note">A IA avalia sua resposta desta etapa e ajuda a conferir as evidências. Suas respostas ficam salvas no estudo; salve no caderno as avaliações que deseja conservar.</p><button type="button" class="btn primary" data-tutor-ai-evaluate>Avaliar minha resposta</button><div id="pb-tutor-ai-messages" class="pb-instructor-conversation" role="log" aria-label="Conversa sobre esta etapa"></div><form id="pb-tutor-ai-form"><label for="pb-tutor-ai-question">Pergunta para o tutor<textarea id="pb-tutor-ai-question" name="question" class="editor" maxlength="1800" placeholder="Que evidência eu deveria conferir nesta interpretação?"></textarea></label><button class="btn" type="submit">Pedir orientação</button></form><p id="pb-tutor-ai-status" role="status" aria-live="polite"></p></section>';
+}
+function pbTutorAIPaint(){
+ if(state.page!=="tutor")return;
+ var box=document.getElementById("pb-tutor-ai-messages"),form=document.getElementById("pb-tutor-ai-form");if(!box||!form)return;
+ var session=pbTutorSession(),current=(getStudy().answers||{})[state.tutorStep]||"";
+ box.innerHTML=session.turns.map(function(t,i){
+  if(t.role==="user")return '<article><strong>Você</strong><p class="pb-instructor-text">'+esc(t.text)+'</p></article>';
+  return '<article><strong>Tutor · '+esc(t.stage)+' · '+esc(t.reference)+'</strong>'+(t.answerSnapshot!==current?'<p class="feature-note">Esta avaliação se refere à versão anterior da sua resposta. Solicite outra avaliação para revisar as alterações.</p>':"")+pbInstructorAnswer(t.parts,t.sources,t.searchSuggestions)+'<button type="button" class="btn slim" data-tutor-ai-save="'+i+'">Salvar avaliação na anotação</button></article>';
+ }).join("");
+ document.querySelector('[data-tutor-ai-evaluate]').disabled=session.pending;form.querySelector('[type="submit"]').disabled=session.pending;
+ document.getElementById("pb-tutor-ai-status").textContent=session.pending?"Avaliando sua resposta e conferindo fontes…":session.error;
+}
+async function pbTutorEvaluate(question){
+ var session=pbTutorSession();if(session.pending)return;
+ var editor=document.getElementById("tutor-answer"),answer=editor?editor.value:"",key=studyKey(),stageIndex=state.tutorStep,stage=steps[stageIndex];
+ if(!question&&answer.trim().length<15){notify("Escreva sua resposta antes de avaliar ou use a pergunta para pedir orientação.");return;}
+ if(!noteReviewConnection().accessCode){noteReviewSettings();return;}
+ var study=getStudy();study.answers[stageIndex]=answer;state.studies[key]=study;persist();
+ var savedAnswers=steps.map(function(s,i){return {stage:s.name,text:String(study.answers[i]||"").slice(0,1000)};});
+ var reference=pbTutorReference(),book=state.book,chapter=state.chapter,verse=state.selectedVerse||1,scope=state.tutorScope||"chapter",version=state.version;
+ var history=session.turns.slice(-4).map(function(t){return {role:t.role,text:t.text.slice(0,1800)};});
+ var prompt=question||"Avalie minha resposta nesta etapa. Mostre o que está bem fundamentado, o que precisa ser conferido e duas perguntas que me ajudem a melhorar, sem substituir meu raciocínio por uma resposta pronta.";
+ session.pending=true;session.error="";session.turns.push({role:"user",text:prompt});
+ var controller=new AbortController(),timer=setTimeout(function(){controller.abort();},130000),form=document.getElementById("pb-tutor-ai-form");if(form)form.elements.question.value="";pbTutorAIPaint();
+ try{
+  var data=await (version.startsWith("local:")?PBModules.getChapter(version,book,chapter):loadOnlineBibleChapter(version,book,chapter)).catch(function(){return null;});
+  var text=(data?.verses||[]).map(function(v,i){var n=typeof v==="string"?i+1:Number(v.number||v.verse)||i+1;if(scope==="verse"&&n!==verse)return "";return n+" — "+String(typeof v==="string"?v:v.text||v.content||"").replace(/<[^>]*>/g,"");}).filter(Boolean).join("\n");
+  var result=await pbInstructorSend({reference:reference,text:text.slice(0,6000),question:prompt,history:history,tutor:{stage:stage.name,criterion:stage.check,answer:answer.slice(0,4000),scope:scope,answers:savedAnswers}},controller.signal);
+  session.turns.push({role:"assistant",stage:stage.name,reference:reference,answerSnapshot:answer,parts:result.passages,text:result.passages.map(function(p){return p.text;}).join("\n\n"),sources:result.sources||[],searchSuggestions:result.searchSuggestions||"",provider:result.provider});
+  if(session.turns.length>6)session.turns.splice(0,session.turns.length-6);
+  if(!text)session.error="O texto da tradução não pôde ser carregado. A consulta usou sua resposta e a referência informada.";
+  else if(text.length>6000||answer.length>4000)session.error="Consulta limitada aos primeiros 6.000 caracteres da passagem e 4.000 da sua resposta. Divida o estudo para avaliar o restante.";
+ }catch(error){session.turns.pop();session.error=error.name==="AbortError"?"Consulta cancelada ou tempo excedido.":error.message;}
+ finally{clearTimeout(timer);session.pending=false;if(state.page==="tutor"&&studyKey()===key&&state.tutorStep===stageIndex)pbTutorAIPaint();}
+}
+document.addEventListener("submit",function(event){if(event.target.id!=="pb-tutor-ai-form")return;event.preventDefault();var question=event.target.elements.question.value.trim();if(question)pbTutorEvaluate(question);});
+document.addEventListener("click",function(event){
+ var evaluate=event.target.closest?.('[data-tutor-ai-evaluate]');if(evaluate){pbTutorEvaluate("");return;}
+ var save=event.target.closest?.('[data-tutor-ai-save]');if(!save)return;var turn=pbTutorSession().turns[Number(save.dataset.tutorAiSave)];if(turn?.role==="assistant")pbInstructorSaveNote(turn.reference,pbInstructorSavedText(turn));
+});
+document.addEventListener("change",function(event){if(event.target.id!=="pb-tutor-scope")return;state.tutorScope=event.target.value==="verse"?"verse":"chapter";persist();renderTutor();});
+
 function renderTutor(){
  var st=getStudy(),step=steps[state.tutorStep]||steps[0],ans=st.answers||{},checks=st.checks||{},done=Object.keys(ans).filter(function(k){return (ans[k]||"").trim().length>=15;}).length;
  MAIN.innerHTML='<div class="content">'+title("tutor")+'<p class="subtitle">Um professor de exegese guiando suas próprias descobertas. Não apresenta uma resposta pronta como se fosse infalível: ensina a investigar, formular hipóteses e conferir evidências.</p>'+
- '<div class="card card-pad" style="margin-bottom:18px"><div class="panel-heading"><div><div class="caps">SEU ESTUDO ATUAL</div><h2 class="section-heading" style="margin-top:8px">'+esc(activeBook.name)+' '+state.chapter+'</h2></div><span class="chip greenish">'+done+' de 6 etapas respondidas</span></div><div class="progress"><div class="progress-fill" style="width:'+(done/6*100)+'%"></div></div><button class="btn slim" data-page="leitura">← Voltar ao texto bíblico</button><button class="btn primary" data-act="pb-instructor-selection">Consultar Instrutor IA</button></div>'+
+ '<div class="card card-pad" style="margin-bottom:18px"><div class="panel-heading"><div><div class="caps">SEU ESTUDO ATUAL</div><h2 class="section-heading" style="margin-top:8px">'+esc(pbTutorReference())+'</h2></div><span class="chip greenish">'+done+' de 6 etapas respondidas</span></div><div class="progress"><div class="progress-fill" style="width:'+(done/6*100)+'%"></div></div><button class="btn slim" data-page="leitura">← Voltar ao texto bíblico</button><label>Salvar respostas por <select class="field" id="pb-tutor-scope"><option value="chapter"'+(state.tutorScope!=="verse"?" selected":"")+'>Capítulo inteiro</option><option value="verse"'+(state.tutorScope==="verse"?" selected":"")+'>Versículo selecionado</option></select></label><button class="btn primary" data-act="pb-instructor-selection">Consultar Instrutor IA</button></div>'+
  '<div class="step-tabs">'+steps.map(function(s,i){return '<button class="step-tab'+(i===state.tutorStep?" active":"")+(ans[i]&&ans[i].trim().length>=15?" done":"")+'" data-step="'+i+'">'+(i+1)+'. '+esc(s.name)+'</button>';}).join("")+'</div>'+
  '<div class="grid-2"><div class="card card-pad"><div class="eyebrow">ETAPA '+(state.tutorStep+1)+' DE 6</div><h2 class="page-title" style="font-size:24px">'+esc(step.q)+'</h2><div class="learning-block lesson-text">'+esc(step.hint)+'</div><div class="rule"></div><label class="label" for="tutor-answer">'+esc(step.prompt)+'</label><textarea class="editor" id="tutor-answer" placeholder="Escreva suas descobertas…">'+esc(ans[state.tutorStep]||"")+'</textarea><div class="small-stat" style="margin-top:10px">↻ Suas respostas são salvas neste navegador</div><div class="btn-row"><button class="btn" data-act="step-prev"'+(state.tutorStep===0?" disabled":"")+'>← Anterior</button><button class="btn primary" data-act="step-next">'+(state.tutorStep===5?"Concluir estudo":"Próxima etapa →")+'</button></div></div>'+
  '<div class="aside-stack"><div class="card card-pad"><div class="caps">PROFESSOR DE INTERPRETAÇÃO</div><h3 class="prompt">'+esc(step.check)+'</h3><div class="tip">Dica de método: a boa interpretação apresenta <strong>evidências textuais</strong>, considera o <strong>contexto</strong> e reconhece as próprias limitações.</div><p class="feature-note">Após escrever, use a pergunta de revisão para avaliar sua resposta. Use o Instrutor IA para discutir a interpretação, comparar hipóteses e pesquisar fontes sem perder suas próprias respostas.</p><button class="btn" data-act="tutor-guidance">Ver orientação desta etapa</button><div id="tutor-guidance"></div></div><div class="card card-pad"><div class="caps">ESTRUTURA DO SEU MÉTODO</div><div class="aside-stack" style="margin-top:15px">'+steps.map(function(s,i){return '<div class="small-stat">'+(ans[i]&&ans[i].trim().length>=15?"✓":"○")+' <strong style="font-size:12px">'+esc(s.name)+'</strong></div>';}).join("")+'</div></div></div></div></div>';
+ MAIN.querySelector(".content").insertAdjacentHTML("beforeend",pbTutorAIMarkup());
+ pbTutorAIPaint();
 }
+
 var questions=[
  {q:"Em João 15:4, a forma grega μείνατε é classificada como:",opts:["Presente do indicativo, 1ª pessoa","Aoristo imperativo ativo, 2ª pessoa do plural","Futuro passivo, 3ª pessoa","Substantivo feminino"],correct:1,why:"μείνατε (G3306) é aoristo imperativo ativo, segunda pessoa do plural. O aspecto aorístico, por si, não estabelece duração pontual."},
  {q:"Qual deve ser o primeiro passo de uma interpretação cuidadosa?",opts:["Buscar uma aplicação para hoje","Isolar uma palavra do dicionário","Observar o texto e seu contexto","Escolher o comentário preferido"],correct:2,why:"A observação atenta e a delimitação do contexto vêm antes de elaborar conclusões doutrinárias ou aplicações."},
@@ -2854,8 +2916,8 @@ function renderMarket(){
 }
 var roadmap=[
  ["Leitura completa dos 66 livros","Selecionar livro, capítulo, versão livre, versículos, notas e favoritos.","Disponível na versão inicial mediante conexão com a API; capítulos já acessados ficam em cache local."],
- ["Morfologia e Strong","Grego e hebraico: lema, número Strong, tempo, aspecto, modo, voz, pessoa, gênero, caso, classe e construção sintática.","Cinco amostras verificadas disponíveis; importação geral planejada com STEPBible."],
- ["Assistente hermenêutico","Ensina observação, contexto, gramática, interpretação, verificação e aplicação; registra respostas por passagem.","Tutor guiado funcional; avaliação conversacional por IA requer integração posterior."],
+ ["Morfologia e Strong","Grego e hebraico: lema, número Strong, tempo, aspecto, modo, voz, pessoa, gênero, caso, classe e construção sintática.","Consulta por ocorrência com importação TAGNT/TAHOT, tabelas de códigos STEPBible e armazenamento offline. Sintaxe e aspecto são avaliados no contexto, sem inferir morfologia pelo Strong."],
+ ["Assistente hermenêutico","Ensina observação, contexto, gramática, interpretação, verificação e aplicação; registra respostas por passagem.","Tutor de seis etapas com respostas salvas por capítulo ou versículo e avaliação conversacional integrada à IA configurada. A resposta da IA depende da chave e da cota do provedor."],
  ["Exercícios com feedback","Questões de exegese, tempo verbal, gênero, contexto, erros comuns e aplicação.","Primeiro conjunto de exercícios disponível."],
  ["Criador de sermões","Tema, passagem, introdução, contexto, tópicos, aplicação, conclusão, copiar e exportar.","Editor e salvamento local disponíveis."],
  ["Biblioteca teológica","Livros, PDFs, comentários, páginas, resumos, marcações, referências e integração ao leitor.","Planejado; exige importação de documentos autorizados e indexação."],
@@ -5024,6 +5086,7 @@ function startBuildUpdateWatcher(){
 startBuildUpdateWatcher();
 
 })();
+
 
 
 
