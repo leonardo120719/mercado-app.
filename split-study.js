@@ -278,7 +278,7 @@ function attach(config){
  '<button id="pb-split-menu-button" type="button" class="pb-split-selector" data-pbsplit="menu" aria-expanded="false" aria-controls="pb-split-picker">▤ <span id="pb-split-name">Comentários</span> <b>⌄</b></button>'+
  '<strong class="pb-split-ref" id="pb-split-ref"></strong><button class="pb-split-switch-dictionary" type="button" data-pbsplit="dictionary" aria-label="Abrir dicionários" title="Mostrar dicionários">α <span>Dicionários</span></button><div class="pb-split-toolbar-actions">'+
  '<input id="pb-split-search" type="search" aria-label="Pesquisar nos comentários" placeholder="Pesquisar comentário…"><button data-pbsplit="search-commentary" type="button" aria-label="Pesquisar nos comentários" title="Pesquisar nos comentários">⌕</button><button data-pbsplit="bible-search" type="button" aria-label="Pesquisar na Bíblia" title="Pesquisar na Bíblia">🔍</button><button data-pbsplit="prev" type="button" aria-label="Módulo anterior">‹</button><button data-pbsplit="next" type="button" aria-label="Próximo módulo">›</button>'+
- '</div><button class="pb-split-close" data-pbsplit="close" type="button" title="Fechar comentários" aria-label="Fechar a janela de comentários">×</button></header>'+
+ '<button data-pbsplit="close" type="button" aria-label="Fechar a janela de comentários">×</button></div></header>'+
  '<div class="pb-split-picker" id="pb-split-picker" hidden>'+
  '<div class="pb-split-picker-heading"><strong>Comentários instalados</strong><span>'+installed().length+' módulos</span></div>'+
  '<input id="pb-split-filter" type="search" placeholder="Pesquisar comentário…" aria-label="Pesquisar comentário instalado">'+
@@ -348,4 +348,3 @@ function bindPanelResize(root,config){
 }
 global.PBSplitStudy={bindPanelResize:bindPanelResize,attach:attach,destroy:destroy,refresh:refresh,menu:menu,syncBibleScroll:syncBibleScroll};
 })(window);
-
