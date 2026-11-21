@@ -2643,3 +2643,23 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
 .pb-tutor-ai{margin-top:18px}
 .pb-tutor-ai textarea{width:100%;min-height:90px}
 .pb-tutor-ai article{padding-block:12px;border-bottom:1px solid var(--border)}
+
+/* Keep the commentary close action outside the controls that can overflow. */
+.pb-split-bar{min-width:0}
+.pb-split-bar>.pb-split-toolbar-actions{flex:1 1 280px;min-width:0;overflow-x:auto;overscroll-behavior-x:contain}
+.pb-split-bar>.pb-split-toolbar-actions>button{flex-shrink:0}
+#pb-split-search{box-sizing:border-box;flex:1 1 120px;width:120px;min-width:64px;max-width:240px}
+.pb-split-bar>.pb-split-close{flex:0 0 36px;width:36px;min-width:36px;height:36px;padding:0;border:1px solid #7d8b94;border-radius:4px;background:#434c54;color:#fff;font-size:26px;line-height:1;cursor:pointer}
+.pb-split-close:hover{background:#8e3434}
+.pb-split-close:focus-visible{outline:2px solid #f2d37e;outline-offset:1px}
+html[data-pb-layout="premium"] .pb-split-close{background:#1b354a;color:#f0cc80}
+html[data-pb-layout="academic"] .pb-split-close{background:#fff;color:#315f89;border-color:#98b4ce}
+@media(max-width:900px){
+ .pb-split-bar{display:grid;grid-template-columns:minmax(66px,1fr) minmax(0,1fr) auto 36px;gap:4px;padding:4px}
+ .pb-split-bar>.pb-split-selector{grid-column:1;grid-row:1;min-width:0;max-width:none;width:100%}
+ .pb-split-bar>.pb-split-ref{grid-column:2;grid-row:1}
+ .pb-split-bar>.pb-split-switch-dictionary{grid-column:3;grid-row:1}
+ .pb-split-bar>.pb-split-close{grid-column:4;grid-row:1}
+ .pb-split-bar>.pb-split-toolbar-actions{grid-column:1 / -1;grid-row:2;width:100%;min-width:0}
+ #pb-split-search{max-width:none}
+}

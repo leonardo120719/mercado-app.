@@ -1,15 +1,15 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v75-morphology-tutor";
+const CACHE_NAME = "pulpito-bible-shell-v76-comment-close";
 const APP_SHELL = [
   "/morphology.js?v=20261119-morphology-tutor",
   "/morphology-codes.json",
   "/morphology-samples.json",
   "/",
   "/pulpito.html",
-  "/styles.css?v=20261119-morphology-tutor",
+  "/styles.css?v=20261121-comment-close",
   "/window-ui.js?v=20261115-responsive-navigation",
-  "/split-study.js?v=20261113-paineis-profissionais",
+  "/split-study.js?v=20261121-comment-close",
   "/app.js?v=20261119-morphology-tutor",
   "/pulpito-manifest.webmanifest"
 ];
