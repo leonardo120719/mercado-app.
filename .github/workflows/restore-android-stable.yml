@@ -1,0 +1,26 @@
+name: Restaurar APK Android estável
+on:
+  push:
+    branches: [pulpito-bible-pwa]
+    paths: ['.github/workflows/restore-android-stable.yml']
+permissions:
+  contents: write
+jobs:
+  restore-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: c9c5836de78fb2767591df5ae889ffd7dcbcc4bc
+      - name: Verificar e restaurar APK original 1.0.179
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s  %s\n' '3feb28a8c59f640063457f7c99ea2f90761f3644194ca176176ff03cd8fa5c98' 'public/downloads/pulpito-bible.apk' | sha256sum --check
+          gh release upload pulpito-latest public/downloads/pulpito-bible.apk --clobber
+          mkdir /tmp/verify-restored
+          gh release download pulpito-latest --pattern pulpito-bible.apk --dir /tmp/verify-restored
+          printf '%s  %s\n' '3feb28a8c59f640063457f7c99ea2f90761f3644194ca176176ff03cd8fa5c98' '/tmp/verify-restored/pulpito-bible.apk' | sha256sum --check
