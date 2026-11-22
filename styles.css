@@ -2669,3 +2669,11 @@ body.pb-fullscreen .pb-top-shell .workarea{margin-left:0;width:100%;padding-top:
  .pb-mode-fullscreen .mtb-fullscreen>.mtb-button,
  .pb-mode-fullscreen .mtb-fullscreen>.pb-mw-toolbar>.mtb-button{height:44px}
 }
+
+/* Anchor fullscreen tools to the viewport, independently of scroll containers. */
+body.pb-fullscreen .pb-global-toolbar.pb-mode-fullscreen,
+body.pb-fullscreen .pb-top-shell .pb-global-toolbar.pb-mode-fullscreen{
+ position:fixed;top:0;left:0;right:0;bottom:auto;
+ width:100%;max-width:none;margin:0;z-index:90;
+}
+.pb-fullscreen-toolbar-space{display:block;width:100%;flex-shrink:0;pointer-events:none}
