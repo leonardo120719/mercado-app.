@@ -2664,17 +2664,18 @@ html[data-pb-layout="academic"] .pb-split-close{background:#fff;color:#315f89;bo
  #pb-split-search{max-width:none}
 }
 
-/* Web reader: reserve a complete row for passage selection on narrow screens. */
-.pb-global-toolbar .mtb-primary{flex-wrap:wrap}
-.pb-global-toolbar .mtb-navigate{flex-basis:360px;min-width:360px}
+/* Web reader: compact passage controls and tools share all available row space. */
+.pb-global-toolbar .mtb-primary{display:flex;flex-wrap:wrap;justify-content:flex-start;gap:2px}
+.pb-global-toolbar .mtb-navigate{flex:0 1 auto;min-width:min(100%,360px);max-width:100%;box-sizing:border-box}
 .pb-global-toolbar .mtb-book{flex:0 1 160px;width:160px;min-width:140px;max-width:160px}
+.pb-global-toolbar .mtb-actions{display:contents}
+.pb-global-toolbar .mtb-actions .mtb-button{flex:1 0 36px}
+.pb-global-toolbar .mtb-primary>.pb-mw-toolbar{flex:1 0 44px}
+.pb-global-toolbar .mtb-primary>.pb-mw-toolbar>.mtb-button{width:100%}
 @media(max-width:1000px){
- .pb-global-toolbar .mtb-primary{display:grid;grid-template-columns:44px minmax(0,1fr);gap:2px}
- .pb-global-toolbar .mtb-navigate{grid-column:1 / -1;grid-row:1;min-width:0;width:100%;box-sizing:border-box}
- .pb-global-toolbar .mtb-book{flex:0 1 160px;width:min(160px,42vw);min-width:0;max-width:160px}
+ .pb-global-toolbar .mtb-navigate{min-width:min(100%,280px)}
+ .pb-global-toolbar .mtb-book{min-width:0}
  .pb-global-toolbar .mtb-navigate .mtb-select{font-size:12px}
  .pb-global-toolbar .mtb-navigate .mtb-compact{display:inline-flex;flex-shrink:0}
- .pb-global-toolbar .mtb-primary>.pb-mw-toolbar{grid-column:1;grid-row:2}
- .pb-global-toolbar .mtb-actions{grid-column:2;grid-row:2;min-width:0;flex-wrap:wrap}
- .pb-global-toolbar .mtb-actions .mtb-button{flex:1 1 30px}
+ .pb-global-toolbar .mtb-actions .mtb-button{flex-basis:32px}
 }
