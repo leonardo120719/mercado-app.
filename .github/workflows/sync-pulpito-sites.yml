@@ -56,14 +56,14 @@ jobs:
           mkdir -p target/public/downloads
           cp release-apk/app-release.apk target/public/downloads/pulpito-bible.apk
           apk_sha256=$(sha256sum release-apk/app-release.apk | awk '{print $1}')
-          assets=(app.js morphology.js morphology-codes.json morphology-samples.json window-ui.js split-study.js pulpito.html styles.css pulpito-sw.js pulpito-manifest.webmanifest
+          assets=(app.js commentary-marks.js morphology.js morphology-codes.json morphology-samples.json window-ui.js split-study.js pulpito.html styles.css pulpito-sw.js pulpito-manifest.webmanifest
                   pulpito-acervo.json pulpito-crossrefs.json pulpito-icon-192.svg
                   pulpito-icon-512.svg pulpito-icon-official.svg)
           mkdir -p target/public
           source_message=$(git -C source log -1 --format=%s)
           for asset in "${assets[@]}"; do
             if [[ "$source_message" == *"[apk-only]"* ]]; then
-              case "$asset" in app.js|styles.css|pulpito.html|pulpito-sw.js) continue ;; esac
+              case "$asset" in app.js|styles.css|pulpito.html|pulpito-sw.js|split-study.js) continue ;; esac
             fi
             cp "source/$asset" "target/$asset"
             cp "source/$asset" "target/public/$asset"
