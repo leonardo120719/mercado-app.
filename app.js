@@ -1132,35 +1132,44 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
   /* A single mounted toolbar subscribes to state. DOM event delegation prevents
      listener proliferation even when the contents are refreshed. */
   let mountRoot=null, mountConfig=null, unsubscribe=null;
-  let fullscreenSpacer=null, fullscreenObserver=null, fullscreenResize=null;
-  function releaseFullscreenBar(){
-    if(fullscreenObserver){fullscreenObserver.disconnect();fullscreenObserver=null;}
-    if(fullscreenResize){window.removeEventListener("resize",fullscreenResize);fullscreenResize=null;}
-    if(fullscreenSpacer){fullscreenSpacer.remove();fullscreenSpacer=null;}
+  let readerSpacer=null, readerObserver=null, readerResize=null;
+  function releasePinnedReaderBar(){
+    if(readerObserver){readerObserver.disconnect();readerObserver=null;}
+    if(readerResize){window.removeEventListener("resize",readerResize);readerResize=null;}
+    if(readerSpacer){readerSpacer.remove();readerSpacer=null;}
+    if(mountRoot)mountRoot.classList.remove("pb-reader-pinned");
   }
-  function syncFullscreenBar(enabled){
-    if(!enabled){releaseFullscreenBar();return;}
+  function syncPinnedReaderBar(){
     const root=mountRoot;
     if(!root||!root.isConnected||!root.parentNode)return;
-    if(!fullscreenSpacer){
-      fullscreenSpacer=document.createElement("div");
-      fullscreenSpacer.className="pb-fullscreen-toolbar-space";
-      fullscreenSpacer.setAttribute("aria-hidden","true");
-      root.parentNode.insertBefore(fullscreenSpacer,root);
+    root.classList.add("pb-reader-pinned");
+    if(!readerSpacer){
+      readerSpacer=document.createElement("div");
+      readerSpacer.className="pb-reader-toolbar-space";
+      readerSpacer.setAttribute("aria-hidden","true");
+      root.parentNode.insertBefore(readerSpacer,root);
     }
-    if(!fullscreenResize){
-      fullscreenResize=function(){
-        if(mountRoot===root&&root.isConnected&&fullscreenSpacer){
-          fullscreenSpacer.style.height=Math.ceil(root.getBoundingClientRect().height)+"px";
-        }
+    if(!readerResize){
+      const header=document.getElementById("topbar");
+      readerResize=function(){
+        if(mountRoot!==root||!root.isConnected||!readerSpacer)return;
+        const bounds=readerSpacer.getBoundingClientRect();
+        const narrow=window.matchMedia("(max-width:1099px)").matches;
+        const headerHeight=narrow&&header?Math.max(0,header.getBoundingClientRect().height):0;
+        root.style.setProperty("--pb-pinned-top",Math.ceil(headerHeight)+"px");
+        root.style.setProperty("--pb-pinned-left",Math.max(0,bounds.left)+"px");
+        root.style.setProperty("--pb-pinned-width",Math.max(0,bounds.width)+"px");
+        readerSpacer.style.height=Math.ceil(root.getBoundingClientRect().height)+"px";
       };
-      window.addEventListener("resize",fullscreenResize);
+      window.addEventListener("resize",readerResize);
       if(window.ResizeObserver){
-        fullscreenObserver=new window.ResizeObserver(fullscreenResize);
-        fullscreenObserver.observe(root);
+        readerObserver=new window.ResizeObserver(readerResize);
+        readerObserver.observe(root);
+        readerObserver.observe(root.parentNode);
+        if(header)readerObserver.observe(header);
       }
     }
-    fullscreenResize();
+    readerResize();
   }
   function escapeHtml(value){
     return String(value == null ? "" : value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -1248,7 +1257,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     mountRoot.innerHTML=markup+(s.menuOpen?menuMarkup(s):'');
     mountRoot.className="pb-global-toolbar "+("pb-mode-"+mode);
     mountRoot.setAttribute("aria-label",mode==="selection"?"Ações para versículos selecionados":"Ferramentas de leitura bíblica");
-    syncFullscreenBar(mode==="fullscreen");
+    syncPinnedReaderBar();
   }
   function clickHandler(event){
     const root=mountRoot;if(!root)return;
@@ -1293,7 +1302,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     return unmount;
   }
   function unmount(){
-    releaseFullscreenBar();
+    releasePinnedReaderBar();
     if(unsubscribe){unsubscribe();unsubscribe=null;}
     if(mountRoot){mountRoot.removeEventListener("click",clickHandler);mountRoot.removeEventListener("change",changeHandler);}
     mountRoot=null;mountConfig=null;
