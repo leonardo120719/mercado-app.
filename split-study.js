@@ -45,7 +45,7 @@ async function searchCommentary(){
   active.searchResults=result.results||[];
   if(target)target.innerHTML=active.searchResults.length?active.searchResults.map(function(row,index){
    var label=row.book+" "+(row.fromChapter||1)+(row.fromVerse?":"+row.fromVerse:"");
-   return '<article class="pb-split-entry"><div class="pb-split-entry-heading"><strong>'+esc(row.moduleName||"Comentário")+' · '+esc(label)+'</strong></div><div class="pb-split-entry-text">'+esc(row.text||"")+'</div><div class="pb-split-entry-actions"><button data-pbsplit="sermon-search" data-index="'+index+'" type="button">▤ Inserir no sermão</button><button data-pbsplit="open-search-ref" data-index="'+index+'" type="button">Abrir passagem</button></div></article>';
+   return '<article class="pb-split-entry"><div class="pb-split-entry-heading"><strong>'+esc(row.moduleName||"Comentário")+' · '+esc(label)+'</strong></div><div class="pb-split-entry-text"'+(global.PBCommentMarks?global.PBCommentMarks.attrs(row,{book:row.book,name:row.book,chapter:row.fromChapter,verse:row.fromVerse}):'')+'>'+esc(row.text||"")+'</div><div class="pb-split-entry-actions"><button data-pbsplit="sermon-search" data-index="'+index+'" type="button">▤ Inserir no sermão</button><button data-pbsplit="open-search-ref" data-index="'+index+'" type="button">Abrir passagem</button></div></article>';
   }).join(""):'<div class="pb-split-message">Nenhum comentário encontrado para este termo.</div>';
   current.config.notify((result.total||0)+" resultado(s) nos comentários.");
  }catch(error){if(current===active&&active.searchToken===token&&target)target.textContent="Falha na pesquisa: "+error.message;}
@@ -72,7 +72,7 @@ function renderRows(rows,ctx,selected,terms){
   var context={name:ctx.name,book:ctx.book,chapter:chapter};
   var links=global.PBConnections;
   return '<article class="pb-split-entry"><div class="pb-split-entry-heading">'+links.referenceButton(ref,ref)+'<small>'+links.linkifyText(r.marker,[],false,context)+'</small></div>'+
-   '<div class="pb-split-entry-text">'+highlightCommentaryScripture(highlightOriginalLanguage(links.linkifyText(r.text,terms,false,context)))+'</div><div class="pb-split-entry-actions">'+
+   '<div class="pb-split-entry-text"'+(global.PBCommentMarks?global.PBCommentMarks.attrs(r,ctx,selected):'')+'>'+highlightCommentaryScripture(highlightOriginalLanguage(links.linkifyText(r.text,terms,false,context)))+'</div><div class="pb-split-entry-actions">'+
    '<button data-pbsplit="sermon" data-index="'+i+'" type="button">▤ Inserir no sermão</button>'+
    '<button data-pbsplit="copy" data-index="'+i+'" type="button">▣ Copiar</button></div></article>';
  }).join("");
@@ -278,7 +278,7 @@ function attach(config){
  '<button id="pb-split-menu-button" type="button" class="pb-split-selector" data-pbsplit="menu" aria-expanded="false" aria-controls="pb-split-picker">▤ <span id="pb-split-name">Comentários</span> <b>⌄</b></button>'+
  '<strong class="pb-split-ref" id="pb-split-ref"></strong><button class="pb-split-switch-dictionary" type="button" data-pbsplit="dictionary" aria-label="Abrir dicionários" title="Mostrar dicionários">α <span>Dicionários</span></button><div class="pb-split-toolbar-actions">'+
  '<input id="pb-split-search" type="search" aria-label="Pesquisar nos comentários" placeholder="Pesquisar comentário…"><button data-pbsplit="search-commentary" type="button" aria-label="Pesquisar nos comentários" title="Pesquisar nos comentários">⌕</button><button data-pbsplit="bible-search" type="button" aria-label="Pesquisar na Bíblia" title="Pesquisar na Bíblia">🔍</button><button data-pbsplit="prev" type="button" aria-label="Módulo anterior">‹</button><button data-pbsplit="next" type="button" aria-label="Próximo módulo">›</button>'+
- '<button data-pbsplit="close" type="button" aria-label="Fechar a janela de comentários">×</button></div></header>'+
+ '</div><button class="pb-split-close" data-pbsplit="close" type="button" title="Fechar comentários" aria-label="Fechar a janela de comentários">×</button></header>'+
  '<div class="pb-split-picker" id="pb-split-picker" hidden>'+
  '<div class="pb-split-picker-heading"><strong>Comentários instalados</strong><span>'+installed().length+' módulos</span></div>'+
  '<input id="pb-split-filter" type="search" placeholder="Pesquisar comentário…" aria-label="Pesquisar comentário instalado">'+
@@ -348,3 +348,4 @@ function bindPanelResize(root,config){
 }
 global.PBSplitStudy={bindPanelResize:bindPanelResize,attach:attach,destroy:destroy,refresh:refresh,menu:menu,syncBibleScroll:syncBibleScroll};
 })(window);
+

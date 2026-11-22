@@ -1,16 +1,17 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v82-reader-fixed";
+const CACHE_NAME = "pulpito-bible-shell-v83-comment-marks";
 const APP_SHELL = [
+  "/commentary-marks.js?v=20261122-comment-marks",
   "/morphology.js?v=20261119-morphology-tutor",
   "/morphology-codes.json",
   "/morphology-samples.json",
   "/",
   "/pulpito.html",
-  "/styles.css?v=20261122-reader-fixed",
-  "/window-ui.js?v=20261115-responsive-navigation",
+  "/styles.css?v=20261122-comment-marks",
+  "/window-ui.js?v=20261122-comment-marks",
   "/split-study.js?v=20261121-comment-close",
-  "/app.js?v=20261122-reader-fixed",
+  "/app.js?v=20261122-comment-marks",
   "/pulpito-manifest.webmanifest"
 ];
 const CDN_HOSTS = new Set([

@@ -335,9 +335,11 @@ function forEachIndexedCommentary(db,moduleId,book,chapter,visitor,maxMatches){
 }
 async function getCommentaries(book,chapter,verse,moduleId){
  var db=await dbOpen(),chap=Number(chapter),active=modules.filter(function(m){return m.type==="commentary"&&(!moduleId||m.id===moduleId);});
+ var markedTarget=window.PBCommentMarks&&window.PBCommentMarks.targetFor(moduleId,book,chap);
  var found=await Promise.all(active.map(async function(m){
   var results=[];
   function accept(e){if(!hasCommentaryText(e)||!commentaryCovers(e,chap,verse))return false;
+   if(markedTarget&&!window.PBCommentMarks.matchesSource(Object.assign({},e,{text:repairModuleText(e.text,m)}),{book:book,chapter:chap,verse:verse},m,markedTarget))return false;
    results.push({moduleId:m.id,moduleName:m.name,text:repairModuleText(e.text,m),marker:e.marker,fromChapter:e.fromChapter,fromVerse:e.fromVerse,toChapter:e.toChapter,toVerse:e.toVerse});
    return true;
   }
@@ -1899,6 +1901,31 @@ window.PBConnections.init({
 window.PBModules.init({notify:notify,onUpdated:function(select){if(select){state.version=select;state.selectedVerse=0;state.page="leitura";}else if(state.version.startsWith("local:")&&!window.PBModules.getModuleByVersion(state.version)){state.version="alm1911";}persist();render();}}).then(function(){if(state.page==="modulos"||state.page==="leitura")render();}).catch(function(err){console.warn("Biblioteca externa indisponível:",err);});
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){notify("Não foi possível salvar no navegador");}}
+if(window.PBCommentMarks)window.PBCommentMarks.init({
+ bookName:function(slug){return ((books||[]).find(function(b){return b.slug===slug;})||booksFallback.find(function(b){return b.slug===slug;})||{}).name||slug;},
+ read:function(){return Array.isArray(state.commentaryHighlights)?state.commentaryHighlights:[];},
+ write:function(rows){
+  var next=Object.assign({},state,{commentaryHighlights:rows});
+  try{localStorage.setItem(STORE_KEY,JSON.stringify(next));state.commentaryHighlights=rows;return true;}
+  catch(error){notify("Não foi possível salvar a marcação. Libere espaço no dispositivo e tente novamente.");return false;}
+ },
+ notify:notify,
+ onDiary:function(){page("historico");},
+ onOpen:async function(mark){
+  await window.PBModules.ready();
+  if(!window.PBModules.getInstalled().some(function(m){return m.id===mark.context.moduleId&&m.type==="commentary";})){
+   notify("Reinstale o módulo "+mark.context.moduleName+" para abrir este trecho. A marcação continua salva.");return false;
+  }
+  var book=books.find(function(b){return b.slug===mark.context.book;})||booksFallback.find(function(b){return b.slug===mark.context.book;});
+  if(!book){notify("O livro desta marcação não está disponível.");return false;}
+  state.book=book.slug;activeBook=book;state.chapter=mark.context.chapter;state.selectedVerse=mark.context.verse;
+  state.commentModuleId=mark.context.moduleId;state.splitStudy=true;state.dictionaryOpen=false;
+  TS.actions.setReadingMode("study");page("leitura");
+  if(window.PBReaderMultiWindow&&window.PBReaderMultiWindow.isActive())showCommentaryPanel(mark.context.verse,mark.context.moduleId);
+  return true;
+ }
+});
+
 function notify(s){var el=document.getElementById("toast");el.textContent=s;el.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(function(){el.classList.remove("show");},3000);}
 function ref(){return activeBook.name+" "+state.chapter+(state.selectedVerse?":"+state.selectedVerse:"");}
 function title(k){return '<div class="eyebrow">PÚLPITO BIBLE / '+esc(TITLES[k]).toUpperCase()+'</div><h1 class="page-title">'+esc(TITLES[k])+'</h1>';}
@@ -2859,7 +2886,7 @@ function renderHistoricalDiary(){
  var tabs=historicalTabs.map(function(t){return '<button type="button" class="btn slim'+(historicalActiveTab===t[0]?' primary':'')+'" data-historical-tab="'+t[0]+'">'+esc(t[1])+'</button>';}).join("");
  MAIN.innerHTML='<div class="content">'+title("historico")+
  '<p class="subtitle">Pesquise seus estudos históricos, filtre os registros e organize as informações por passagem. Funciona offline; os registros são pessoais e salvos neste dispositivo.</p>'+
- '<div class="grid-2" style="grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr);align-items:start;gap:16px">'+
+ (window.PBCommentMarks?window.PBCommentMarks.diaryHTML(historicalFilters):'')+'<div class="grid-2" style="grid-template-columns:minmax(0,1.7fr) minmax(260px,1fr);align-items:start;gap:16px">'+
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">▣ '+esc(activeBook.name+" "+state.chapter)+'</h2><button class="btn slim" type="button" data-act="historico-go-reading">◫ Leitura</button></div>'+
  '<div class="row" style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0"><label>Tema<input class="field" data-historical-field="tema" placeholder="Ex.: Criação, aliança..." value="'+esc(entry.tema||"")+'"></label><label>Período<select class="field" data-historical-field="periodo"><option value="">Não definido</option>'+periodOptions+'</select></label></div>'+
  '<div class="row" style="display:flex;flex-wrap:wrap;gap:7px;margin:14px 0">'+tabs+'</div>'+
@@ -3007,6 +3034,7 @@ function pb2RenderSearchReader(reader){
  root.querySelector("#pb2-commentary-reader-reference").textContent=item.reference||"";
  root.querySelector("#pb2-commentary-reader-position").textContent=(reader.index+1)+" de "+reader.items.length;
  root.querySelector("#pb2-commentary-reader-text").textContent=item.text||"";
+ if(window.PBCommentMarks&&reader.resultAttribute==="data-pb2-commentary-index")window.PBCommentMarks.attach(root.querySelector("#pb2-commentary-reader-text"),item,{book:item.book,chapter:item.fromChapter,verse:item.fromVerse,name:(books.find(function(b){return b.slug===item.book;})||{}).name});
  root.querySelector('[data-pb2-reader-action="previous"]').disabled=reader.index===0;
  root.querySelector('[data-pb2-reader-action="next"]').disabled=reader.index===reader.items.length-1;
  root.querySelector("#pb2-commentary-reader-scroll").scrollTop=0;
@@ -3747,7 +3775,7 @@ async function pbWinLoad(w){
   }else if(w.type==="commentary"){
    var verse=w.group==="A"?(Number(state.selectedVerse)||1):(Number(w.verse)||1);
    var items=await PBModules.getCommentaries(book,chapter,verse,w.moduleId||undefined);
-   html=items.length?items.map(function(x){return '<p><strong>'+esc(x.moduleName)+'</strong> · '+esc(selected.name+" "+chapter+":"+verse)+'</p><p style="white-space:pre-wrap">'+esc(x.text)+'</p>';}).join(""):"Nenhum comentário disponível para este versículo.";
+   html=items.length?items.map(function(x){return '<p><strong>'+esc(x.moduleName)+'</strong> · '+esc(selected.name+" "+chapter+":"+verse)+'</p><p style="white-space:pre-wrap"'+(window.PBCommentMarks?window.PBCommentMarks.attrs(x,{book:book,name:selected.name,chapter:chapter,verse:verse}):'')+'>'+esc(x.text)+'</p>';}).join(""):"Nenhum comentário disponível para este versículo.";
   }else if(w.type==="dictionary"){
    if(!w.term)html="Informe uma palavra ou número Strong no campo acima.";
    else{var entries=await PBModules.getDictionaryEntry(w.term,w.moduleId||undefined);html=entries.length?entries.map(function(x){return '<p><strong>'+esc(x.moduleName||x.term||w.term)+'</strong></p><p>'+esc(x.text||x.definition||"")+'</p>';}).join(""):"Nenhuma definição encontrada nos módulos instalados.";}
@@ -5129,6 +5157,7 @@ function startBuildUpdateWatcher(){
 startBuildUpdateWatcher();
 
 })();
+
 
 
 

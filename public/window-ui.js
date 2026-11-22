@@ -530,12 +530,12 @@ window.PBWindowUI.createReaderManager=function(env){
     paneResult(body,serial,pane.searchResults.length?pane.searchResults.map(function(x,i){
      var book=env.books.find(function(item){return item.slug===x.book;});
      var label=(book?book.name:x.book)+" "+(x.fromChapter||1)+(x.fromVerse?":"+x.fromVerse:"");
-     return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+' · '+esc(label)+'</strong><p>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button><button type="button" data-pbmw-open-ref data-book="'+esc(x.book)+'" data-chapter="'+Number(x.fromChapter||1)+'" data-verse="'+Number(x.fromVerse||1)+'">Abrir passagem</button></div></article>';
+     return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+' · '+esc(label)+'</strong><p'+(global.PBCommentMarks?global.PBCommentMarks.attrs(x,ref):'')+'>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button><button type="button" data-pbmw-open-ref data-book="'+esc(x.book)+'" data-chapter="'+Number(x.fromChapter||1)+'" data-verse="'+Number(x.fromVerse||1)+'">Abrir passagem</button></div></article>';
     }).join(""):'<p class="pb-mw-empty">Nenhum comentário encontrado para este termo.</p>');
    }else{
     try{var rows=await PBModules.getCommentaries(ref.book,ref.chapter,ref.verse,pane.moduleId||undefined);
      pane.commentRows=rows;
-     paneResult(body,serial,rows.length?rows.map(function(x,i){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+'</strong><p>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button></div></article>';}).join(""):'<p class="pb-mw-empty">Nenhum comentário disponível para esta passagem.</p>');
+     paneResult(body,serial,rows.length?rows.map(function(x,i){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+'</strong><p'+(global.PBCommentMarks?global.PBCommentMarks.attrs(x,ref):'')+'>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button></div></article>';}).join(""):'<p class="pb-mw-empty">Nenhum comentário disponível para esta passagem.</p>');
     }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
    }
   }else if(pane.type==="dictionary"){
@@ -869,3 +869,4 @@ window.PBWindowUI.createReaderManager=function(env){
  return {isActive:isActive,prepareReaderState:prepareReaderState,mount:mount,unmount:unmount,setLayout:setLayout,splitPane:splitPane,openTool:openTool,assignLinkSet:assignLinkSet,saveLayoutSnapshot:saveLayoutSnapshot,restoreLayoutSnapshot:restoreLayoutSnapshot,referenceChanged:referenceChanged,readerReady:readerReady,sourceReference:sourceReference,selfTest:selfTest,getState:function(){return JSON.parse(JSON.stringify(cfg));}};
 
 };
+
