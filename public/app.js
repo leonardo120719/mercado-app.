@@ -1132,6 +1132,36 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
   /* A single mounted toolbar subscribes to state. DOM event delegation prevents
      listener proliferation even when the contents are refreshed. */
   let mountRoot=null, mountConfig=null, unsubscribe=null;
+  let fullscreenSpacer=null, fullscreenObserver=null, fullscreenResize=null;
+  function releaseFullscreenBar(){
+    if(fullscreenObserver){fullscreenObserver.disconnect();fullscreenObserver=null;}
+    if(fullscreenResize){window.removeEventListener("resize",fullscreenResize);fullscreenResize=null;}
+    if(fullscreenSpacer){fullscreenSpacer.remove();fullscreenSpacer=null;}
+  }
+  function syncFullscreenBar(enabled){
+    if(!enabled){releaseFullscreenBar();return;}
+    const root=mountRoot;
+    if(!root||!root.isConnected||!root.parentNode)return;
+    if(!fullscreenSpacer){
+      fullscreenSpacer=document.createElement("div");
+      fullscreenSpacer.className="pb-fullscreen-toolbar-space";
+      fullscreenSpacer.setAttribute("aria-hidden","true");
+      root.parentNode.insertBefore(fullscreenSpacer,root);
+    }
+    if(!fullscreenResize){
+      fullscreenResize=function(){
+        if(mountRoot===root&&root.isConnected&&fullscreenSpacer){
+          fullscreenSpacer.style.height=Math.ceil(root.getBoundingClientRect().height)+"px";
+        }
+      };
+      window.addEventListener("resize",fullscreenResize);
+      if(window.ResizeObserver){
+        fullscreenObserver=new window.ResizeObserver(fullscreenResize);
+        fullscreenObserver.observe(root);
+      }
+    }
+    fullscreenResize();
+  }
   function escapeHtml(value){
     return String(value == null ? "" : value).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   }
@@ -1218,6 +1248,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     mountRoot.innerHTML=markup+(s.menuOpen?menuMarkup(s):'');
     mountRoot.className="pb-global-toolbar "+("pb-mode-"+mode);
     mountRoot.setAttribute("aria-label",mode==="selection"?"Ações para versículos selecionados":"Ferramentas de leitura bíblica");
+    syncFullscreenBar(mode==="fullscreen");
   }
   function clickHandler(event){
     const root=mountRoot;if(!root)return;
@@ -1262,6 +1293,7 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     return unmount;
   }
   function unmount(){
+    releaseFullscreenBar();
     if(unsubscribe){unsubscribe();unsubscribe=null;}
     if(mountRoot){mountRoot.removeEventListener("click",clickHandler);mountRoot.removeEventListener("change",changeHandler);}
     mountRoot=null;mountConfig=null;
