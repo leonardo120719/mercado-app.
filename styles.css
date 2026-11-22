@@ -2667,11 +2667,11 @@ html[data-pb-layout="academic"] .pb-split-close{background:#fff;color:#315f89;bo
 /* Web reader: reserve a complete row for passage selection on narrow screens. */
 .pb-global-toolbar .mtb-primary{flex-wrap:wrap}
 .pb-global-toolbar .mtb-navigate{flex-basis:360px;min-width:360px}
-.pb-global-toolbar .mtb-book{min-width:140px}
+.pb-global-toolbar .mtb-book{flex:0 1 160px;width:160px;min-width:140px;max-width:160px}
 @media(max-width:1000px){
  .pb-global-toolbar .mtb-primary{display:grid;grid-template-columns:44px minmax(0,1fr);gap:2px}
  .pb-global-toolbar .mtb-navigate{grid-column:1 / -1;grid-row:1;min-width:0;width:100%;box-sizing:border-box}
- .pb-global-toolbar .mtb-book{flex:1 1 auto;width:auto;min-width:0;max-width:none}
+ .pb-global-toolbar .mtb-book{flex:0 1 160px;width:min(160px,42vw);min-width:0;max-width:160px}
  .pb-global-toolbar .mtb-navigate .mtb-select{font-size:12px}
  .pb-global-toolbar .mtb-navigate .mtb-compact{display:inline-flex;flex-shrink:0}
  .pb-global-toolbar .mtb-primary>.pb-mw-toolbar{grid-column:1;grid-row:2}
