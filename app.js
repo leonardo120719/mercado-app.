@@ -1203,8 +1203,10 @@ window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:g
     let markup='';
     if(mode==="selection")markup=selectionMarkup(s)+(document.body.classList.contains("focus-reading")?commandTrigger:"");
     else if(mode==="fullscreen"){
-      markup='<div class="mtb-fullscreen">'+item("expand",s.expandFullScreen?"Fechar menu":"Abrir menu","☰","mtb-float")+item("search","Pesquisar na Bíblia","🔍")+windowsMarkup()+commandTrigger+
-      (s.expandFullScreen?'<div class="mtb-fullmenu">'+item("exit-fullscreen","Sair da tela cheia","↙")+item("study","Modo estudo","α")+item("normal","Leitura normal","◫")+item("menu","Configurações","⚙")+'</div>':'')+'</div>';
+      markup='<div class="mtb-fullscreen" role="toolbar" aria-label="Ferramentas da leitura em tela cheia">'+
+      item("exit-fullscreen","Sair da tela cheia","↙")+item("search","Pesquisar na Bíblia","🔍")+windowsMarkup()+commandTrigger+
+      item("expand",s.expandFullScreen?"Fechar ferramentas":"Mais ferramentas","☰").replace('<button ', '<button aria-expanded="'+s.expandFullScreen+'" aria-controls="pb-fullscreen-more" ')+
+      (s.expandFullScreen?'<div class="mtb-fullmenu" id="pb-fullscreen-more">'+item("study","Modo estudo","α")+item("normal","Leitura normal","◫")+item("menu","Configurações","⚙")+'</div>':'')+'</div>';
     }else{
       markup='<div class="mtb-primary">'+navigationMarkup()+windowsMarkup()+
         '<div class="mtb-actions">'+item("font","Ajustar fonte","Aᴀ")+item("audio",s.audioState==="playing"?"Pausar áudio":s.audioState==="paused"?"Retomar áudio":"Ouvir texto",s.audioState==="playing"?"Ⅱ":"♫")+

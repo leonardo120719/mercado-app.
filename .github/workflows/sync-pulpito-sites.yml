@@ -60,15 +60,21 @@ jobs:
                   pulpito-acervo.json pulpito-crossrefs.json pulpito-icon-192.svg
                   pulpito-icon-512.svg pulpito-icon-official.svg)
           mkdir -p target/public
+          source_message=$(git -C source log -1 --format=%s)
           for asset in "${assets[@]}"; do
+            if [[ "$source_message" == *"[apk-only]"* ]]; then
+              case "$asset" in app.js|styles.css|pulpito.html|pulpito-sw.js) continue ;; esac
+            fi
             cp "source/$asset" "target/$asset"
             cp "source/$asset" "target/public/$asset"
           done
           sed -i 's|register("/pulpito-sw.js"|register("/pulpito-web-sw.js"|' target/pulpito.html
           cp target/pulpito.html target/public/pulpito.html
           cp target/pulpito.html target/public/index.html
-          sed 's|"/pulpito-acervo.json"$|"/pulpito-acervo.json", "/pulpito-crossrefs.json"|' \
+          if [[ "$source_message" != *"[apk-only]"* ]]; then
+            sed 's|"/pulpito-acervo.json"$|"/pulpito-acervo.json", "/pulpito-crossrefs.json"|' \
             source/pulpito-sw.js > target/public/pulpito-web-sw.js
+          fi
           jq -n --arg source_sha "$GITHUB_SHA" --argjson version_code "$VERSION_CODE" \
             --arg apk_url "https://pulpito-bible.onrender.com/downloads/pulpito-bible.apk" \
             --arg sha256 "$apk_sha256" \

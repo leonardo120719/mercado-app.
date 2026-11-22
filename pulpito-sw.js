@@ -1,16 +1,16 @@
 /* Púlpito Bible — offline app shell, shared by web and Android PWA */
 "use strict";
-const CACHE_NAME = "pulpito-bible-shell-v75-morphology-tutor";
+const CACHE_NAME = "pulpito-bible-shell-v80-fullscreen-bar";
 const APP_SHELL = [
   "/morphology.js?v=20261119-morphology-tutor",
   "/morphology-codes.json",
   "/morphology-samples.json",
   "/",
   "/pulpito.html",
-  "/styles.css?v=20261119-morphology-tutor",
+  "/styles.css?v=20261122-fullscreen-bar",
   "/window-ui.js?v=20261115-responsive-navigation",
   "/split-study.js?v=20261113-paineis-profissionais",
-  "/app.js?v=20261119-morphology-tutor",
+  "/app.js?v=20261122-fullscreen-bar",
   "/pulpito-manifest.webmanifest"
 ];
 const CDN_HOSTS = new Set([

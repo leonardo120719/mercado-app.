@@ -2643,3 +2643,29 @@ html[data-pb-layout="academic"] .pb-mw-tabs [aria-selected="true"]{background:#2
 .pb-tutor-ai{margin-top:18px}
 .pb-tutor-ai textarea{width:100%;min-height:90px}
 .pb-tutor-ai article{padding-block:12px;border-bottom:1px solid var(--border)}
+
+/* Fullscreen web reader: tools stay in a top bar with their own layout space. */
+body.pb-fullscreen .pb-global-toolbar.pb-mode-fullscreen,
+body.pb-fullscreen .pb-top-shell .pb-global-toolbar.pb-mode-fullscreen{
+ position:sticky;top:0;z-index:90;height:auto;min-height:44px;
+ padding-top:env(safe-area-inset-top,0px);box-sizing:border-box;
+ background:#2e3237;border-bottom:1px solid #59666d;border-radius:0;
+}
+body.pb-fullscreen .pb-top-shell .workarea{margin-left:0;width:100%;padding-top:0}
+.pb-mode-fullscreen .mtb-fullscreen{
+ position:relative;inset:auto;max-width:none;width:100%;box-sizing:border-box;
+ display:flex;align-items:center;flex-wrap:wrap;gap:3px;padding:4px 6px;
+}
+.pb-mode-fullscreen .mtb-fullscreen>.mtb-button{flex:1 1 44px;min-width:44px;height:40px;padding:3px 7px;border-radius:4px}
+.pb-mode-fullscreen .mtb-fullscreen>.pb-mw-toolbar{flex:1 1 44px;min-width:44px}
+.pb-mode-fullscreen .mtb-fullscreen>.pb-mw-toolbar>.mtb-button{width:100%;height:40px;border-radius:4px}
+.pb-mode-fullscreen .mtb-fullmenu{
+ position:static;inset:auto;flex:0 0 100%;min-width:0;box-sizing:border-box;
+ display:flex;flex-wrap:wrap;gap:3px;box-shadow:none;border-radius:4px;
+}
+.pb-mode-fullscreen .mtb-fullmenu>.mtb-button{flex:1 1 100px;min-width:0;justify-content:center}
+@media(max-width:720px){
+ .pb-mode-fullscreen .mtb-fullscreen>.mtb-button .mtb-label{display:none}
+ .pb-mode-fullscreen .mtb-fullscreen>.mtb-button,
+ .pb-mode-fullscreen .mtb-fullscreen>.pb-mw-toolbar>.mtb-button{height:44px}
+}
