@@ -125,7 +125,7 @@ window.PBWindowUI.createReaderManager=function(env){
  var KEY="pb-reader-multi-window-v1",host=null,columns=null,stash=null,primaryId=null,viewportBar=null;
  var serials=Object.create(null),crossrefData=null,crossrefPromise=null,saveFrame=0,scrollTimer=0;
  var minimizedBar=null,resizeCleanup=null,dragCleanup=null,nextId=0;
- var tabFields=["type","moduleId","book","chapter","verse","term","codes","linked","scrollTop"];
+ var tabFields=["type","moduleId","book","chapter","verse","term","codes","linked","scrollTop","ebookSection"];
  function uniqueId(){return "mw-"+Date.now().toString(36)+"-"+(++nextId);}
  function rememberTab(pane){
   var tab=pane.tabs.find(function(item){return item.id===pane.activeTabId;});
@@ -137,7 +137,7 @@ window.PBWindowUI.createReaderManager=function(env){
   pane.activeTabId=tab.id;tabFields.forEach(function(key){pane[key]=tab[key];});
  }
  var TYPES=[
-  ["bible","Bíblia / Tradução"],["commentary","Comentários"],["dictionary","Dicionários"],
+  ["bible","Bíblia / Tradução"],["commentary","Comentários"],["dictionary","Dicionários"],["ebook","Livros"],
   ["strong","Strong / Original"],["crossrefs","Referências cruzadas"],["devotional","Devocional"],
   ["plans","Planos de estudo"],["map","Mapa bíblico"],["original","Línguas originais"],["sermon","Estudo / Sermão"]
  ];
@@ -175,6 +175,7 @@ window.PBWindowUI.createReaderManager=function(env){
     tab.chapter=Math.max(1,Math.min(book.chapters||150,Number(tab.chapter)||1));
     tab.verse=Math.max(1,Number(tab.verse)||1);
     tab.scrollTop=Math.max(0,Number(tab.scrollTop)||0);
+    tab.ebookSection=Math.max(0,Math.floor(Number(tab.ebookSection)||0));
     tab.linked=tab.linked===true;
     tab.moduleId=String(tab.moduleId||"");tab.term=String(tab.term||"");
     tab.codes=Array.isArray(tab.codes)?tab.codes:[];
@@ -221,8 +222,22 @@ window.PBWindowUI.createReaderManager=function(env){
    var pane=cfg.panes.find(function(pane){return pane.id===body.dataset.pbmwBody;});
    if(pane&&!pane.minimized&&body.dataset.ready==="true"&&body.dataset.tabId===pane.activeTabId){
     pane.scrollTop=body.scrollTop;rememberTab(pane);
+    if(pane.type==="ebook"&&pane.moduleId)saveEbookPosition(pane);
    }
   });
+ }
+ function saveEbookPosition(pane){
+  try{localStorage.setItem("pb-ebook-position:"+pane.moduleId,JSON.stringify([pane.ebookSection,pane.scrollTop]));}catch(error){}
+ }
+ function selectEbook(pane,id,section){
+  pane.moduleId=id;pane.ebookSection=0;pane.scrollTop=0;
+  if(!id)return;
+  if(section!==undefined){pane.ebookSection=section;return;}
+  try{
+   var position=JSON.parse(localStorage.getItem("pb-ebook-position:"+id)||"[]");
+   pane.ebookSection=Math.max(0,Math.floor(Number(position[0])||0));
+   pane.scrollTop=Math.max(0,Number(position[1])||0);
+  }catch(error){}
  }
  function switchTab(pane,id){
   captureScroll();rememberTab(pane);restoreTab(pane,id);pane.minimized=false;
@@ -267,7 +282,7 @@ window.PBWindowUI.createReaderManager=function(env){
   if(!["B","C"].includes(group))return;
   cfg.linkSets[group]={book:reference.book,chapter:Math.max(1,Number(reference.chapter)||1),verse:Math.max(1,Number(reference.verse)||1)};
   cfg.panes.forEach(function(pane){
-   if(pane.linkSet!==group)return;
+   if(pane.type==="ebook"||pane.linkSet!==group)return;
    pane.book=reference.book;pane.chapter=cfg.linkSets[group].chapter;pane.verse=cfg.linkSets[group].verse;pane.scrollTop=0;
    if(host&&pane.id!==sourceId&&visible().includes(pane))renderPane(pane);
   });
@@ -299,7 +314,7 @@ window.PBWindowUI.createReaderManager=function(env){
   var linkGroup=pane.linkSet||(pane.linked?"A":"");
   return '<section class="pb-mw-pane'+(pane.floating?" is-floating":"")+(pane.pinned?" is-pinned":"")+'" data-pbmw-pane="'+esc(pane.id)+'" data-pane-index="'+(index+1)+'" aria-label="Painel '+(index+1)+'"><header class="pb-mw-pane-head">'+
    '<button type="button" class="pb-mw-drag-handle" data-pbmw-drag-handle data-pane-id="'+esc(pane.id)+'" aria-label="Arrastar para reorganizar painel" title="Arrastar painel">⠿</button><select class="pb-mw-type" data-pbmw-type data-pane-id="'+esc(pane.id)+'" aria-label="Conteúdo do painel">'+opts+'</select><div class="pb-mw-pane-actions">'+
-   '<button type="button" class="pb-mw-control'+(linkGroup?" is-on":"")+'" data-pbmw-action="sync" data-pane-id="'+esc(pane.id)+'" aria-label="Conjunto de sincronização '+(linkGroup||"desligado")+'" aria-pressed="'+!!linkGroup+'" title="Conjunto de sincronização: '+(linkGroup||"desligado")+'">🔗'+(linkGroup?" "+linkGroup:"")+'</button>'+
+   (pane.type==="ebook"?"":'<button type="button" class="pb-mw-control'+(linkGroup?" is-on":"")+'" data-pbmw-action="sync" data-pane-id="'+esc(pane.id)+'" aria-label="Conjunto de sincronização '+(linkGroup||"desligado")+'" aria-pressed="'+!!linkGroup+'" title="Conjunto de sincronização: '+(linkGroup||"desligado")+'">🔗'+(linkGroup?" "+linkGroup:"")+'</button>')+
    control("split","Dividir novamente","＋",cfg.count>=4)+control("pin",pane.pinned?"Desafixar painel":"Fixar painel",pane.pinned?"📌":"♧")+
    control("float",pane.floating?"Acoplar painel":"Janela flutuante",pane.floating?"↙":"↗")+
    control("min","Minimizar painel","—",pane.pinned)+control("max","Maximizar painel","⛶")+control("swap","Trocar posição","⇄",pane.pinned)+control("close","Fechar painel","×",pane.pinned)+'</div></header>'+
@@ -506,9 +521,9 @@ window.PBWindowUI.createReaderManager=function(env){
   var serial=serials[pane.id]=(serials[pane.id]||0)+1,ref=referenceFor(pane),savedScroll=Number(pane.scrollTop)||0;
   body.dataset.ready="false";
   var tabId=pane.activeTabId;
-  if(pane.book!==ref.book||pane.chapter!==ref.chapter){savedScroll=0;pane.scrollTop=0;}
+  if(pane.type!=="ebook"&&(pane.book!==ref.book||pane.chapter!==ref.chapter)){savedScroll=0;pane.scrollTop=0;}
   pane.book=ref.book;pane.chapter=ref.chapter;pane.verse=ref.verse;
-  body.innerHTML=contextToolbar(pane)+referenceControls(pane)+'<div class="pb-mw-ref-label">'+esc(ref.name+" "+ref.chapter+":"+ref.verse)+'</div><div class="pb-mw-result"><div class="pb-mw-pane-loading">Carregando…</div></div>';
+  body.innerHTML=(pane.type==="ebook"?"":contextToolbar(pane)+referenceControls(pane)+'<div class="pb-mw-ref-label">'+esc(ref.name+" "+ref.chapter+":"+ref.verse)+'</div>')+'<div class="pb-mw-result"><div class="pb-mw-pane-loading">Carregando…</div></div>';
   if(pane.type==="bible"&&pane.id===primaryId&&columns){body.innerHTML="";body.appendChild(columns);readerReady();return;}
   if(pane.type==="bible"){
    var version=pane.moduleId||"bpm",opts=versionOptions(version);
@@ -530,14 +545,42 @@ window.PBWindowUI.createReaderManager=function(env){
     paneResult(body,serial,pane.searchResults.length?pane.searchResults.map(function(x,i){
      var book=env.books.find(function(item){return item.slug===x.book;});
      var label=(book?book.name:x.book)+" "+(x.fromChapter||1)+(x.fromVerse?":"+x.fromVerse:"");
-     return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+' · '+esc(label)+'</strong><p'+(global.PBCommentMarks?global.PBCommentMarks.attrs(x,ref):'')+'>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button><button type="button" data-pbmw-open-ref data-book="'+esc(x.book)+'" data-chapter="'+Number(x.fromChapter||1)+'" data-verse="'+Number(x.fromVerse||1)+'">Abrir passagem</button></div></article>';
+     return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+' · '+esc(label)+'</strong><p'+(window.PBCommentMarks?window.PBCommentMarks.attrs(x,ref):'')+'>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button><button type="button" data-pbmw-open-ref data-book="'+esc(x.book)+'" data-chapter="'+Number(x.fromChapter||1)+'" data-verse="'+Number(x.fromVerse||1)+'">Abrir passagem</button></div></article>';
     }).join(""):'<p class="pb-mw-empty">Nenhum comentário encontrado para este termo.</p>');
    }else{
     try{var rows=await PBModules.getCommentaries(ref.book,ref.chapter,ref.verse,pane.moduleId||undefined);
      pane.commentRows=rows;
-     paneResult(body,serial,rows.length?rows.map(function(x,i){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+'</strong><p'+(global.PBCommentMarks?global.PBCommentMarks.attrs(x,ref):'')+'>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button></div></article>';}).join(""):'<p class="pb-mw-empty">Nenhum comentário disponível para esta passagem.</p>');
+     paneResult(body,serial,rows.length?rows.map(function(x,i){return '<article class="pb-mw-entry"><strong>'+esc(x.moduleName||"Comentário")+'</strong><p'+(window.PBCommentMarks?window.PBCommentMarks.attrs(x,ref):'')+'>'+esc(x.text||"")+'</p><div class="pb-mw-entry-actions"><button type="button" data-pbmw-action="insert-commentary" data-pane-id="'+esc(pane.id)+'" data-result-index="'+i+'">Inserir no sermão</button></div></article>';}).join(""):'<p class="pb-mw-empty">Nenhum comentário disponível para esta passagem.</p>');
     }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
    }
+  }else if(pane.type==="ebook"){
+   try{
+    var books=PBModules.getInstalled().filter(function(module){return module.ebook;});
+    var selectedBook=books.find(function(module){return module.id===pane.moduleId;});
+    if(!selectedBook&&!pane.moduleId&&books.length){
+     selectedBook=books[0];selectEbook(pane,selectedBook.id);savedScroll=pane.scrollTop;
+    }
+    var record=selectedBook&&await PBModules.getEbook(selectedBook.id);
+    if(!body.isConnected||serials[pane.id]!==serial)return;
+    body.insertAdjacentHTML("afterbegin",'<label class="pb-mw-field-label">Livro<select class="pb-mw-field" data-pbmw-module data-pane-id="'+esc(pane.id)+'"><option value="">Selecione um livro</option>'+books.map(function(module){
+     return '<option value="'+esc(module.id)+'"'+(module===selectedBook?" selected":"")+'>'+esc(module.name)+'</option>';
+    }).join("")+'</select></label>');
+    if(!record?.sections?.length){
+     paneResult(body,serial,'<p class="pb-mw-empty">Escolha um livro instalado ou importe um EPUB ou MOBI em Módulos.</p><button class="btn slim" type="button" data-page="modulos">Ir para Módulos</button>');
+    }else{
+     var sections=record.sections,index=Math.min(sections.length-1,Math.max(0,Number(pane.ebookSection)||0)),section=sections[index];
+     pane.ebookSection=index;
+     var paneAttr=' data-pane-id="'+esc(pane.id)+'"';
+     body.querySelector(".pb-mw-result").insertAdjacentHTML("beforebegin",'<label class="pb-mw-field-label">Sumário<select class="pb-mw-field" data-pbmw-ebook-section'+paneAttr+'>'+sections.map(function(item,i){
+      return '<option value="'+i+'"'+(index===i?" selected":"")+'>'+esc(item.title)+'</option>';
+     }).join("")+'</select></label><div class="row"><button type="button" class="btn slim" data-pbmw-action="ebook-prev"'+paneAttr+(index===0?" disabled":"")+'>‹ Anterior</button><button type="button" class="btn slim" data-pbmw-action="ebook-next"'+paneAttr+(index===sections.length-1?" disabled":"")+'>Próxima ›</button></div>');
+     var text=section.blocks.map(function(block){return block.text;}).join("\n\n");
+     var attrs=window.PBCommentMarks?.ebookAttrs(selectedBook,section.title,index,text)||"";
+     paneResult(body,serial,'<article class="pb-mw-entry"><h3>'+esc(section.title)+'</h3><div'+attrs+'>'+section.blocks.map(function(block){
+      return block.heading?'<p><strong>'+esc(block.text)+'</strong></p>':'<p>'+esc(block.text)+'</p>';
+     }).join("")+'</div></article>');
+    }
+   }catch(error){paneResult(body,serial,'<p class="pb-mw-empty">'+esc(error.message)+'</p>');}
   }else if(pane.type==="dictionary"){
    body.insertAdjacentHTML("afterbegin",moduleSelect(pane,"dictionary")+termField(pane,"Palavra ou expressão"));
    if(!pane.term)paneResult(body,serial,'<p class="pb-mw-empty">Digite uma palavra para consultar os dicionários instalados.</p>');
@@ -585,7 +628,9 @@ window.PBWindowUI.createReaderManager=function(env){
  }
  function saveScroll(pane,body){
   if(body.dataset.ready!=="true"||body.dataset.tabId!==pane.activeTabId||pane.minimized)return;
-  pane.scrollTop=body.scrollTop;if(saveFrame)return;
+  pane.scrollTop=body.scrollTop;
+  if(pane.type==="ebook"&&pane.moduleId)saveEbookPosition(pane);
+  if(saveFrame)return;
   saveFrame=requestAnimationFrame(function(){saveFrame=0;save();});
  }
  function splitPane(source){
@@ -642,13 +687,17 @@ window.PBWindowUI.createReaderManager=function(env){
     if(pane.book!==env.state.book||pane.chapter!==env.state.chapter)pane.linked=false;}
   }
   pane.scrollTop=0;pane.minimized=false;cfg.maxPaneId="";
+  if(type==="ebook"){
+   pane.linked=false;
+   selectEbook(pane,payload?.moduleId||pane.moduleId,payload?.ebookSection);
+  }
   save();if(host)render();else renderReader();
   return pane.id;
  }
  function referenceChanged(){
   if(!cfg.active)return;
   cfg.panes.forEach(function(pane){
-   if(pane.linked||pane.linkSet==="A"){
+   if(pane.type!=="ebook"&&(pane.linked||pane.linkSet==="A")){
     var changed=pane.book!==env.state.book||pane.chapter!==env.state.chapter||pane.verse!==(env.state.selectedVerse||1);
     pane.book=env.state.book;pane.chapter=env.state.chapter;pane.verse=env.state.selectedVerse||1;
     if(changed){pane.scrollTop=0;if(pane.id!==primaryId&&visible().includes(pane))renderPane(pane);}
@@ -759,6 +808,9 @@ window.PBWindowUI.createReaderManager=function(env){
     return;
    }
    var act=target.dataset.pbmwAction,id=target.dataset.paneId,pane=cfg.panes.find(function(p){return p.id===id;});
+   if(pane&&(act==="ebook-prev"||act==="ebook-next")){
+    turnEbookPage(pane,pane.ebookSection+(act==="ebook-next"?1:-1));return;
+   }
    if(pane&&(act==="context-prev"||act==="context-next")){
     var currentRef=referenceFor(pane),book=env.books.find(function(item){return item.slug===currentRef.book;})||env.activeBook;
     var chapter=currentRef.chapter+(act==="context-next"?1:-1);
@@ -815,10 +867,18 @@ window.PBWindowUI.createReaderManager=function(env){
    if(act==="insert-reference"){env.state.sermon.context+=(env.state.sermon.context?"\n\n":"")+ref();persist();notify("Referência inserida no sermão.");return;}
   }
  }
+ function turnEbookPage(pane,index){
+  pane.ebookSection=index;pane.scrollTop=0;saveEbookPosition(pane);save();renderPane(pane);
+ }
  function actionChange(event){
   var t=event.target;
-  if(t.matches("[data-pbmw-type]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){if(p.type!==t.value){captureScroll();p.type=t.value;p.moduleId=p.type==="bible"?env.state.version:"";p.term="";p.scrollTop=0;}save();render();}return;}
-  if(t.matches("[data-pbmw-module]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){p.moduleId=t.value;save();if(p.id===primaryId){env.state.version=t.value;persist();renderReader();}else renderPane(p);}return;}
+  if(t.matches("[data-pbmw-type]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){if(p.type!==t.value){captureScroll();p.type=t.value;p.moduleId=p.type==="bible"?env.state.version:"";p.term="";p.scrollTop=0;p.ebookSection=0;}save();render();}return;}
+  if(t.matches("[data-pbmw-ebook-section]")){
+   var pane=cfg.panes.find(function(item){return item.id===t.dataset.paneId;});
+   if(pane)turnEbookPage(pane,Number(t.value));
+   return;
+  }
+  if(t.matches("[data-pbmw-module]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){if(p.type==="ebook"){captureScroll();selectEbook(p,t.value);save();renderPane(p);return;}p.moduleId=t.value;save();if(p.id===primaryId){env.state.version=t.value;persist();renderReader();}else renderPane(p);}return;}
   if(t.matches("[data-pbmw-ref]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){var value=t.dataset.pbmwRef==="book"?t.value:Number(t.value)||1,refNow=referenceFor(p);refNow[t.dataset.pbmwRef]=value;var book=env.books.find(function(item){return item.slug===refNow.book;});refNow.chapter=Math.max(1,Math.min(book.chapters||150,Math.floor(refNow.chapter)));refNow.verse=Math.max(1,Math.floor(refNow.verse)||1);var group=p.linkSet||(p.linked?"A":"");if(group==="A")setRef(refNow.book,refNow.chapter,refNow.verse);else if(group)syncLinkSet(group,refNow,p.id);else{p.book=refNow.book;p.chapter=refNow.chapter;p.verse=refNow.verse;p.scrollTop=0;save();renderPane(p);}}return;}
   if(t.matches("[data-pbmw-term]")){var p=cfg.panes.find(function(x){return x.id===t.dataset.paneId;});if(p){p.term=t.value;save();}}
  }

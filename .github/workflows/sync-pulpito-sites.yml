@@ -26,6 +26,7 @@ jobs:
         with:
           ref: ${{ github.sha }}
           path: source
+          fetch-depth: 2
 
       - name: Download signed APK artifact
         uses: actions/download-artifact@v4
@@ -56,24 +57,40 @@ jobs:
           mkdir -p target/public/downloads
           cp release-apk/app-release.apk target/public/downloads/pulpito-bible.apk
           apk_sha256=$(sha256sum release-apk/app-release.apk | awk '{print $1}')
-          assets=(app.js commentary-marks.js morphology.js morphology-codes.json morphology-samples.json window-ui.js split-study.js pulpito.html styles.css pulpito-sw.js pulpito-manifest.webmanifest
+          assets=(app.js ebook-modules.js ebook-mobi.js commentary-marks.js morphology.js morphology-codes.json morphology-samples.json window-ui.js split-study.js pulpito.html styles.css pulpito-sw.js pulpito-manifest.webmanifest
                   pulpito-acervo.json pulpito-crossrefs.json pulpito-icon-192.svg
                   pulpito-icon-512.svg pulpito-icon-official.svg)
           mkdir -p target/public
           source_message=$(git -C source log -1 --format=%s)
+          web_split_version=$(sed -n 's|.*src="./split-study.js?v=\([A-Za-z0-9_-]*\)".*|\1|p' target/pulpito.html)
+          if ! git -C source diff --quiet HEAD^ HEAD -- split-study.js; then
+            web_split_version=""
+          fi
           for asset in "${assets[@]}"; do
             if [[ "$source_message" == *"[apk-only]"* ]]; then
               case "$asset" in app.js|styles.css|pulpito.html|pulpito-sw.js|split-study.js) continue ;; esac
             fi
+            # Keep platform-specific reader styling and controls when this release does not modify them.
+            case "$asset" in
+              styles.css|split-study.js)
+                if [[ -f "target/$asset" && -f "target/public/$asset" ]] &&
+                   git -C source diff --quiet HEAD^ HEAD -- "$asset"; then continue; fi ;;
+            esac
             cp "source/$asset" "target/$asset"
             cp "source/$asset" "target/public/$asset"
           done
           sed -i 's|register("/pulpito-sw.js"|register("/pulpito-web-sw.js"|' target/pulpito.html
+          if [[ -n "$web_split_version" ]]; then
+            sed -i "s|split-study.js?v=[A-Za-z0-9_-]*|split-study.js?v=$web_split_version|" target/pulpito.html
+          fi
           cp target/pulpito.html target/public/pulpito.html
           cp target/pulpito.html target/public/index.html
           if [[ "$source_message" != *"[apk-only]"* ]]; then
             sed 's|"/pulpito-acervo.json"$|"/pulpito-acervo.json", "/pulpito-crossrefs.json"|' \
             source/pulpito-sw.js > target/public/pulpito-web-sw.js
+            if [[ -n "$web_split_version" ]]; then
+              sed -i "s|split-study.js?v=[A-Za-z0-9_-]*|split-study.js?v=$web_split_version|" target/public/pulpito-web-sw.js
+            fi
           fi
           jq -n --arg source_sha "$GITHUB_SHA" --argjson version_code "$VERSION_CODE" \
             --arg apk_url "https://pulpito-bible.onrender.com/downloads/pulpito-bible.apk" \
