@@ -145,11 +145,11 @@ document.addEventListener("click",function(e){
 /* Púlpito Bible — comentário por versículo: pressionar e segurar ou toque duplo no indicador. */
 (function(){
 "use strict";
-var DB_NAME="PulpitoBibleModules",DB_VERSION=3;
+var DB_NAME="PulpitoBibleModules",DB_VERSION=4;
 var canonical="genesis|exodus|leviticus|numbers|deuteronomy|joshua|judges|ruth|1-samuel|2-samuel|1-kings|2-kings|1-chronicles|2-chronicles|ezra|nehemiah|esther|job|psalms|proverbs|ecclesiastes|song-of-solomon|isaiah|jeremiah|lamentations|ezekiel|daniel|hosea|joel|amos|obadiah|jonah|micah|nahum|habakkuk|zephaniah|haggai|zechariah|malachi|matthew|mark|luke|john|acts|romans|1-corinthians|2-corinthians|galatians|ephesians|philippians|colossians|1-thessalonians|2-thessalonians|1-timothy|2-timothy|titus|philemon|hebrews|james|1-peter|2-peter|1-john|2-john|3-john|jude|revelation".split("|");
 var myBibleIds=[10,20,30,40,50,60,70,80,90,100,110,120,130,140,150,160,190,220,230,240,250,260,290,300,310,330,340,350,360,370,380,390,400,410,420,430,440,450,460,470,480,490,500,510,520,530,540,550,560,570,580,590,600,610,620,630,640,650,660,670,680,690,700,710,720,730];
 var idToBook={};myBibleIds.forEach(function(id,i){idToBook[id]=canonical[i];});
-var modules=[], dbPromise=null, busy=false, lastStatus="", notify=function(){},onUpdated=function(){};
+var modules=[], dbPromise=null, busy=false, lastStatus="", notify=function(){},onUpdated=function(){},onOpenEbook=function(){},parseEbookReference=function(){return null;};
 var requested=[
  {code:"NVI",name:"Nova Versão Internacional",holder:"Biblica",status:"Protegida por direitos autorais"},
  {code:"NTLH",name:"Nova Tradução na Linguagem de Hoje",holder:"Sociedade Bíblica do Brasil",status:"Protegida por direitos autorais"},
@@ -248,7 +248,7 @@ function repairModuleText(text,module){
    .replace(/([\p{L}\p{M}])[ \t]{2,}(?=[\p{L}\p{M}])/gu,"$1 ");
  }).join("");
 }
-function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaryEntries")){var es=d.createObjectStore("commentaryEntries",{keyPath:"key"});es.createIndex("moduleId","moduleId",{unique:false});es.createIndex("passage",["moduleId","book","chapter"],{unique:false});}};r.onsuccess=function(){resolve(r.result);};r.onerror=function(){reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
+function dbOpen(){if(dbPromise)return dbPromise;dbPromise=new Promise(function(resolve,reject){if(!window.indexedDB)return reject(Error("Este navegador não disponibiliza IndexedDB"));var r=indexedDB.open(DB_NAME,DB_VERSION);r.onupgradeneeded=function(){var d=r.result;if(!d.objectStoreNames.contains("modules"))d.createObjectStore("modules",{keyPath:"id"});if(!d.objectStoreNames.contains("chapters"))d.createObjectStore("chapters",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("commentaries"))d.createObjectStore("commentaries",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("lexicon"))d.createObjectStore("lexicon",{keyPath:"key"}).createIndex("moduleId","moduleId",{unique:false});if(!d.objectStoreNames.contains("ebooks"))d.createObjectStore("ebooks",{keyPath:"key"});if(!d.objectStoreNames.contains("commentaryEntries")){var es=d.createObjectStore("commentaryEntries",{keyPath:"key"});es.createIndex("moduleId","moduleId",{unique:false});es.createIndex("passage",["moduleId","book","chapter"],{unique:false});}};r.onsuccess=function(){var connection=r.result;connection.onversionchange=function(){connection.close();dbPromise=null;};resolve(connection);};r.onblocked=function(){dbPromise=null;reject(Error("Feche outras abas do Púlpito Bible e recarregue para atualizar os módulos."));};r.onerror=function(){dbPromise=null;reject(r.error||Error("Não foi possível abrir a biblioteca local"));};});return dbPromise;}
 function request(req){return new Promise(function(resolve,reject){req.onsuccess=function(){resolve(req.result);};req.onerror=function(){reject(req.error);};});}
 async function loadCatalog(){
  var db=await dbOpen();
@@ -766,8 +766,20 @@ async function parseZip(file){
  if(!first)throw Error("ZIP sem banco de dados reconhecido. Arquivos encontrados: "+entries.slice(0,12).map(function(e){return e.name;}).join(", ")+". Use um módulo SQLite3/DB/BBM compatível ou pacote JSON.");
  return [pickJson(JSON.parse(await first.async("string")),file.name)];
 }
-async function parseFile(file){
+async function parseFile(file, indexEbook){
  var name=file.name.toLowerCase();
+ if (/\.(epub|mobi)$/.test(name)) {
+  var ebook=await window.PBEbookModules.parse(file),groups=[],count=ebook.sections.length;
+  if(indexEbook){
+   var rows=window.PBEbookModules.commentaryRows(ebook.sections,parseEbookReference);
+   if(!rows.length)throw Error("Nenhuma seção identifica uma passagem bíblica, como João 15:5. Selecione Livro e importe novamente.");
+   var normalized=normalizeCommentaries(rows);
+   groups=normalized.groups;count=normalized.count;
+  }
+  return [{type:indexEbook?"commentary":"ebook",ebook:ebook.sections,name:ebook.title||file.name.replace(/\.[^.]+$/,""),
+   abbreviation:ebook.format,format:ebook.format,language:ebook.language||"não informada",license:ebook.rights,
+   description:ebook.description,groups:groups,count:count}];
+ }
  if(name.endsWith(".zip")){
   if(file.size>70*1024*1024)throw Error("O ZIP excede 70 MB compactados.");
   return parseZip(file);
@@ -782,7 +794,7 @@ async function parseFile(file){
   if(file.size>70*1024*1024)throw Error("O arquivo JSON excede 70 MB.");
   return [pickJson(JSON.parse(await file.text()),file.name)];
  }
- throw Error("Formato incompatível. Escolha ZIP, SQLite3, BBM ou JSON.");
+ throw Error("Formato incompatível. Escolha ZIP, SQLite3, BBM, JSON, EPUB ou MOBI.");
 }
 async function deleteRelated(store,id){
  return new Promise(function(resolve,reject){var idx=store.index("moduleId"),range=IDBKeyRange.only(id),req=idx.openCursor();req.onsuccess=function(){var cur=req.result;if(cur){cur.delete();cur.continue();}else resolve();};req.onerror=function(){reject(req.error);};});
@@ -790,6 +802,7 @@ async function deleteRelated(store,id){
 async function relatedKeys(store,id){var db=await dbOpen();return request(db.transaction(store,"readonly").objectStore(store).index("moduleId").getAllKeys(IDBKeyRange.only(id)));}
 async function saveModule(parsed,filename){
  if(parsed.alreadySaved)return parsed;
+ if(parsed.ebook)return saveEbook(parsed,filename);
  var id="ext-"+filenameSlug(filename)+"-"+(parsed.type==="bible"?"b":parsed.type==="dictionary"?"d":"c");var db=await dbOpen();
  var meta={id:id,type:parsed.type,name:String(parsed.name||filename).slice(0,130),abbreviation:String(parsed.abbreviation||"EXT").slice(0,30),language:String(parsed.language||"").slice(0,60),license:String(parsed.license||"não informada").slice(0,400),description:String(parsed.description||"").slice(0,400),format:parsed.format,count:parsed.count,file:filename,installedAt:Date.now()};
  var collection=parsed.type==="bible"?"chapters":parsed.type==="dictionary"?"lexicon":"commentaries";
@@ -800,10 +813,34 @@ async function saveModule(parsed,filename){
  tx.objectStore("modules").put(meta);
  await done;await loadCatalog();onUpdated();return meta;
 }
+async function saveEbook(parsed,filename){
+ var db=await dbOpen();
+ var digest=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(filename.normalize("NFKC").toLocaleLowerCase("pt-BR")));
+ var suffix=Array.from(new Uint8Array(digest).subarray(0,8),function(byte){return byte.toString(16).padStart(2,"0");}).join("");
+ var id="ebook-"+filenameSlug(filename)+"-"+suffix+"-"+(parsed.type==="commentary"?"c":"b");
+ var meta={id:id,type:parsed.type,ebook:true,name:String(parsed.name).slice(0,130),abbreviation:parsed.abbreviation,
+  format:parsed.format,language:String(parsed.language).slice(0,60),license:String(parsed.license||"não informada").slice(0,400),
+  description:String(parsed.description||"").slice(0,400),count:parsed.count,file:filename,installedAt:Date.now()};
+ await new Promise(function(resolve,reject){
+  var tx=db.transaction(["modules","ebooks","commentaries"],"readwrite");
+  tx.oncomplete=resolve;
+  tx.onabort=function(){reject(tx.error||Error("Não foi possível gravar o livro no aparelho."));};
+  tx.objectStore("modules").add(meta);
+  tx.objectStore("ebooks").add({key:id+"/book",moduleId:id,sections:parsed.ebook});
+  parsed.groups.forEach(function(group){
+   tx.objectStore("commentaries").add(Object.assign({key:id+"/"+group.book,moduleId:id},group));
+  });
+ });
+ await loadCatalog();onUpdated();return meta;
+}
+async function getEbook(id){
+ var db=await dbOpen();
+ return request(db.transaction("ebooks","readonly").objectStore("ebooks").get(id+"/book"));
+}
 function installedModule(parsed,filename){
  var normalize=function(value){return String(value||"").normalize("NFKC").trim().toLocaleLowerCase("pt-BR");};
  return modules.find(function(module){
-  if(parsed&&module.type!==parsed.type)return false;
+  if(parsed&&(module.type!==parsed.type||parsed.ebook&&!module.ebook))return false;
   return normalize(module.file)===normalize(filename)||parsed&&normalize(module.name)===normalize(parsed.name)&&normalize(module.language)===normalize(parsed.language);
  });
 }
@@ -811,6 +848,7 @@ async function importFiles(files){
  if(busy)return;
  var permission=document.getElementById("module-rights");
  if(!permission||!permission.checked){notify("Confirme que os arquivos foram obtidos legalmente.");return;}
+ var indexEbook=document.getElementById("module-ebook-kind")?.value==="commentary";
  busy=true;
  var ok=[],duplicates=[],problems=[];
  try{
@@ -818,14 +856,15 @@ async function importFiles(files){
   importStatus("Verificando os arquivos…");
   for(var file of files){
    try{
-    var existing=installedModule(null,file.name);
+    var isEbook=/\.(epub|mobi)$/i.test(file.name);
+    var existing=installedModule(isEbook?{type:indexEbook?"commentary":"ebook",ebook:true}:null,file.name);
     if(existing){duplicates.push(existing.name);continue;}
-    if(window.PBDevBridge&&await window.PBDevBridge.isModule(file)){
+    if(!isEbook&&window.PBDevBridge&&await window.PBDevBridge.isModule(file)){
      var devotional=await window.PBDevBridge.installFile(file);
      if(devotional)ok.push(devotional.title+" ("+devotional.entries.length+" devocionais)");
      continue;
     }
-    var parsed=await parseFile(file);
+    var parsed=await parseFile(file,indexEbook);
     for(var item of parsed){
      var filename=file.name+(parsed.length>1?"-"+item.abbreviation:"");
      existing=!item.alreadySaved&&installedModule(item,filename);
@@ -849,14 +888,14 @@ async function removeModule(id){
  var m=modules.find(function(m){return m.id===id;});if(!m)return;
  if(!confirm("Excluir o módulo '"+m.name+"' deste navegador? Suas notas pessoais não serão apagadas."))return;
  var db=await dbOpen();var ckeys=await relatedKeys("chapters",id),nkeys=await relatedKeys("commentaries",id),dkeys=await relatedKeys("lexicon",id);
- var tx=db.transaction(["modules","chapters","commentaries","lexicon"],"readwrite");
+ var tx=db.transaction(["modules","chapters","commentaries","lexicon","ebooks"],"readwrite");
  var done=new Promise(function(resolve,reject){tx.oncomplete=resolve;tx.onerror=function(){reject(tx.error);};});
- tx.objectStore("modules").delete(id);ckeys.forEach(function(key){tx.objectStore("chapters").delete(key);});
+ tx.objectStore("modules").delete(id);if(m.ebook)tx.objectStore("ebooks").delete(id+"/book");ckeys.forEach(function(key){tx.objectStore("chapters").delete(key);});
  nkeys.forEach(function(key){tx.objectStore("commentaries").delete(key);});dkeys.forEach(function(key){tx.objectStore("lexicon").delete(key);});
  await done;await loadCatalog();onUpdated();notify("Módulo removido.");renderPage();
 }
 /* Proteção dos módulos: exportação/restauração explícita, sem apagar dados existentes. */
-var PB_BACKUP_STORES=["modules","chapters","commentaries","lexicon","commentaryEntries"];
+var PB_BACKUP_STORES=["modules","chapters","commentaries","lexicon","commentaryEntries","ebooks"];
 async function protectStorage(){
  if(navigator.storage&&navigator.storage.persist){
   try{await navigator.storage.persist();}catch(e){console.warn("Armazenamento persistente indisponível",e);}
@@ -962,18 +1001,19 @@ protectStorage();
 
 function getUiMarkup(){
  return '<div class="content module-library">'+
- '<div class="eyebrow">PÚLPITO BIBLE / MÓDULOS EXTERNOS</div><h1 class="page-title">Biblioteca de módulos</h1><p class="subtitle">Instale Bíblias, comentários e dicionários Strong armazenados em ZIP ou SQLite3. Os arquivos ficam neste aparelho e os comentários acompanham a passagem escolhida.</p>'+
+ '<div class="eyebrow">PÚLPITO BIBLE / MÓDULOS EXTERNOS</div><h1 class="page-title">Biblioteca de módulos</h1><p class="subtitle">Instale Bíblias, comentários, dicionários Strong e livros digitais. Os módulos ficam neste aparelho.</p>'+
  '<div class="grid-2"><section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Instalar arquivos</h2><span class="chip greenish">Local • sem envio para servidor</span></div>'+
- '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher ZIP, SQLite3, BBM ou JSON</strong><span>Importe módulos de Bíblia, comentário e dicionário Strong do MyBible ou Púlpito Bible.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.bbm,.json"></label>'+
+ '<label class="module-upload"><span class="module-upload-icon">⇧</span><strong>Escolher ZIP, SQLite3, BBM, JSON, EPUB ou MOBI</strong><span>Importe módulos MyBible, Púlpito Bible ou livros digitais.</span><input id="module-file" type="file" multiple accept=".zip,.sqlite3,.sqlite,.db,.bbm,.json,.epub,.mobi,application/epub+zip,application/x-mobipocket-ebook,application/octet-stream"></label>'+
  '<label class="module-rights"><input id="module-rights" type="checkbox"> <span>Declaro que tenho permissão de utilizar os arquivos e que não vou redistribuir conteúdo protegido sem autorização.</span></label>'+
+ '<label class="label" for="module-ebook-kind">Instalar EPUB ou MOBI como</label><select class="field" id="module-ebook-kind"><option value="ebook">Livro</option><option value="commentary">Livro e comentário bíblico</option></select><p class="feature-note">Escolha o tipo antes de selecionar os arquivos. O modo comentário indexa seções identificadas por referências como João 15:5. EPUB e MOBI de até 32 MB sem DRM são importados para leitura de texto.</p>'+
  '<p class="feature-note">Aceita ZIP contendo *.SQLite3, arquivos SQLite3 avulsos e ZIP/JSON estruturado para Púlpito Bible. Para o Champlin: ZIP de ~38 MB contendo SQLite3 de 124 MB, agora aceito. Módulos grandes são instalados por capítulo e podem exigir espaço e memória do aparelho. Limite: 70 MB por ZIP e 160 MB por SQLite3.</p>'+
  '<div class="row" style="flex-wrap:wrap;gap:8px;margin:12px 0"><button class="btn primary" id="module-backup" type="button">↓ Fazer backup dos módulos</button><label class="btn" style="cursor:pointer">↑ Restaurar backup<input id="module-restore" type="file" accept=".json,application/json,text/plain,application/octet-stream" style="position:absolute;width:1px;height:1px;opacity:0"></label></div><p class="feature-note">Salve o backup nos arquivos do celular. Para restaurar, toque em Restaurar backup e procure o arquivo JSON em Downloads, Arquivos ou outra pasta do aparelho.</p><button class="btn" id="module-sample" type="button">↓ Baixar pacote de exemplo</button><p id="module-status" class="module-status" role="status" aria-live="polite">'+clean(lastStatus)+'</p></section>'+
  '<section class="card card-pad"><div class="panel-heading"><h2 class="section-heading">Meus módulos instalados</h2><span class="chip goldish">'+modules.length+' módulo(s)</span></div>'+
- (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+' itens</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
+ (modules.length?modules.map(function(m){return '<div class="module-installed"><div><span class="chip">'+(m.type==="bible"?"BÍBLIA":m.type==="dictionary"?"DICIONÁRIO":m.type==="ebook"?"LIVRO":"COMENTÁRIO")+'</span><h3>'+clean(m.name)+'</h3><p class="tiny muted">'+clean(m.abbreviation)+" · "+clean(m.language)+" · "+m.count+(m.type==="ebook"?" seções":" itens")+'</p><p class="tiny muted">'+clean(m.format)+" · "+clean(m.license)+'</p></div><div class="row">'+(m.type==="bible"?'<button class="btn slim" data-module-activate="'+clean(m.id)+'">Ler agora</button>':"")+(m.ebook?'<button class="btn slim" data-module-ebook="'+clean(m.id)+'">Abrir livro</button>':"")+'<button class="btn slim" data-module-remove="'+clean(m.id)+'">Remover</button></div></div>';}).join(""):'<div class="empty">Nenhum módulo externo instalado ainda.</div>')+'</section></div>'+
  '<section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Consultar dicionário Strong</h2><span class="chip greenish">Léxicos instalados</span></div><div class="search-bar"><input id="dictionary-query" class="field" placeholder="Ex.: H7563 ou G3306"><button id="dictionary-search" class="btn primary" type="button">Consultar</button></div><div id="dictionary-results" class="feature-note" role="status" aria-live="polite">Após instalar um léxico, consulte aqui ou toque no número Strong dentro da Bíblia.</div></section><section class="card card-pad" style="margin-top:18px"><div class="panel-heading"><h2 class="section-heading">Traduções desejadas</h2><span class="chip">Disponíveis via importação autorizada</span></div>'+
  '<div class="module-catalog">'+requested.map(function(t){var found=modules.find(function(m){return m.type==="bible"&&((m.abbreviation||"").toUpperCase()===t.code||(m.name||"").toLowerCase()===t.name.toLowerCase());});return '<div class="module-catalog-item"><div><strong>'+clean(t.code)+' · '+clean(t.name)+'</strong><p>'+clean(t.holder)+' · '+clean(t.status)+'</p></div><span class="chip '+(found?"greenish":"")+'">'+(found?"Instalado":"Não incluído")+'</span></div>';}).join("")+'</div>'+
  '<p class="feature-note">NVI, NTLH, NAA e ACF não são fornecidas nem baixadas automaticamente pelo aplicativo. A King James de 1611 também exige verificação dos direitos aplicáveis à edição e ao território. A instalação depende de arquivo compatível obtido com autorização.</p></section>'+
- '<section class="card card-pad" style="margin-top:18px"><h2 class="section-heading">Como instalar</h2><p class="feature-note">1. Obtenha legalmente o módulo e salve o arquivo ZIP ou SQLite3 no dispositivo. 2. Toque em “Escolher arquivos” e selecione o documento no aplicativo Arquivos. 3. Confirme o direito de utilização e a importação será iniciada. 4. Ative uma Bíblia instalada pelo botão “Ler agora” ou pelo seletor de traduções. 5. Ative Comentários no leitor e toque no número Strong para consultar os dicionários instalados.</p><p class="feature-note">Os módulos ficam no IndexedDB deste endereço e navegador. Atualizações normais não devem apagá-los, mas iOS pode remover dados locais em situações de falta de espaço. Use Fazer backup dos módulos e guarde o arquivo no iCloud. Endereços diferentes têm bibliotecas separadas.</p></section></div>';
+ '<section class="card card-pad" style="margin-top:18px"><h2 class="section-heading">Como instalar</h2><p class="feature-note">1. Salve o módulo no aparelho e confirme o direito de utilização. 2. Para EPUB ou MOBI, escolha o tipo de instalação. 3. Toque em “Escolher arquivos” e selecione o documento. 4. Ative uma Bíblia instalada pelo botão “Ler agora” ou pelo seletor de traduções. 5. Ative Comentários no leitor e toque no número Strong para consultar os dicionários instalados.</p><p class="feature-note">Os módulos ficam no IndexedDB deste endereço e navegador. Atualizações normais não devem apagá-los, mas iOS pode remover dados locais em situações de falta de espaço. Use Fazer backup dos módulos e guarde o arquivo no iCloud. Endereços diferentes têm bibliotecas separadas.</p></section></div>';
 }
 
 async function searchDictionaryUi(){
@@ -996,15 +1036,16 @@ async function downloadSample(){
  zip.file("comments.json",JSON.stringify([{book:"john",chapter:15,verse:4,text:"Exemplo de anotação: observe o verbo 'permanecer' e leia João 15:1–8 antes de elaborar uma aplicação."},{book:"psalms",chapter:73,verse:3,text:"Exemplo de anotação: observe a tensão entre a prosperidade dos ímpios e a mudança de perspectiva em Salmos 73:17."}],null,2));
  var blob=await zip.generateAsync({type:"blob"}),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download="pulpito-bible-modulo-exemplo.zip";document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},2500);
 }
-document.addEventListener("change",function(e){if(e.target&&e.target.id==="module-restore"){var f=e.target.files&&e.target.files[0];if(f)restoreModules(f).catch(function(err){notify("Não foi possível restaurar: "+err.message);});e.target.value="";return;}if(e.target&&e.target.id==="module-file"){var files=Array.from(e.target.files||[]);if(files.length)importFiles(files);}});
+document.addEventListener("change",function(e){if(e.target&&e.target.id==="module-restore"){var f=e.target.files&&e.target.files[0];if(f)restoreModules(f).catch(function(err){notify("Não foi possível restaurar: "+err.message);});e.target.value="";return;}if(e.target&&e.target.id==="module-file"){var files=Array.from(e.target.files||[]);if(files.length)importFiles(files);e.target.value="";}});
 document.addEventListener("click",function(e){
- var act=e.target&&e.target.closest&&e.target.closest("[data-module-remove],[data-module-activate],#module-sample,#module-backup,#dictionary-search");
+ var act=e.target&&e.target.closest&&e.target.closest("[data-module-remove],[data-module-activate],[data-module-ebook],#module-sample,#module-backup,#dictionary-search");
  if(!act)return;
  if(act.id==="module-backup"){backupModules().catch(function(err){notify("Falha no backup: "+err.message);});return;}if(act.id==="module-sample"){downloadSample();return;}if(act.id==="dictionary-search"){searchDictionaryUi();return;}
  if(act.dataset.moduleRemove){removeModule(act.dataset.moduleRemove);return;}
+ if(act.dataset.moduleEbook){onOpenEbook(act.dataset.moduleEbook);return;}
  if(act.dataset.moduleActivate){var m=modules.find(function(x){return x.id===act.dataset.moduleActivate;});if(m){onUpdated("local:"+m.id);notify("Tradução "+m.name+" selecionada.");}return;}
 });
-window.PBModules={getBibleSearchChapters:getBibleSearchChapters,getSearchCache:getSearchCache,getSearchCacheChapter:getSearchCacheChapter,saveSearchCache:saveSearchCache,ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,getPortugueseDictionaryEntries:getPortugueseDictionaryEntries,getOriginalTermsForWord:getOriginalTermsForWord,searchCommentaries:searchCommentaries,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;return ready();}};
+window.PBModules={getEbook:getEbook,getBibleSearchChapters:getBibleSearchChapters,getSearchCache:getSearchCache,getSearchCacheChapter:getSearchCacheChapter,saveSearchCache:saveSearchCache,ready:ready,getInstalled:installed,renderPage:renderPage,bibleOptions:bibleOptions,getChapter:getChapter,getCommentaries:getCommentaries,getCommentaryCoverage:getCommentaryCoverage,getDictionaryEntry:getDictionaryEntry,getPortugueseDictionaryEntries:getPortugueseDictionaryEntries,getOriginalTermsForWord:getOriginalTermsForWord,searchCommentaries:searchCommentaries,renderVerse:renderVerse,getModuleByVersion:getModuleByVersion,moduleName:moduleName,init:function(config){notify=config.notify||notify;onUpdated=config.onUpdated||onUpdated;onOpenEbook=config.onOpenEbook||onOpenEbook;parseEbookReference=config.parseEbookReference||parseEbookReference;return ready();}};
 })();
 ;
 (function (global) {
@@ -1898,7 +1939,12 @@ window.PBConnections.init({
 
 });
 
-window.PBModules.init({notify:notify,onUpdated:function(select){if(select){state.version=select;state.selectedVerse=0;state.page="leitura";}else if(state.version.startsWith("local:")&&!window.PBModules.getModuleByVersion(state.version)){state.version="alm1911";}persist();render();}}).then(function(){if(state.page==="modulos"||state.page==="leitura")render();}).catch(function(err){console.warn("Biblioteca externa indisponível:",err);});
+function openEbookModule(id,section){
+ if(!window.PBReaderMultiWindow)return;
+ if(state.page!=="leitura")page("leitura");
+ window.PBReaderMultiWindow.openTool("ebook",{moduleId:id,ebookSection:section});
+}
+window.PBModules.init({notify:notify,onOpenEbook:openEbookModule,parseEbookReference:parseLinkedReference,onUpdated:function(select){if(select){state.version=select;state.selectedVerse=0;state.page="leitura";}else if(state.version.startsWith("local:")&&!window.PBModules.getModuleByVersion(state.version)){state.version="alm1911";}persist();render();}}).then(function(){if(state.page==="modulos"||state.page==="leitura")render();}).catch(function(err){console.warn("Biblioteca externa indisponível:",err);});
 function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function persist(){try{localStorage.setItem(STORE_KEY,JSON.stringify(state));}catch(e){notify("Não foi possível salvar no navegador");}}
 if(window.PBCommentMarks)window.PBCommentMarks.init({
@@ -1913,7 +1959,9 @@ if(window.PBCommentMarks)window.PBCommentMarks.init({
  onDiary:function(){page("historico");},
  onOpen:async function(mark){
   await window.PBModules.ready();
-  if(!window.PBModules.getInstalled().some(function(m){return m.id===mark.context.moduleId&&m.type==="commentary";})){
+  var source=window.PBModules.getInstalled().find(function(m){return m.id===mark.context.moduleId;});
+  if(mark.context.kind==="ebook"&&source?.ebook){openEbookModule(source.id,mark.context.section);return true;}
+  if(mark.context.kind==="ebook"||source?.type!=="commentary"){
    notify("Reinstale o módulo "+mark.context.moduleName+" para abrir este trecho. A marcação continua salva.");return false;
   }
   var book=books.find(function(b){return b.slug===mark.context.book;})||booksFallback.find(function(b){return b.slug===mark.context.book;});
@@ -4519,7 +4567,9 @@ function parseLinkedReference(raw){
  if(!book)return null;
  var chapter=Number(m[2]),verse=Number(m[3]||0);
  if(chapter<1||chapter>book.chapters)return null;
- return {book:book.slug,chapter:chapter,verse:verse,endVerse:!m[4]&&Number(m[5])>=verse?Number(m[5]):verse};
+ var endChapter=Number(m[4])||chapter;
+ return {book:book.slug,chapter:chapter,verse:verse,endVerse:!m[4]&&Number(m[5])>=verse?Number(m[5]):verse,
+  endChapter:endChapter>=chapter&&endChapter<=book.chapters?endChapter:chapter,endRangeVerse:Number(m[5])||verse};
 }
 function openLinkedReference(reference){
  var parsed=parseLinkedReference(reference);

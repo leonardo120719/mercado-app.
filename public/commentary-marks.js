@@ -13,6 +13,11 @@ function context(row,ref,mod){
  return c;
 }
 function attrs(row,ref,mod){var c=context(row,ref,mod);return c.moduleId&&c.book?' data-pb-comment-entry="'+esc(JSON.stringify(c))+'"':"";}
+function ebookAttrs(module,title,section,text){
+ var c={kind:"ebook",moduleId:module.id,moduleName:module.name,book:"",bookName:title,chapter:section+1,
+  section:section,marker:"",entryId:JSON.stringify(["ebook",module.id,section,hash(sourceText(text))])};
+ return ' data-pb-comment-entry="'+esc(JSON.stringify(c))+'"';
+}
 function metadata(el){try{return JSON.parse(el.getAttribute("data-pb-comment-entry"));}catch(_){return null;}}
 function anchor(text,start,end){return {start:start,end:end,quote:text.slice(start,end),prefix:text.slice(Math.max(0,start-48),start),suffix:text.slice(end,end+48),textHash:hash(text)};}
 function resolve(text,a){
@@ -74,14 +79,14 @@ function scan(){
  if(metadata(found).entryId!==item.context.entryId)paint(found,[item]);
  var target=Array.from(found.querySelectorAll("[data-pb-comment-mark]")).find(function(el){return el.dataset.pbCommentMark===item.id;});
  if(target){target.classList.add("pb-comment-mark-target");target.tabIndex=-1;target.scrollIntoView({block:"center",behavior:"smooth"});target.focus({preventScroll:true});setTimeout(function(){target.classList.remove("pb-comment-mark-target");},3000);}
- else say("O comentário foi aberto; o trecho mudou e não pôde ser destacado com segurança.");
+ else say("O módulo foi aberto. O trecho mudou e não pôde ser destacado com segurança.");
 }
 function schedule(){if(scheduled)return;scheduled=true;setTimeout(function(){scheduled=false;scan();},0);}
 function rootFor(node){var el=node&&(node.nodeType===1?node:node.parentElement);return el&&el.closest&&el.closest("[data-pb-comment-entry]");}
 function capture(){
  var sel=global.getSelection&&global.getSelection();if(!sel||sel.isCollapsed||!sel.rangeCount)return null;
  var range=sel.getRangeAt(0),el=rootFor(range.startContainer);if(!el||el!==rootFor(range.endContainer))return null;
- var c=metadata(el);if(!c||!c.moduleId||!c.book)return null;
+ var c=metadata(el);if(!c||!c.moduleId||(!c.book&&c.kind!=="ebook"))return null;
  var quote=range.toString();if(!quote.trim()||quote.length>50000)return null;
  var before=document.createRange();before.selectNodeContents(el);before.setEnd(range.startContainer,range.startOffset);
  var start=before.toString().length,text=el.textContent,a=anchor(text,start,start+quote.length);
@@ -90,8 +95,8 @@ function capture(){
 function hide(){if(palette)palette.hidden=true;selected=null;}
 function show(value){
  selected=value;if(!palette){
-  palette=document.createElement("section");palette.id="pb-comment-mark-tools";palette.className="pb-comment-mark-tools";palette.setAttribute("role","toolbar");palette.setAttribute("aria-label","Marcar e copiar trecho do comentário");
-  palette.innerHTML='<div class="pb-comment-mark-tools-head"><strong>Marcar trecho do comentário</strong><button type="button" data-pbcmark-action="close" aria-label="Fechar ferramentas de marcação">×</button></div><div class="pb-comment-mark-tools-actions"><button type="button" data-pbcmark-action="copy">▣ Copiar trecho</button>'+Object.keys(COLORS).map(function(k){return '<button type="button" class="pb-comment-color pb-comment-color-'+k+'" data-pbcmark-color="'+k+'">'+COLORS[k]+'</button>';}).join("")+'<button type="button" data-pbcmark-action="remove">Remover marcação</button><button type="button" data-pbcmark-action="diary">Diário Histórico</button></div>';
+  palette=document.createElement("section");palette.id="pb-comment-mark-tools";palette.className="pb-comment-mark-tools";palette.setAttribute("role","toolbar");palette.setAttribute("aria-label","Marcar e copiar trecho");
+  palette.innerHTML='<div class="pb-comment-mark-tools-head"><strong>Marcar trecho</strong><button type="button" data-pbcmark-action="close" aria-label="Fechar ferramentas de marcação">×</button></div><div class="pb-comment-mark-tools-actions"><button type="button" data-pbcmark-action="copy">▣ Copiar trecho</button>'+Object.keys(COLORS).map(function(k){return '<button type="button" class="pb-comment-color pb-comment-color-'+k+'" data-pbcmark-color="'+k+'">'+COLORS[k]+'</button>';}).join("")+'<button type="button" data-pbcmark-action="remove">Remover marcação</button><button type="button" data-pbcmark-action="diary">Diário Histórico</button></div>';
   palette.addEventListener("pointerdown",function(e){holdUntil=Date.now()+1000;if(e.target.closest("button"))e.preventDefault();});
   palette.addEventListener("click",function(e){var color=e.target.closest("[data-pbcmark-color]"),button=e.target.closest("[data-pbcmark-action]");if(color){e.preventDefault();apply(color.dataset.pbcmarkColor);return;}if(!button)return;e.preventDefault();var action=button.dataset.pbcmarkAction;if(action==="copy"&&selected)copy(selected.anchor.quote);if(action==="remove")removeSelection();if(action==="close")hide();if(action==="diary"){hide();if(config.onDiary)config.onDiary();}});
   document.body.appendChild(palette);
@@ -99,7 +104,7 @@ function show(value){
  palette.hidden=false;
 }
 function apply(color){
- if(!selected||!selected.el.isConnected||!COLORS[color])return;var text=selected.el.textContent,r=resolve(text,selected.anchor);if(!r){hide();say("Selecione novamente o trecho do comentário.");return;}
+ if(!selected||!selected.el.isConnected||!COLORS[color])return;var text=selected.el.textContent,r=resolve(text,selected.anchor);if(!r){hide();say("Selecione novamente o trecho.");return;}
  var a=anchor(text,r.start,r.end);if(!commit(overlay(records(),selected.context,text,a,color)))return;
  var sel=global.getSelection&&global.getSelection();if(sel)sel.removeAllRanges();hide();say("Trecho marcado em "+COLORS[color].toLocaleLowerCase("pt-BR")+" e salvo no Diário Histórico.");
 }
@@ -117,11 +122,11 @@ function open(id){
  var item=records().find(function(m){return m.id===id;});if(!item)return;
  hide();pending=item;clearTimeout(pendingTimer);
  pendingTimer=setTimeout(function(){if(pending&&pending.id===id){pending=null;say("Não foi possível localizar o trecho. Confira se o módulo está instalado e se o conteúdo mudou.");}},15000);
- Promise.resolve(config.onOpen&&config.onOpen(item)).then(function(ok){if(ok===false){pending=null;clearTimeout(pendingTimer);}else schedule();}).catch(function(){pending=null;clearTimeout(pendingTimer);say("Não foi possível abrir o comentário. A marcação continua salva.");});
+ Promise.resolve(config.onOpen&&config.onOpen(item)).then(function(ok){if(ok===false){pending=null;clearTimeout(pendingTimer);}else schedule();}).catch(function(){pending=null;clearTimeout(pendingTimer);say("Não foi possível abrir o trecho. A marcação continua salva.");});
 }
 function diaryHTML(filters){
  filters=filters||{};var term=String(filters.term||"").toLocaleLowerCase("pt-BR"),all=records(),rows=all.filter(function(m){return (!filters.book||m.context.book===filters.book)&&(!term||[m.context.moduleName,m.context.bookName,m.context.chapter,m.context.verse,m.anchor.quote,COLORS[m.color]].join(" ").toLocaleLowerCase("pt-BR").includes(term));});
- return '<section class="card card-pad pb-comment-marks-diary"><div class="panel-heading"><h2 class="section-heading">Marcações nos comentários ('+rows.length+')</h2><button type="button" class="btn slim" data-pbcmark-undo'+(!undo?' disabled':'')+'>Desfazer última alteração</button></div><p class="subtitle">Toque em Abrir no trecho marcado para voltar ao módulo e à passagem. Os filtros de pesquisa e livro também se aplicam aqui.</p><div class="pb-comment-marks-list">'+(rows.length?rows.map(function(m){var c=m.context;return '<article class="pb-comment-marks-card pb-comment-border-'+m.color+'"><strong>'+esc(c.moduleName)+'</strong><small>'+esc(c.bookName+" "+c.chapter+":"+c.verse)+" · "+esc(new Date(m.createdAt).toLocaleString("pt-BR"))+" · "+COLORS[m.color]+'</small><blockquote><mark class="pb-comment-mark pb-comment-mark-'+m.color+'">'+esc(m.anchor.quote)+'</mark></blockquote><div class="btn-row"><button type="button" class="btn primary slim" data-pbcmark-open="'+esc(m.id)+'">Abrir no trecho marcado</button><button type="button" class="btn slim" data-pbcmark-copy="'+esc(m.id)+'">Copiar trecho</button><button type="button" class="btn slim" data-pbcmark-delete="'+esc(m.id)+'">Remover</button></div></article>';}).join(""):'<p class="subtitle">'+(all.length?"Nenhuma marcação corresponde aos filtros.":"Selecione um trecho de um comentário aberto e escolha Amarelo, Verde ou Azul.")+'</p>')+'</div></section>';
+ return '<section class="card card-pad pb-comment-marks-diary"><div class="panel-heading"><h2 class="section-heading">Marcações em comentários e livros ('+rows.length+')</h2><button type="button" class="btn slim" data-pbcmark-undo'+(!undo?' disabled':'')+'>Desfazer última alteração</button></div><p class="subtitle">Toque em Abrir no trecho marcado para voltar ao trecho no módulo. Os filtros de pesquisa e livro também se aplicam aqui.</p><div class="pb-comment-marks-list">'+(rows.length?rows.map(function(m){var c=m.context;return '<article class="pb-comment-marks-card pb-comment-border-'+m.color+'"><strong>'+esc(c.moduleName)+'</strong><small>'+esc(c.kind==="ebook"?c.bookName:c.bookName+" "+c.chapter+":"+c.verse)+" · "+esc(new Date(m.createdAt).toLocaleString("pt-BR"))+" · "+COLORS[m.color]+'</small><blockquote><mark class="pb-comment-mark pb-comment-mark-'+m.color+'">'+esc(m.anchor.quote)+'</mark></blockquote><div class="btn-row"><button type="button" class="btn primary slim" data-pbcmark-open="'+esc(m.id)+'">Abrir no trecho marcado</button><button type="button" class="btn slim" data-pbcmark-copy="'+esc(m.id)+'">Copiar trecho</button><button type="button" class="btn slim" data-pbcmark-delete="'+esc(m.id)+'">Remover</button></div></article>';}).join(""):'<p class="subtitle">'+(all.length?"Nenhuma marcação corresponde aos filtros.":"Selecione um trecho de um comentário ou livro e escolha Amarelo, Verde ou Azul.")+'</p>')+'</div></section>';
 }
 function init(options){
  config=options||{};if(started){revision++;schedule();return;}started=true;
@@ -144,7 +149,7 @@ function init(options){
  schedule();
 }
 function attach(el,row,ref,mod){if(!el)return;el.removeAttribute("data-pb-comment-entry");delete el.dataset.pbMarksPaint;var c=context(row,ref,mod);if(c.moduleId&&c.book){el.setAttribute("data-pb-comment-entry",JSON.stringify(c));schedule();}}
-var api={init:init,attrs:attrs,attach:attach,diaryHTML:diaryHTML,targetFor:function(moduleId,book,chapter){return pending&&(!moduleId||pending.context.moduleId===moduleId)&&pending.context.book===book&&pending.context.chapter===Number(chapter)?pending:null;},matchesSource:function(row,ref,mod,target){return context(row,ref,mod).entryId===target.context.entryId;},refresh:function(){revision++;schedule();},open:open};
+var api={init:init,attrs:attrs,ebookAttrs:ebookAttrs,attach:attach,diaryHTML:diaryHTML,targetFor:function(moduleId,book,chapter){return pending&&(!moduleId||pending.context.moduleId===moduleId)&&pending.context.book===book&&pending.context.chapter===Number(chapter)?pending:null;},matchesSource:function(row,ref,mod,target){return context(row,ref,mod).entryId===target.context.entryId;},refresh:function(){revision++;schedule();},open:open};
 // Pure anchoring helpers are exported for verification of repeated text and edits.
 api._test={anchor:anchor,resolve:resolve,overlay:overlay,context:context,valid:valid};
 global.PBCommentMarks=api;
